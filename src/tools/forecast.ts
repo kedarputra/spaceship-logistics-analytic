@@ -7,7 +7,7 @@
 import { units, unitsOverTime } from "@/domain/definitions";
 import { formatDecimal } from "@/domain/format";
 import type { Dataset, Order } from "@/domain/orders";
-import { dataPeriod, formatMonths, formatPeriod, monthKey, monthsAfter, monthsBetween } from "@/domain/periods";
+import { dataPeriod, formatMonths, formatPeriod, monthKey, monthsAfter, monthsBetween, type Period } from "@/domain/periods";
 import type { NoDataResult } from "./query";
 import type { ForecastSpec } from "./spec";
 import { matchValue } from "./values";
@@ -118,7 +118,7 @@ export function oneStepSigma(method: MethodId, series: readonly number[]): numbe
 }
 
 const MAX_MONTHS = 6;
-const DEFAULT_MONTHS = 3;
+export const DEFAULT_MONTHS = 3;
 /** The holdout measures error up to this many months ahead (ADR 0003 §6). */
 const MEASURED_MONTHS = HOLDOUT_MONTHS;
 const WEEKS_PER_YEAR = 52;
@@ -300,6 +300,16 @@ function targetHorizon(target: Target, firstMonth: string): ResolvedHorizon {
   return { horizon: { months, notes: [`To reach ${label}, the forecast covers ${formatMonths(firstMonth, to)}.`] }, target: asked };
 }
 
+/** The first month after the data, where every forecast starts. */
+function firstForecastMonth(coverage: Period): string {
+  return monthsAfter(coverage.to, 1)[0]?.key ?? coverage.to;
+}
+
+/** A target's months as the forecast tool reads them over a dataset, its year filled in when the question left it out. */
+export function resolveTargetMonths(target: Target, dataset: Dataset): TargetMonths {
+  return targetMonths(target, firstForecastMonth(dataPeriod(dataset.orders)));
+}
+
 /** The months to forecast for what was asked, starting with `firstMonth` (ADR 0003 §6). */
 function resolveHorizon(spec: Pick<ForecastSpec, "horizon" | "target">, firstMonth: string): ResolvedHorizon {
   if (spec.target !== undefined) return targetHorizon(spec.target, firstMonth);
@@ -472,7 +482,7 @@ export function runForecast(spec: ForecastSpec, dataset: Dataset): ForecastResul
   const coverage = dataPeriod(dataset.orders);
   const orders = ordersIn(scope, dataset.orders);
   const history = unitsOverTime(orders, coverage, "month").map(({ bucket, value }) => ({ key: bucket.key, label: bucket.label, units: value }));
-  const firstMonth = monthsAfter(coverage.to, 1)[0]?.key ?? coverage.to;
+  const firstMonth = firstForecastMonth(coverage);
   const resolved = resolveHorizon(spec, firstMonth);
   if ("past" in resolved) return { kind: "no-data", message: resolved.past };
 

@@ -1,5 +1,5 @@
 {
-  "about": "Questions for checking the interpreter (ADR 0009 §12). Each expected spec is what a correct interpretation looks like. When comparing, sort arrays and fill in defaults; for unsupported questions compare the reason only, since the 3 example ids are the model's pick. Run by hand against the app, or with npm run eval (ticket 18). The questions are deliberately different from the worked examples in src/ai/prompts.ts, so the score is not the model repeating its prompt.",
+  "about": "Questions for checking the interpreter (ADR 0009 §12). Each expected spec is what a correct interpretation looks like. When comparing, sort arrays and fill in defaults; for unsupported questions compare the reason only, since the 3 example ids are the model's pick. Run with npm run eval on the server, which needs the gateway (ADR 0009 §12). The questions are deliberately different from the worked examples in src/ai/prompts.ts, so the score is not the model repeating its prompt.",
   "questions": [
     {
       "id": "r3-late-last-month",

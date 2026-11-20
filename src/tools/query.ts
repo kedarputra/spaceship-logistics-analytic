@@ -22,7 +22,7 @@ import {
   type Period,
   resolvePeriod,
 } from "@/domain/periods";
-import { CATEGORY_DIMENSIONS, type GroupBy, isTimeDimension, type QueryFilters, type QuerySpec } from "./spec";
+import { CATEGORY_DIMENSIONS, type GroupBy, isCategoryBreakdown, isTimeDimension, type QueryFilters, type QuerySpec } from "./spec";
 import { valueLabel } from "./words";
 
 /**
@@ -133,7 +133,7 @@ interface QueryMetric {
 }
 
 /** The date a metric's period filters on, unless the spec overrides it (ADR 0002 §5). */
-function defaultDateField(id: QuerySpec["metric"]): DateField {
+export function defaultDateField(id: QuerySpec["metric"]): DateField {
   if (id === "delivery_outcomes") return DELIVERY_OUTCOMES_DEFINITION.dateField;
   if (id === "order_share") return ORDER_SHARE_DEFINITION.dateField;
   return METRICS[id].dateField;
@@ -223,6 +223,24 @@ function rewriteStatusFilter(spec: QuerySpec): { spec: QuerySpec; rewrite?: Stat
     spec: { ...spec, metric },
     rewrite: { from: `order count with status ${distinct.join(", ")}`, to: METRICS[metric].label.toLowerCase() },
   };
+}
+
+/** The date field a spec's period filters on: its own, else the one a status rewrite implies, else the metric's. */
+function dateFieldOf({ spec, dateField }: ReturnType<typeof rewriteStatusFilter>): DateField {
+  return spec.dateField ?? dateField ?? defaultDateField(spec.metric);
+}
+
+/** The date field the query tool will filter a spec's period on (ADR 0002 §5, ADR 0006 §2). */
+export function effectiveDateField(spec: QuerySpec): DateField {
+  return dateFieldOf(rewriteStatusFilter(spec));
+}
+
+/** No period: everything the data covers. */
+export const DEFAULT_PERIOD = { type: "all" } as const;
+
+/** How rows are ordered by value: as asked, else highest first for a category breakdown; undefined keeps time in calendar order. */
+export function effectiveSort(spec: QuerySpec): "asc" | "desc" | undefined {
+  return spec.sort ?? (isCategoryBreakdown(spec.groupBy) ? "desc" : undefined);
 }
 
 type FilterDimension = keyof QueryFilters;
@@ -343,11 +361,12 @@ function listMatchingOrders(metric: QueryMetric, scope: Scope): QueryResult["mat
 
 /** Runs a validated query spec over the dataset. */
 export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | NoDataResult {
-  const { spec, rewrite, dateField: statusDateField } = rewriteStatusFilter(validSpec);
-  const dateField = spec.dateField ?? statusDateField ?? defaultDateField(spec.metric);
+  const rewritten = rewriteStatusFilter(validSpec);
+  const { spec, rewrite } = rewritten;
+  const dateField = dateFieldOf(rewritten);
 
   const coverage = dataPeriod(dataset.orders);
-  const period = resolvePeriod(spec.period ?? { type: "all" }, coverage);
+  const period = resolvePeriod(spec.period ?? DEFAULT_PERIOD, coverage);
   const noData = noDataMessage(period, coverage);
   if (noData !== null) return { kind: "no-data", message: noData };
 
@@ -363,9 +382,9 @@ export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | 
   const minDelivered = spec.minDelivered;
   const grouped = groupRows(spec.groupBy, metric, scope).filter((row) => minDelivered === undefined || row.n >= minDelivered);
 
-  const isCategory = spec.groupBy !== undefined && !isTimeDimension(spec.groupBy);
-  const byValue = isCategory || spec.sort !== undefined;
-  const sorted = byValue ? sortRows(grouped, spec.sort ?? "desc") : grouped;
+  const sort = effectiveSort(spec);
+  const byValue = sort !== undefined;
+  const sorted = sort === undefined ? grouped : sortRows(grouped, sort);
   const limited = applyLimit(sorted, spec.limit, byValue);
 
   return {
@@ -381,7 +400,7 @@ export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | 
     rows: limited,
     totalRows: sorted.length,
     overall: spec.groupBy === undefined ? undefined : metric.evaluate(scope.inPeriod),
-    ranking: isCategory && metric.info.smallSampleRule ? rank(sorted) : undefined,
+    ranking: isCategoryBreakdown(spec.groupBy) && metric.info.smallSampleRule ? rank(sorted) : undefined,
     matchingOrders: listMatchingOrders(metric, scope),
   };
 }

@@ -83,11 +83,13 @@ describe("invalid output (ADR 0009 §3)", () => {
   it("gives an honest error with 3 example questions after the second invalid reply, and stops", async () => {
     const { client, requests } = fakeModel("I think about 3?", '{"tool":"sql","query":"SELECT 1"}');
     const outcome = await interpret("how many late", client, "json_object");
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       kind: "failed",
       message: "That question could not be turned into a query this tool can run. Try one of these:",
       examples: ["late_last_month", "delayed_by_week", "highest_delay_rate"],
     });
+    // The validation problems of the second reply, for the eval to show.
+    expect(outcome.kind === "failed" ? outcome.problems.length : 0).toBeGreaterThan(0);
     expect(requests).toHaveLength(2);
   });
 
@@ -98,6 +100,7 @@ describe("invalid output (ADR 0009 §3)", () => {
       kind: "failed",
       message: 'Unknown destination "Atlantis". It is not in the data.',
       examples: ["late_last_month", "delayed_by_week", "highest_delay_rate"],
+      problems: ['filters.destination.0: Unknown destination "Atlantis". It is not in the data.'],
     });
   });
 

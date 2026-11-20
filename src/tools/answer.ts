@@ -2,7 +2,7 @@ import { type ChartType, chooseChart, MAX_CATEGORY_BARS } from "./chart";
 import { getDataset } from "@/domain/orders";
 import { type NoDataResult, type QueryResult, runQuery } from "./query";
 import { templateSentence } from "./sentence";
-import { ASSUMED_METRIC, type GroupBy, isTimeDimension, type QuerySpec } from "./spec";
+import { ASSUMED_METRIC, type GroupBy, isCategoryBreakdown, isTimeDimension, type QuerySpec } from "./spec";
 import { DIMENSION_WORDS, dateFieldWords, filterList, MONTH_NAMES } from "./words";
 
 /**
@@ -53,16 +53,12 @@ function assumptionNote(spec: QuerySpec): string | undefined {
   return ASSUMPTION_NOTES[spec.assumption];
 }
 
-function isCategory(groupBy: GroupBy | undefined): groupBy is GroupBy {
-  return groupBy !== undefined && !isTimeDimension(groupBy);
-}
-
 /** "Delay rate by carrier, highest first, top 1, 1 Jan–31 Dec 2025 by delivery date." */
 export function describeQuery(result: QueryResult): string {
   const { spec } = result;
   const parts = [spec.groupBy === undefined ? result.metric.label : `${result.metric.label} by ${DIMENSION_WORDS[spec.groupBy].one}`];
   // The query tool sorts categories by value and time by date unless told otherwise.
-  if (spec.sort !== undefined || isCategory(spec.groupBy)) parts.push(spec.sort === "asc" ? "lowest first" : "highest first");
+  if (spec.sort !== undefined || isCategoryBreakdown(spec.groupBy)) parts.push(spec.sort === "asc" ? "lowest first" : "highest first");
   if (spec.limit !== undefined) parts.push(`top ${spec.limit}`);
   parts.push(`${result.period.label} by ${dateFieldWords(result.dateField)}`);
   const filters = filterList(spec.filters).map(({ dimension, values }) => `${DIMENSION_WORDS[dimension].one} is ${values.join(" or ")}`);
@@ -89,7 +85,7 @@ export function chartFor(result: QueryResult): AnswerChart {
 /** The same question for another metric. A category ranking turns around, so "best" stays best; time keeps its order. */
 function withMetric(spec: QuerySpec, metric: QuerySpec["metric"]): QuerySpec {
   const { sort, assumption: _answered, ...rest } = spec;
-  if (!isCategory(spec.groupBy)) return sort === undefined ? { ...rest, metric } : { ...rest, metric, sort };
+  if (!isCategoryBreakdown(spec.groupBy)) return sort === undefined ? { ...rest, metric } : { ...rest, metric, sort };
   return { ...rest, metric, sort: sort === "asc" ? "desc" : "asc" };
 }
 

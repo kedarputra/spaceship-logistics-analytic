@@ -12,7 +12,8 @@ import { interpretationJsonSchema, interpretMessages, retryMessages } from "./pr
 
 export type InterpretOutcome =
   | { kind: "interpreted"; interpretation: Interpretation; attempts: 1 | 2 }
-  | { kind: "failed"; message: string; examples: ExampleId[] };
+  /** `problems` are the second reply's validation problems, for the eval to show; `message` is what the user is told. */
+  | { kind: "failed"; message: string; examples: ExampleId[]; problems: string[] };
 
 const FALLBACK_EXAMPLES: ExampleId[] = ["late_last_month", "delayed_by_week", "highest_delay_rate"];
 const MAX_REPLY_TOKENS = 600;
@@ -42,7 +43,7 @@ function parseReply(reply: string): ParsedReply {
  */
 function failure(problems: readonly string[]): Extract<InterpretOutcome, { kind: "failed" }> {
   const unknownValues = problems.map((problem) => problem.slice(problem.indexOf(": ") + 2)).filter((message) => message.startsWith("Unknown "));
-  return { kind: "failed", message: unknownValues.length > 0 ? unknownValues.join(" ") : UNINTERPRETABLE, examples: FALLBACK_EXAMPLES };
+  return { kind: "failed", message: unknownValues.length > 0 ? unknownValues.join(" ") : UNINTERPRETABLE, examples: FALLBACK_EXAMPLES, problems: [...problems] };
 }
 
 function responseFormat(mode: ResponseMode): ResponseFormat {

@@ -36,6 +36,8 @@ _System overview, key design decisions (see `docs/adr/`), and the data flow from
 
 _How a question becomes a validated query spec, how the query tool or the forecast tool is selected, and why the AI never produces a number._
 
+Interpretation is measured with `npm run eval`: it sends the committed questions in `eval/questions.json` through the model and reports how many specs match, with each miss. It needs the LLM gateway, so it runs on the server and never in CI.
+
 ## Data definitions
 
 _The KPI definitions and the anchor date used for relative periods (see `docs/data.md`)._

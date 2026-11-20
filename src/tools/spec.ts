@@ -181,7 +181,7 @@ export const querySpecSchema = z
     path: ["minDelivered"],
   })
   // Weeks and a single value are never dropped (ADR 0002 §4: empty buckets are 0, not gaps).
-  .refine((spec) => spec.minDelivered === undefined || (spec.groupBy !== undefined && !isTimeDimension(spec.groupBy)), {
+  .refine((spec) => spec.minDelivered === undefined || isCategoryBreakdown(spec.groupBy), {
     message: "minDelivered keeps only the groups of a breakdown by category, so it needs one.",
     path: ["minDelivered"],
   })
@@ -252,6 +252,13 @@ function dividesByDelivered(metric: (typeof QUERY_METRICS)[number]): boolean {
   // Neither built-in metric divides by delivered orders, so a status filter is fine and minDelivered means nothing.
   if (metric === "delivery_outcomes" || metric === "order_share") return false;
   return isRateOrAverageKind(METRICS[metric].kind);
+}
+
+/** A breakdown by a category (carrier, region, …), not by time: ranked by value, highest first unless asked. */
+export function isCategoryBreakdown(
+  groupBy: (typeof TIME_DIMENSIONS)[number] | (typeof CATEGORY_DIMENSIONS)[number] | undefined,
+): groupBy is (typeof CATEGORY_DIMENSIONS)[number] {
+  return groupBy !== undefined && !isTimeDimension(groupBy);
 }
 
 export function isTimeDimension(

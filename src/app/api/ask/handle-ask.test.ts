@@ -190,6 +190,7 @@ describe("POST /api/ask: the answer (R3, R7)", () => {
       kind: "failed",
       message: "That question could not be turned into a query this tool can run. Try one of these:",
       examples: ["late_last_month", "delayed_by_week", "highest_delay_rate"],
+      problems: ["tool: Invalid input"],
     }));
     const { body } = await ask("blorp");
     expect(body).toEqual({

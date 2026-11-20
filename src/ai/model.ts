@@ -1,9 +1,8 @@
 import { createInterpretationCache } from "./cache";
 import { AiError, createClient, type LlmClient } from "./client";
 import { configuredModel, type LlmConfig, readLlmConfig } from "./config";
-import { type AiHealth, createAiHealthCheck } from "./health";
+import { type AiHealth, createAiHealthCheck, modelAnswering } from "./health";
 import { type InterpretOutcome, interpret } from "./interpret";
-import { HEALTH_PING } from "./prompts";
 import { type PhraseableAnswer, type Phrased, phrase } from "./phrase";
 
 /**
@@ -46,11 +45,7 @@ export function phraseAnswer(question: string, answer: PhraseableAnswer): Promis
 }
 
 /** Whether the AI answers, from a 1-token call made at most once a minute (ADR 0009 §11). */
-export const checkAiHealth: () => Promise<AiHealth> = createAiHealthCheck(async () => {
-  const { client } = connection();
-  const completion = await client.complete({ messages: [...HEALTH_PING], temperature: 0, maxTokens: 1 });
-  return completion.model;
-});
+export const checkAiHealth: () => Promise<AiHealth> = createAiHealthCheck(async () => modelAnswering(connection().client));
 
 /** The configured model name, part of the cache key. */
 export function modelName(): string {
