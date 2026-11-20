@@ -43,6 +43,16 @@ const ASSUMPTION_NOTES: Record<NonNullable<QuerySpec["assumption"]>, string> = {
   late: '"Late" is read as delayed orders; exception orders are counted separately.',
 };
 
+/**
+ * The note describes what was computed. The model tags "worst" and "least reliable" questions with
+ * the same "best" assumption but sorts them ascending, so the note follows the sort, not the tag.
+ */
+function assumptionNote(spec: QuerySpec): string | undefined {
+  if (spec.assumption === undefined) return undefined;
+  if (spec.assumption === "best" && spec.sort === "asc") return "The worst is read as the lowest on-time delivery rate.";
+  return ASSUMPTION_NOTES[spec.assumption];
+}
+
 function isCategory(groupBy: GroupBy | undefined): groupBy is GroupBy {
   return groupBy !== undefined && !isTimeDimension(groupBy);
 }
@@ -127,13 +137,12 @@ export function answerQuery(spec: QuerySpec): Answer | NoDataResult {
 }
 
 export function presentAnswer(result: QueryResult): Answer {
-  const assumption = result.spec.assumption;
   return {
     ...result,
     sentence: templateSentence(result),
     sentenceSource: "template",
     interpretation: describeQuery(result),
-    assumptionNote: assumption === undefined ? undefined : ASSUMPTION_NOTES[assumption],
+    assumptionNote: assumptionNote(result.spec),
     chart: chartFor(result),
     followUps: followUpsFor(result),
   };

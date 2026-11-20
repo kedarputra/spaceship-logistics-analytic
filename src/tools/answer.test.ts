@@ -49,6 +49,12 @@ describe("the default an ambiguous word was read with, stated by code (ADR 0006 
     );
     expect(answerFor(LATE_LAST_MONTH).assumptionNote).toBeUndefined();
   });
+
+  it('states the direction the ranking was actually sorted in, so "least reliable" never reads as "best"', () => {
+    const worst = { metric: "on_time_rate", groupBy: "carrier", sort: "asc", limit: 1, assumption: "best" } as const;
+    expect(answerFor(worst).assumptionNote).toBe("The worst is read as the lowest on-time delivery rate.");
+    expect(answerFor({ ...worst, sort: "desc" }).assumptionNote).toBe('"Best" is read as the highest on-time delivery rate.');
+  });
 });
 
 describe("the chart, chosen by code (ADR 0006 §6)", () => {
