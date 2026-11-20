@@ -218,14 +218,17 @@ export function dataPeriod(orders: readonly Pick<Order, "order_date" | "delivery
 
 /**
  * A period as the UI and explanations write it: "1–30 Nov 2025", "1 Oct–31 Dec 2025",
- * "30 Dec 2024–5 Jan 2025", or one date for a single day.
+ * "30 Dec 2024–5 Jan 2025", or one date for a single day. Within one year the year can be left
+ * off, as in a partial week's note ("1–5 Oct only").
  */
-export function formatPeriod({ from, to }: Period): string {
+export function formatPeriod({ from, to }: Period, options: { year: boolean } = { year: true }): string {
   const [fromDay, fromMonth] = formatDate(from).split(" ");
-  if (from === to) return formatDate(from);
+  const [toDay, toMonth] = formatDate(to).split(" ");
   if (from.slice(0, 4) !== to.slice(0, 4)) return `${formatDate(from)}–${formatDate(to)}`;
-  if (from.slice(0, 7) !== to.slice(0, 7)) return `${fromDay} ${fromMonth}–${formatDate(to)}`;
-  return `${fromDay}–${formatDate(to)}`;
+  const year = options.year ? ` ${from.slice(0, 4)}` : "";
+  if (from === to) return `${fromDay} ${fromMonth}${year}`;
+  if (from.slice(0, 7) !== to.slice(0, 7)) return `${fromDay} ${fromMonth}–${toDay} ${toMonth}${year}`;
+  return `${fromDay}–${toDay} ${toMonth}${year}`;
 }
 
 /** "No data for … The data covers …" when the period misses the data entirely (ADR 0002 §6), otherwise null. */

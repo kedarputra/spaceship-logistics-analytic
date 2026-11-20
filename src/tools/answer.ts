@@ -1,0 +1,107 @@
+import { type ChartType, chooseChart, MAX_CATEGORY_BARS } from "./chart";
+import type { QueryResult } from "./query";
+import { type GroupBy, isTimeDimension, type QuerySpec } from "./spec";
+import { DIMENSION_WORDS, dateFieldWords, filterList, MONTH_NAMES } from "./words";
+
+/**
+ * What an answer shows besides the numbers, all written by code from the spec and the result:
+ * the interpretation in words, the chart type, and the follow-up chips (ADR 0006 §6–8). The LLM
+ * neither writes these nor sees them as instructions.
+ */
+
+export interface AnswerChart {
+  type: ChartType;
+  /** Category rows past the chart's 12 bars; the table shows them all. */
+  hiddenRows: number;
+}
+
+/** A chip that runs a variant of the answer through /api/run. */
+export interface FollowUp {
+  label: string;
+  spec: QuerySpec;
+}
+
+export interface Answer extends QueryResult {
+  interpretation: string;
+  chart: AnswerChart;
+  followUps: FollowUp[];
+}
+
+function isCategory(groupBy: GroupBy | undefined): groupBy is GroupBy {
+  return groupBy !== undefined && !isTimeDimension(groupBy);
+}
+
+/** "Delay rate by carrier, highest first, top 1, 1 Jan–31 Dec 2025 by delivery date." */
+export function describeQuery(result: QueryResult): string {
+  const { spec } = result;
+  const parts = [spec.groupBy === undefined ? result.metric.label : `${result.metric.label} by ${DIMENSION_WORDS[spec.groupBy].one}`];
+  // The query tool sorts categories by value and time by date unless told otherwise.
+  if (spec.sort !== undefined || isCategory(spec.groupBy)) parts.push(spec.sort === "asc" ? "lowest first" : "highest first");
+  if (spec.limit !== undefined) parts.push(`top ${spec.limit}`);
+  parts.push(`${result.period.label} by ${dateFieldWords(result.dateField)}`);
+  const filters = filterList(spec.filters).map(({ dimension, values }) => `${DIMENSION_WORDS[dimension].one} is ${values.join(" or ")}`);
+  if (filters.length > 0) parts.push(`where ${filters.join(" and ")}`);
+  if (spec.minDelivered !== undefined) parts.push(`only groups with at least ${spec.minDelivered} delivered orders`);
+  return `${parts.join(", ")}.`;
+}
+
+function dimensionKind(groupBy: GroupBy | undefined): "none" | "time" | "category" {
+  if (groupBy === undefined) return "none";
+  return isTimeDimension(groupBy) ? "time" : "category";
+}
+
+/** ADR 0006 §6: the chart follows the shape of the result. */
+export function chartFor(result: QueryResult): AnswerChart {
+  const { groupBy } = result.spec;
+  const kind = result.metric.kind;
+  const measure = kind === "rate" || kind === "average" ? kind : "count";
+  const shareOfWhole = result.metric.id === "delivery_outcomes" || (groupBy === "status" && measure === "count");
+  const type = chooseChart({ dimension: dimensionKind(groupBy), measure, shareOfWhole });
+  return { type, hiddenRows: type === "horizontal-bars" ? Math.max(0, result.rows.length - MAX_CATEGORY_BARS) : 0 };
+}
+
+/** The same question for another metric. A category ranking turns around, so "best" stays best; time keeps its order. */
+function withMetric(spec: QuerySpec, metric: QuerySpec["metric"]): QuerySpec {
+  const { sort, ...rest } = spec;
+  if (!isCategory(spec.groupBy)) return sort === undefined ? { ...rest, metric } : { ...rest, metric, sort };
+  return { ...rest, metric, sort: sort === "asc" ? "desc" : "asc" };
+}
+
+export function followUpsFor(result: QueryResult): FollowUp[] {
+  const { spec, ranking } = result;
+  const followUps: FollowUp[] = [];
+
+  // ADR 0002 §3: "last month" is a month before the data ends; offer the anchor's month.
+  if (spec.period?.type === "previous" && spec.period.unit === "month") {
+    const [year, month] = result.coverage.to.split("-");
+    followUps.push({
+      label: `${MONTH_NAMES[Number(month) - 1]} ${year} instead?`,
+      spec: { ...spec, period: { type: "this", unit: "month" } },
+    });
+  }
+
+  // ADR 0001 §6: the top group is a small sample and a reliable one exists.
+  if (ranking?.case === "small-sample-top" && spec.groupBy !== undefined) {
+    followUps.push({
+      label: `Only ${DIMENSION_WORDS[spec.groupBy].many} with ≥ ${ranking.minDelivered} deliveries`,
+      spec: { ...spec, minDelivered: ranking.minDelivered },
+    });
+  }
+
+  // ADR 0006 §8: "best" and "performance" default to the on-time rate; "late" to delayed orders.
+  if (spec.metric === "on_time_rate") {
+    followUps.push({ label: "Delay rate instead?", spec: withMetric(spec, "delay_rate") });
+    followUps.push({ label: "Average delivery time instead?", spec: withMetric(spec, "average_delivery_time") });
+  }
+  if (spec.metric === "delayed_orders") {
+    followUps.push({
+      label: "Count exception orders too?",
+      spec: { ...spec, metric: "order_count", filters: { ...spec.filters, status: ["delayed", "exception"] } },
+    });
+  }
+  return followUps;
+}
+
+export function presentAnswer(result: QueryResult): Answer {
+  return { ...result, interpretation: describeQuery(result), chart: chartFor(result), followUps: followUpsFor(result) };
+}

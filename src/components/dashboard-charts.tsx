@@ -5,8 +5,9 @@ import { formatCount, formatFraction, formatPercent } from "@/domain/format";
 import { formatDate, type Period } from "@/domain/periods";
 import { chooseChart, type ResultShape } from "@/tools/chart";
 import type { ResultRow } from "@/tools/query";
-import { type BarChartType, Chart, type ChartRow, type ChartSeries } from "./chart";
+import { type DrawnChartType, Chart, type ChartRow, type ChartSeries } from "./chart";
 import { SERIES_COLORS, SMALL_SAMPLE_BLUE } from "./palette";
+import { OUTCOME_SERIES } from "./series";
 
 interface ChartCardProps {
   title: string;
@@ -55,21 +56,14 @@ function ChartCard({ title, caption, note, chart, table }: ChartCardProps) {
 
 const ORDER_SERIES: ChartSeries[] = [{ key: "orders", label: "Orders", color: SERIES_COLORS.blue }];
 
-// Fixed order, so each outcome keeps its color wherever it appears. Keys are DeliveryOutcomes fields.
-const OUTCOME_SERIES: (ChartSeries & { key: keyof DeliveryOutcomes })[] = [
-  { key: "onTime", label: "On time", color: SERIES_COLORS.blue },
-  { key: "delayed", label: "Delayed", color: SERIES_COLORS.orange },
-  { key: "exception", label: "Exception", color: SERIES_COLORS.aqua },
-];
-
 const DELAY_RATE_SERIES: ChartSeries[] = [
   { key: "delayRate", label: "Delay rate", color: SERIES_COLORS.blue, mutedColor: SMALL_SAMPLE_BLUE },
 ];
 
-/** The chart type chooseChart picks for a shape the dashboard draws; every dashboard chart is a bar chart. */
-function barChartFor(shape: ResultShape): BarChartType {
+/** The chart type chooseChart picks for a shape the dashboard draws. */
+function chartTypeFor(shape: ResultShape): DrawnChartType {
   const type = chooseChart(shape);
-  if (type === "answer-card" || type === "line") throw new Error(`The dashboard draws no ${type} chart`);
+  if (type === "answer-card") throw new Error("A dashboard chart always has a dimension, so it is never an answer card");
   return type;
 }
 
@@ -104,10 +98,10 @@ export function DashboardCharts({ period, ordersPerMonth, outcomesPerMonth, carr
         caption={`By order date · ${dates}`}
         chart={
           <Chart
-            type={barChartFor({ dimension: "time", measure: "count" })}
+            type={chartTypeFor({ dimension: "time", measure: "count" })}
             series={ORDER_SERIES}
             rows={ordersPerMonth.map(({ bucket, value }) => ({ label: bucket.label, values: { orders: value } }))}
-            valueFormat="count"
+            valueFormat="orders"
           />
         }
         table={{
@@ -120,13 +114,13 @@ export function DashboardCharts({ period, ordersPerMonth, outcomesPerMonth, carr
         caption={`By delivery date · ${dates}`}
         chart={
           <Chart
-            type={barChartFor({ dimension: "time", measure: "count", shareOfWhole: true })}
+            type={chartTypeFor({ dimension: "time", measure: "count", shareOfWhole: true })}
             series={OUTCOME_SERIES}
             rows={outcomesPerMonth.map(({ bucket, value }) => ({
               label: bucket.label,
               values: Object.fromEntries(OUTCOME_SERIES.map(({ key }) => [key, value[key]])),
             }))}
-            valueFormat="count"
+            valueFormat="orders"
           />
         }
         table={{
@@ -143,7 +137,7 @@ export function DashboardCharts({ period, ordersPerMonth, outcomesPerMonth, carr
         note={`Lighter bars: fewer than ${SMALL_SAMPLE_MIN_DELIVERED} delivered orders, a small sample.`}
         chart={
           <Chart
-            type={barChartFor({ dimension: "category", measure: "rate" })}
+            type={chartTypeFor({ dimension: "category", measure: "rate" })}
             series={DELAY_RATE_SERIES}
             rows={carrierRows}
             valueFormat="percent"

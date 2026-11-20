@@ -53,6 +53,21 @@ describe("query spec: the whitelist (ADR 0006 §1, §3–5)", () => {
     expect(errorsOf({ tool: "query", metric: "delayed_orders", filters: { status: ["delayed"] } })).toEqual([]);
   });
 
+  it("allows minDelivered (1–100) on rates and averages only, where n is the delivered orders", () => {
+    expect(errorsOf({ tool: "query", metric: "delay_rate", groupBy: "carrier", minDelivered: 20 })).toEqual([]);
+    expect(errorsOf({ tool: "query", metric: "delay_rate", groupBy: "carrier", minDelivered: 0 })).not.toEqual([]);
+    expect(errorsOf({ tool: "query", metric: "delay_rate", groupBy: "carrier", minDelivered: 101 })).not.toEqual([]);
+    expect(errorsOf({ tool: "query", metric: "order_count", groupBy: "carrier", minDelivered: 20 })).toEqual([
+      "minDelivered applies to rates and averages only.",
+    ]);
+  });
+
+  it("allows minDelivered only with a category group-by, since weeks and single values are never dropped", () => {
+    const message = "minDelivered keeps only the groups of a breakdown by category, so it needs one.";
+    expect(errorsOf({ tool: "query", metric: "delay_rate", minDelivered: 20 })).toEqual([message]);
+    expect(errorsOf({ tool: "query", metric: "delay_rate", groupBy: "week", minDelivered: 20 })).toEqual([message]);
+  });
+
   it('allows only "order_date" as a date-field override', () => {
     expect(errorsOf({ tool: "query", metric: "delayed_orders", dateField: "order_date" })).toEqual([]);
     expect(errorsOf({ tool: "query", metric: "delayed_orders", dateField: "ship_date" })).not.toEqual([]);

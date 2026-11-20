@@ -4,6 +4,7 @@ import {
   deliveredOrders,
   type DeliveryOutcomes,
   deliveryOutcomes,
+  isRateOrAverage,
   type MetricDefinition,
   METRICS,
   type MetricId,
@@ -19,7 +20,7 @@ import {
   type Period,
   resolvePeriod,
 } from "@/domain/periods";
-import { CATEGORY_DIMENSIONS, type GroupBy, type QueryFilters, type QuerySpec, TIME_DIMENSIONS } from "./spec";
+import { CATEGORY_DIMENSIONS, type GroupBy, isTimeDimension, type QueryFilters, type QuerySpec } from "./spec";
 
 /**
  * The query tool: runs a validated spec over the data and returns the numbers with everything an
@@ -74,11 +75,15 @@ export interface StatusRewrite {
 
 export interface QueryResult {
   kind: "result";
-  /** The spec that ran, after any status rewrite, with filter values as they are in the data. */
+  /** The spec as validated, with filter values as they are in the data. */
+  requestedSpec: QuerySpec;
+  /** The spec that ran: the requested one after any status rewrite. */
   spec: QuerySpec;
   metric: MetricInfo;
   dateField: DateField;
   period: Period & { label: string };
+  /** What the data covers: its first date to the anchor date. */
+  coverage: Period & { label: string };
   rewrite?: StatusRewrite;
   rows: ResultRow[];
   /** Rows before the limit. */
@@ -212,10 +217,6 @@ function matchesFilters(order: Order, filters: QueryFilters): boolean {
   });
 }
 
-function isTimeDimension(groupBy: GroupBy): groupBy is (typeof TIME_DIMENSIONS)[number] {
-  return TIME_DIMENSIONS.some((dimension) => dimension === groupBy);
-}
-
 function categoryLabel(dimension: CategoryDimension, value: string): string {
   if (dimension !== "promo") return value;
   return value === "yes" ? "Promo" : "No promo";
@@ -303,22 +304,24 @@ export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | 
     dateField,
     period,
   };
-  const grouped = groupRows(spec.groupBy, metric, scope);
+  const minDelivered = spec.minDelivered;
+  const grouped = groupRows(spec.groupBy, metric, scope).filter((row) => minDelivered === undefined || row.n >= minDelivered);
 
   const isCategory = spec.groupBy !== undefined && !isTimeDimension(spec.groupBy);
   const sorted = isCategory || spec.sort !== undefined ? sortRows(grouped, spec.sort ?? "desc") : grouped;
-  const isRateOrAverage = metric.info.kind === "rate" || metric.info.kind === "average";
 
   return {
     kind: "result",
+    requestedSpec: validSpec,
     spec,
     metric: metric.info,
     dateField,
     period: { ...period, label: formatPeriod(period) },
+    coverage: { ...coverage, label: formatPeriod(coverage) },
     rewrite,
     rows: spec.limit === undefined ? sorted : sorted.slice(0, spec.limit),
     totalRows: sorted.length,
-    ranking: isCategory && isRateOrAverage ? rank(sorted) : undefined,
+    ranking: isCategory && isRateOrAverage(metric.info.kind) ? rank(sorted) : undefined,
     matchingOrders: listMatchingOrders(metric, scope),
   };
 }

@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
-import type { QueryResult } from "@/tools/query";
+import type { Answer } from "@/tools/answer";
 import { POST } from "./route";
 
 function post(body: string, headers: Record<string, string> = {}): Promise<Response> {
   return POST(new Request("http://localhost/api/run", { method: "POST", body, headers }));
 }
 
-function isQueryResult(body: unknown): body is QueryResult {
-  return typeof body === "object" && body !== null && "kind" in body && body.kind === "result";
+function isAnswer(body: unknown): body is Answer {
+  return typeof body === "object" && body !== null && "kind" in body && body.kind === "result" && "followUps" in body;
 }
 
-async function run(spec: Record<string, unknown>): Promise<QueryResult> {
+async function run(spec: Record<string, unknown>): Promise<Answer> {
   const response = await post(JSON.stringify({ spec: { tool: "query", ...spec } }));
   expect(response.status).toBe(200);
   const body: unknown = await response.json();
-  if (!isQueryResult(body)) throw new Error(`Not a query result: ${JSON.stringify(body)}`);
+  if (!isAnswer(body)) throw new Error(`Not an answer: ${JSON.stringify(body)}`);
   return body;
 }
 
@@ -52,6 +52,23 @@ describe("POST /api/run: the R3 questions, golden numbers from docs/data.md and 
     expect(result.ranking?.topReliable).toMatchObject({ label: "USPS", numerator: 11, denominator: 47, smallSample: false });
     expect((result.ranking?.topReliable?.value ?? Number.NaN) * 100).toBeCloseTo(23.4, 1);
     expect(result.ranking?.minDelivered).toBe(20);
+  });
+});
+
+describe("POST /api/run: the answer around the numbers (ADR 0006 §6–8)", () => {
+  it("carries the interpretation, the chart chosen by code, and the follow-up chips", async () => {
+    const answer = await run({ metric: "delayed_orders", period: { type: "previous", unit: "month" } });
+    expect(answer.interpretation).toBe("Delayed orders, 1–30 Nov 2025 by delivery date.");
+    expect(answer.chart).toEqual({ type: "answer-card", hiddenRows: 0 });
+    expect(answer.followUps.map((followUp) => followUp.label)).toContain("December 2025 instead?");
+  });
+
+  it("answers a period with no data with its message, and nothing to chart", async () => {
+    const response = await post(JSON.stringify({ spec: { tool: "query", metric: "order_count", period: { type: "previous", unit: "year" } } }));
+    expect(await response.json()).toEqual({
+      kind: "no-data",
+      message: "No data for 1 Jan–31 Dec 2024. The data covers 1 Jan–31 Dec 2025.",
+    });
   });
 });
 

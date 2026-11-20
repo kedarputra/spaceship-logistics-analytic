@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ratio } from "./definitions";
-import { formatCount, formatDays, formatFraction, formatPercent } from "./format";
+import { formatCount, formatDays, formatFraction, formatMetricValue, formatPercent } from "./format";
 
 // Display precision from ADR 0001 §7: rates and days to 1 decimal; computation keeps full precision.
 describe("display formatting (ADR 0001)", () => {
@@ -22,6 +22,17 @@ describe("display formatting (ADR 0001)", () => {
   it("shows counts as whole numbers with a thousands separator", () => {
     expect(formatCount(400)).toBe("400");
     expect(formatCount(1310)).toBe("1,310");
+  });
+
+  it("formats a metric value by its unit: 1 decimal on screen, 2 in the explanation table", () => {
+    expect(formatMetricValue(304 / 370, "percent")).toBe("82.2%");
+    expect(formatMetricValue(304 / 370, "percent", 2)).toBe("82.16%");
+    expect(formatMetricValue(3.8297, "days")).toBe("3.8 days");
+    expect(formatMetricValue(3.8297, "days", 2)).toBe("3.83 days");
+    expect(formatMetricValue(1310, "units")).toBe("1,310");
+    expect(formatMetricValue(55, "orders", 2)).toBe("55");
+    expect(formatMetricValue(13695.87, "USD")).toBe("USD 13,695.87");
+    expect(formatMetricValue(null, "percent")).toBe("n/a");
   });
 
   it('shows "n/a" for a value that a zero denominator left undefined', () => {

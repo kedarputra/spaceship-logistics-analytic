@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { METRICS, type MetricId } from "@/domain/definitions";
+import { isRateOrAverage as isRateOrAverageKind, METRICS, type MetricId } from "@/domain/definitions";
 import { getDataset, type Order, ORDER_STATUSES } from "@/domain/orders";
 import { matchValue, unknownValueMessage } from "./values";
 
@@ -143,6 +143,8 @@ export const querySpecSchema = z
     dateField: z.enum(["order_date"]).optional(),
     sort: z.enum(["asc", "desc"]).optional(),
     limit: z.number().int().min(1).max(20).optional(),
+    /** Keep only groups with at least this many delivered orders ("among carriers with at least 20 deliveries"). */
+    minDelivered: z.number().int().min(1).max(100).optional(),
   })
   .refine((spec) => spec.metric !== "delivery_outcomes" || spec.groupBy === "week" || spec.groupBy === "month", {
     message: "Delivery outcomes are broken down by week or month only",
@@ -152,12 +154,25 @@ export const querySpecSchema = z
   .refine((spec) => spec.filters?.status === undefined || !isRateOrAverage(spec.metric), {
     message: "A rate or an average cannot be filtered by status: the status is what it measures. Ask for a count instead.",
     path: ["filters", "status"],
+  })
+  .refine((spec) => spec.minDelivered === undefined || isRateOrAverage(spec.metric), {
+    message: "minDelivered applies to rates and averages only.",
+    path: ["minDelivered"],
+  })
+  // Weeks and a single value are never dropped (ADR 0002 §4: empty buckets are 0, not gaps).
+  .refine((spec) => spec.minDelivered === undefined || (spec.groupBy !== undefined && !isTimeDimension(spec.groupBy)), {
+    message: "minDelivered keeps only the groups of a breakdown by category, so it needs one.",
+    path: ["minDelivered"],
   });
 
 function isRateOrAverage(metric: (typeof QUERY_METRICS)[number]): boolean {
-  if (metric === "delivery_outcomes") return false;
-  const { kind } = METRICS[metric];
-  return kind === "rate" || kind === "average";
+  return metric !== "delivery_outcomes" && isRateOrAverageKind(METRICS[metric].kind);
+}
+
+export function isTimeDimension(
+  groupBy: (typeof TIME_DIMENSIONS)[number] | (typeof CATEGORY_DIMENSIONS)[number],
+): groupBy is (typeof TIME_DIMENSIONS)[number] {
+  return TIME_DIMENSIONS.some((dimension) => dimension === groupBy);
 }
 
 export type QuerySpec = z.output<typeof querySpecSchema>;

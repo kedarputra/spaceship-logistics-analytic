@@ -128,6 +128,11 @@ export type MetricDefinition =
   | (MetricBase & { kind: "rate"; unit: "percent"; compute: (orders: readonly Order[]) => Ratio })
   | (MetricBase & { kind: "average"; unit: "days"; compute: (orders: readonly Order[]) => Ratio });
 
+/** Rates and averages divide by delivered orders, so they carry n and can be small samples. */
+export function isRateOrAverage(kind: MetricDefinition["kind"]): boolean {
+  return kind === "rate" || kind === "average";
+}
+
 /** A count metric over the orders `select` picks. */
 function countOf(
   base: MetricBase,

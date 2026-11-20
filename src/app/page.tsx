@@ -1,3 +1,4 @@
+import { AnswerView } from "@/components/answer-view";
 import { DashboardCharts } from "@/components/dashboard-charts";
 import { KpiCards } from "@/components/kpi-cards";
 import { dashboardKpis, deliveryOutcomesOverTime, orderCountOverTime } from "@/domain/definitions";
@@ -24,6 +25,12 @@ export default function DashboardPage() {
         </div>
       </header>
       <main aria-label="Dashboard" className="mx-auto max-w-6xl px-4 py-6">
+        <section aria-labelledby="ask-heading" className="mb-8">
+          <h2 id="ask-heading" className="mb-3 text-base font-semibold">
+            Ask about the data
+          </h2>
+          <AnswerView />
+        </section>
         <KpiCards kpis={dashboardKpis(orders)} />
         <DashboardCharts
           period={period}

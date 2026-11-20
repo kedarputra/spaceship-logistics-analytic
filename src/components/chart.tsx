@@ -7,17 +7,20 @@ import {
   Cell,
   LabelList,
   Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { formatCount, formatPercent } from "@/domain/format";
+import type { MetricDefinition } from "@/domain/definitions";
+import { formatCount, formatMetricValue } from "@/domain/format";
 import type { ChartType } from "@/tools/chart";
 import { CHART_INK } from "./palette";
 
-/** The chart types the dashboard draws. The answer view (ADR 0006 §6) adds the line and the answer card. */
-export type BarChartType = Extract<ChartType, "vertical-bars" | "stacked-bars" | "horizontal-bars">;
+/** Every chart type but the answer card, which is a number, not a chart. */
+export type DrawnChartType = Exclude<ChartType, "answer-card">;
 
 export interface ChartSeries {
   key: string;
@@ -34,10 +37,11 @@ export interface ChartRow {
   muted?: boolean;
 }
 
-export type ValueFormat = "count" | "percent";
+/** The unit of the values, as METRICS names it. */
+export type ValueFormat = MetricDefinition["unit"];
 
 export interface ChartProps {
-  type: BarChartType;
+  type: DrawnChartType;
   series: ChartSeries[];
   rows: ChartRow[];
   valueFormat: ValueFormat;
@@ -48,11 +52,12 @@ const ROW_HEIGHT = 32;
 const BAR_SIZE = 24;
 const TICK = { fill: CHART_INK.label, fontSize: 12 };
 
-// Values as everywhere else in the UI (ADR 0001 §7); axis ticks drop a trailing ".0" ("5%", not "5.0%").
-const FORMATS: Record<ValueFormat, { value: (value: number) => string; tick: (value: number) => string }> = {
-  count: { value: formatCount, tick: formatCount },
-  percent: { value: formatPercent, tick: (value) => `${Number((value * 100).toFixed(1))}%` },
-};
+// Axis ticks drop a trailing ".0" ("5%", not "5.0%"); values read as everywhere else in the UI (ADR 0001 §7).
+function tickFormatter(unit: ValueFormat): (value: number) => string {
+  if (unit === "percent") return (value) => `${Number((value * 100).toFixed(1))}%`;
+  if (unit === "days") return (value) => `${Number(value.toFixed(1))}`;
+  return formatCount;
+}
 
 function seriesValue(row: ChartRow, key: string): number | null {
   return row.values[key] ?? null;
@@ -64,8 +69,8 @@ function assertNever(type: never): never {
 
 /** Draws the chart type that chooseChart picked (ADR 0006 §6). All values arrive computed. */
 export function Chart({ type, series, rows, valueFormat }: ChartProps) {
-  const format = FORMATS[valueFormat];
-  const labelText = (value: unknown) => (typeof value === "number" ? format.value(value) : String(value));
+  const formatTick = tickFormatter(valueFormat);
+  const labelText = (value: unknown) => (typeof value === "number" ? formatMetricValue(value, valueFormat) : String(value));
   const tooltip = (
     <Tooltip formatter={labelText} itemSorter={(item) => series.findIndex(({ label }) => label === item.name)} />
   );
@@ -86,7 +91,7 @@ export function Chart({ type, series, rows, valueFormat }: ChartProps) {
         <ResponsiveContainer width="100%" height={rows.length * ROW_HEIGHT + 40}>
           <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 4 }}>
             <CartesianGrid stroke={CHART_INK.grid} horizontal={false} />
-            <XAxis type="number" tickCount={6} tickFormatter={format.tick} tick={TICK} stroke={CHART_INK.axis} />
+            <XAxis type="number" tickCount={6} tickFormatter={formatTick} tick={TICK} stroke={CHART_INK.axis} />
             <YAxis type="category" dataKey="label" width={140} tick={TICK} stroke={CHART_INK.axis} />
             {tooltip}
             {legend}
@@ -119,7 +124,7 @@ export function Chart({ type, series, rows, valueFormat }: ChartProps) {
           <BarChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
             <CartesianGrid stroke={CHART_INK.grid} vertical={false} />
             <XAxis dataKey="label" interval="preserveStartEnd" tick={TICK} stroke={CHART_INK.axis} />
-            <YAxis allowDecimals={false} tickFormatter={format.tick} tick={TICK} stroke={CHART_INK.axis} />
+            <YAxis allowDecimals={false} tickFormatter={formatTick} tick={TICK} stroke={CHART_INK.axis} />
             {tooltip}
             {legend}
             {series.map((item, index) => (
@@ -140,6 +145,40 @@ export function Chart({ type, series, rows, valueFormat }: ChartProps) {
         </ResponsiveContainer>
       );
     }
+    case "line":
+      return (
+        <ResponsiveContainer width="100%" height={HEIGHT}>
+          <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+            <CartesianGrid stroke={CHART_INK.grid} vertical={false} />
+            <XAxis dataKey="label" interval="preserveStartEnd" tick={TICK} stroke={CHART_INK.axis} />
+            <YAxis tickCount={6} tickFormatter={formatTick} tick={TICK} stroke={CHART_INK.axis} />
+            {tooltip}
+            {legend}
+            {series.map((item) => (
+              <Line
+                key={item.key}
+                name={item.label}
+                dataKey={(row: ChartRow) => seriesValue(row, item.key)}
+                stroke={item.color}
+                strokeWidth={2}
+                // Small-sample points are drawn lighter, as small-sample bars are.
+                dot={(props: { cx?: number; cy?: number; index?: number }) => (
+                  <circle
+                    key={`${item.key}-${props.index ?? 0}`}
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={4}
+                    fill={rows[props.index ?? 0]?.muted ? (item.mutedColor ?? item.color) : item.color}
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                  />
+                )}
+                isAnimationActive={false}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      );
     default:
       return assertNever(type);
   }

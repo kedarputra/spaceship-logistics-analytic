@@ -181,6 +181,22 @@ describe("every group is ranked (ADR 0001 §6)", () => {
   });
 });
 
+describe("only groups with enough deliveries (minDelivered)", () => {
+  it("keeps the 7 carriers with at least 20 deliveries, so USPS (11/47) tops a reliable ranking", () => {
+    const result = resultOf({ metric: "delay_rate", groupBy: "carrier", minDelivered: 20 });
+    expect(result.rows).toHaveLength(7);
+    expect(result.rows.some((row) => row.label === "GLS" || row.label === "DPD")).toBe(false);
+    expect(result.ranking?.case).toBe("reliable");
+    expect(result.ranking?.top).toMatchObject({ label: "USPS", numerator: 11, denominator: 47 });
+  });
+});
+
+describe("the data's coverage travels with the result", () => {
+  it("says the data covers 1 Jan–31 Dec 2025", () => {
+    expect(resultOf({ metric: "order_count" }).coverage).toEqual({ from: "2025-01-01", to: "2025-12-31", label: "1 Jan–31 Dec 2025" });
+  });
+});
+
 describe("filters stay what the question asked (ADR 0006 §2)", () => {
   it("keeps the status filter after a rewrite, so grouping by status shows only the statuses asked for", () => {
     const result = resultOf({ metric: "order_count", filters: { status: ["delayed"] }, groupBy: "status" });

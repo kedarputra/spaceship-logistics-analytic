@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getDataset } from "@/domain/orders";
+import { presentAnswer } from "@/tools/answer";
 import { runQuery } from "@/tools/query";
 import { querySpecSchema } from "@/tools/spec";
 
@@ -52,5 +53,6 @@ export async function POST(request: Request): Promise<Response> {
     const issues = parsed.error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message }));
     return errorResponse(400, "The query spec is not valid.", issues);
   }
-  return Response.json(runQuery(parsed.data.spec, getDataset()));
+  const result = runQuery(parsed.data.spec, getDataset());
+  return Response.json(result.kind === "result" ? presentAnswer(result) : result);
 }

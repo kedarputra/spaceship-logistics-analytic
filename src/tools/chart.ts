@@ -5,6 +5,9 @@
 
 export type ChartType = "answer-card" | "vertical-bars" | "line" | "horizontal-bars" | "stacked-bars";
 
+/** Horizontal bars beyond this many go to the table only ("N more in the table"). */
+export const MAX_CATEGORY_BARS = 12;
+
 export interface ResultShape {
   /** What the result is grouped by: nothing, a week/month/day, or a category such as carrier. */
   dimension: "none" | "time" | "category";
