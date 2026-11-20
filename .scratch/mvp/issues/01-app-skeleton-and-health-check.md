@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Stack, versions, folder layout, and `engines.node >=22` as in ADR 0004; npm with a committed lockfile.
 - [ ] Scripts `typecheck`, `test`, `build`, and `check` (all three); the "Checks" paragraph in `CLAUDE.md` is replaced with the exact commands.
@@ -17,3 +17,7 @@
 - [ ] `GET /api/health` returns `{"rows":400,"anchor":"2025-12-31"}`.
 
 If this turns out too big for one Sandcastle iteration, split the CI workflow and the architecture test into their own ticket, numbered right after this one.
+
+## Comments
+
+- 2026-11-20: Next.js 16.4 app per ADR 0004: data/mock_logistics_data.csv read once per server instance with csv-parse and the ADR 0005 Zod row schema (invalid rows throw with their row number), anchor date computed from the data, page header Data as of 31 Dec 2025, GET /api/health, CI workflow, and an architecture test for the dependency rule. Verified: 35 Vitest tests green (row-schema traps, invariants on the real file, health body, page header, forbidden-import cases); npm run check passes here and in a clean copy after npm ci on npm 10; next start served rows 400 and anchor 2025-12-31 on /api/health and the header on /.

@@ -31,7 +31,13 @@ The original brief from Spaceship sits in `docs/brief/`, which is gitignored. `d
 
 ## Checks
 
-The ticket that creates the app sets these scripts up and replaces this paragraph with the exact commands. Every commit must pass them. Expected: `npm run typecheck`, `npm run test`, `npm run build`.
+Every commit must pass `npm run check`, which runs these in order:
+
+- `npm run typecheck`: `tsc --noEmit`
+- `npm run test`: `vitest run`, including `tests/architecture.test.ts`, which enforces the dependency rule of ADR 0004
+- `npm run build`: `next build`
+
+CI (`.github/workflows/ci.yml`) runs `npm ci && npm run check` on every push and pull request. On Windows, if a script fails with "'node' is not recognized", strip the quotes from the session PATH first (PowerShell: `$env:Path = $env:Path.Replace('"','')`, see ADR 0010); never change the machine or user PATH.
 
 ## Workflow
 
