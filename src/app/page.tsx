@@ -1,3 +1,5 @@
+import { KpiCards } from "@/components/kpi-cards";
+import { dashboardKpis } from "@/domain/definitions";
 import { getDataset } from "@/domain/orders";
 import { formatDate } from "@/domain/periods";
 
@@ -5,7 +7,7 @@ import { formatDate } from "@/domain/periods";
 export const dynamic = "force-dynamic";
 
 export default function DashboardPage() {
-  const { anchor } = getDataset();
+  const { orders, anchor } = getDataset();
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
@@ -14,7 +16,9 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-600">{`Data as of ${formatDate(anchor)}`}</p>
         </div>
       </header>
-      <main aria-label="Dashboard" className="mx-auto max-w-6xl px-4 py-6" />
+      <main aria-label="Dashboard" className="mx-auto max-w-6xl px-4 py-6">
+        <KpiCards kpis={dashboardKpis(orders)} />
+      </main>
     </div>
   );
 }
