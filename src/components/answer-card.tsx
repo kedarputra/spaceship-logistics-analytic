@@ -8,6 +8,7 @@ import type { QuerySpec } from "@/tools/spec";
 import { DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "@/tools/words";
 import { answerChartProps } from "./answer-chart";
 import { Chart } from "./chart";
+import { CachedNote } from "./cached-note";
 import { ForecastCard } from "./forecast-card";
 import { Fact, Table, type TextTable } from "./text-table";
 
@@ -19,8 +20,9 @@ import { Fact, Table, type TextTable } from "./text-table";
 export type AnswerOutcomeState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "answer"; answer: Answer }
-  | { kind: "forecast"; forecast: ForecastAnswer }
+  /** `cached`: the server's question cache served it (B1, ADR 0008 §1). */
+  | { kind: "answer"; answer: Answer; cached?: boolean }
+  | { kind: "forecast"; forecast: ForecastAnswer; cached?: boolean }
   | { kind: "no-data"; message: string }
   | { kind: "error"; message: string; details: string[] }
   /** Out of scope, or the model could not produce a valid spec: why, and questions that work. */
@@ -170,11 +172,12 @@ function ExplanationPanel({ answer }: { answer: Answer }) {
   );
 }
 
-function AnswerCard({ answer, onFollowUp }: { answer: Answer } & Pick<AnswerActions, "onFollowUp">) {
+function AnswerCard({ answer, cached, onFollowUp }: { answer: Answer; cached?: boolean } & Pick<AnswerActions, "onFollowUp">) {
   const chart = answerChartProps(answer);
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
       <p className="text-base text-slate-900">{answer.sentence}</p>
+      <CachedNote cached={cached} />
       <p className="mt-1 text-sm text-slate-600">{answer.interpretation}</p>
       {answer.assumptionNote === undefined ? null : <p className="mt-1 text-sm text-slate-600">{answer.assumptionNote}</p>}
       <div className="mt-3">{chart === null ? <ValueCard answer={answer} /> : <Chart {...chart} />}</div>
@@ -214,9 +217,9 @@ export function AnswerOutcome({ outcome, onFollowUp, onAsk }: { outcome: AnswerO
     case "loading":
       return <p className="text-sm text-slate-500">Working on it…</p>;
     case "answer":
-      return <AnswerCard answer={outcome.answer} onFollowUp={onFollowUp} />;
+      return <AnswerCard answer={outcome.answer} cached={outcome.cached} onFollowUp={onFollowUp} />;
     case "forecast":
-      return <ForecastCard forecast={outcome.forecast} />;
+      return <ForecastCard forecast={outcome.forecast} cached={outcome.cached} />;
     case "no-data":
       return <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{outcome.message}</p>;
     case "unsupported":

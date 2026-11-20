@@ -32,6 +32,8 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Query spec** | The structured, validated object the AI layer produces from a question: tool, metric, dimensions, filters, time range, chart hint. Code executes it; the LLM never writes SQL or code. |
 | **Tool** | A computation path the AI layer can select: the **query tool** (aggregations and KPIs) or the **forecast tool**. |
 | **Interpretation** | The model's one structured output for a question: a query spec, a forecast spec, or "unsupported" with its reason and 3 example questions picked from a fixed list. Validated before anything runs. ADR 0009 §3. Not to be confused with the *interpretation in words* an answer shows, which code writes from the spec. |
+| **Query history** | The last 20 questions asked in this browser, each with its validated spec and the time it was asked, kept in localStorage and never sent to the server. Shown as "Recent questions"; a re-run sends the saved spec to `/api/run`, without the model. ADR 0008 §1. |
+| **Cached answer** | An answer whose interpretation, and usually its sentence, came from the server's question cache instead of a new model call. Marked "Cached". ADR 0008 §2, ADR 0009. |
 | **Assumption** | The ambiguous word a question used ("best", "performance", "late") and the documented default it was read with. The answer states it and offers the other readings as chips. ADR 0006 §8. |
 | **Explanation panel** | What every answer shows: filters, metrics and dimensions, the resolved query spec, and the underlying rows or summary. |
 | **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |

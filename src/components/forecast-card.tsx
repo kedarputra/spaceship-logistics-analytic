@@ -2,6 +2,7 @@ import { formatCount, formatDecimal, formatPercent } from "@/domain/format";
 import { formatDate } from "@/domain/periods";
 import { NOT_A_REORDER, RANGE_Z, SAFETY_Z, type SkuHistory } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
+import { CachedNote } from "./cached-note";
 import { ForecastChart, type ForecastChartRow } from "./forecast-chart";
 import { Fact, Table } from "./text-table";
 
@@ -87,13 +88,14 @@ function SkuOrders({ sku }: { sku: SkuHistory }) {
   );
 }
 
-export function ForecastCard({ forecast }: { forecast: ForecastAnswer }) {
+export function ForecastCard({ forecast, cached }: { forecast: ForecastAnswer; cached?: boolean }) {
   const { recommendation } = forecast;
   const notes = [forecast.scopeNote, forecast.januaryCaveat, ...forecast.horizon.notes].filter((note) => note !== undefined);
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
       {forecast.horizon.reachNote === undefined ? null : <p className="mb-2 text-base font-medium text-slate-900">{forecast.horizon.reachNote}</p>}
       <p className="text-base text-slate-900">{forecast.sentence}</p>
+      <CachedNote cached={cached} />
       <p className="mt-1 text-sm text-slate-600">{forecast.interpretation}</p>
       {forecast.sku === undefined ? null : <SkuOrders sku={forecast.sku} />}
       {forecast.roughNote === undefined ? null : (
