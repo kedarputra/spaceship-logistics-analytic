@@ -2,8 +2,8 @@
 
 **What to build:** A reviewer reading the README understands how to run the app, how it works, how questions are interpreted and routed, what is assumed and unsupported, and how AI was used, as R12 and R14 require.
 
-**Blocked by:** 12, 14, 15
-_12 Answer sentence with number guard · 14 Forecast: scopes and SKU questions · 15 Rate limits, AI health and uptime workflow_
+**Blocked by:** 12, 14, 15, 24
+_12 Answer sentence with number guard · 14 Forecast: scopes and SKU questions · 15 Rate limits, AI health and uptime workflow · 24 Redesign: tokens, the rail, Overview and Ask (the README describes the pages as they ship; mention ADR 0011 and, if 25 shipped, the detail pages)_
 
 **Status:** ready-for-agent
 

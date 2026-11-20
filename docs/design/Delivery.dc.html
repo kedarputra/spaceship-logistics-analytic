@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Delivery</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F4F6F2}
+a{color:#1F6E4F}a:hover{color:#17201C}
+:focus-visible{outline:2px solid #E39A2E;outline-offset:2px}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch; background: #F4F6F2; color: #17201C; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.45">
+
+<aside style="flex: 1 1 232px; max-width: 100%; box-sizing: border-box; background: #16211C; color: #E7EEEA; padding: 20px 12px; display: flex; flex-direction: column; gap: 24px">
+  <div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px">
+    <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(175, 208, 191, 0.16); display: grid; place-items: center; color: #AFD0BF">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"></path><path d="M4 7.5l8 4.5 8-4.5M12 12v9"></path></svg>
+    </div>
+    <div style="display: flex; flex-direction: column">
+      <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: #FFFFFF">Logistics Analytics</span>
+      <span style="font-size: 12px; color: #93A39A">Order data, 2025</span>
+    </div>
+  </div>
+  <nav aria-label="Pages" style="display: flex; flex-direction: column; gap: 2px">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #E7EEEA; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+      Overview
+    </a>
+    <a href="Ask.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #E7EEEA; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.2"></path><path d="M12 16.5h.01"></path></svg>
+      Ask the data
+    </a>
+    <a href="Delivery.dc.html" aria-current="page" style="position: relative; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; background: rgba(244, 178, 102, 0.14); color: #F4B266; text-decoration: none; font-weight: 600">
+      <span aria-hidden="true" style="position: absolute; left: -12px; top: 11px; width: 3px; height: 18px; border-radius: 0 3px 3px 0; background: #F4B266"></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="M3 6h11v9H3z"></path><path d="M14 9h4l3 3v3h-7"></path><circle cx="7" cy="17.5" r="2"></circle><circle cx="17" cy="17.5" r="2"></circle></svg>
+      Delivery
+    </a>
+    <a href="Carriers.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #E7EEEA; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="M4 6h10"></path><path d="M4 12h16"></path><path d="M4 18h7"></path></svg>
+      Carriers
+    </a>
+    <a href="Forecast.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #E7EEEA; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="M3 17l6-6 4 4 8-8"></path><path d="M15 7h6v6"></path></svg>
+      Forecast
+    </a>
+  </nav>
+  <div style="flex-grow: 1"></div>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08)">
+    <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #93A39A">Data</span>
+    <span style="font-size: 13px; color: #FFFFFF; font-weight: 500">mock_logistics_data.csv</span>
+    <span style="font-size: 12px; color: #93A39A">400 orders · 1 Jan–31 Dec 2025 · read-only</span>
+    <div style="height: 1px; background: rgba(255, 255, 255, 0.08)"></div>
+    <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #FFFFFF; font-weight: 500"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #5FBF8F"></span>AI online</span>
+    <span style="font-size: 12px; color: #93A39A">Gemma 4 12B on this server. The AI routes and explains; code computes every number.</span>
+  </div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 36px 64px">
+<div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px">
+
+  <header style="display: flex; flex-direction: column; gap: 4px">
+    <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #5E6B64">Delivery</span>
+    <h1 style="margin: 0; font-size: 26px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em">Delivery</h1>
+    <p style="margin: 0; font-size: 14px; color: #5E6B64">How the 370 delivered orders arrived, by delivery date, 1 Jan–31 Dec 2025.</p>
+  </header>
+
+  <section aria-label="Delivery figures" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px">
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 600; color: #35423C">Delivered orders</span>
+      <span style="font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">370</span>
+      <span style="font-size: 13px; color: #5E6B64">of 400 orders; 30 not delivered yet</span>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 600; color: #35423C">On-time delivery rate</span>
+      <span style="font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">82.2%</span>
+      <span style="font-size: 13px; color: #5E6B64; font-variant-numeric: tabular-nums">304 of 370 delivered</span>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 600; color: #35423C">Delay rate</span>
+      <span style="font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">14.9%</span>
+      <span style="font-size: 13px; color: #5E6B64; font-variant-numeric: tabular-nums">55 of 370 delivered</span>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 600; color: #35423C">Exceptions</span>
+      <span style="font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">11</span>
+      <span style="font-size: 13px; color: #5E6B64; font-variant-numeric: tabular-nums">3.0% of delivered; not counted as delayed</span>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 600; color: #35423C">Average delivery time</span>
+      <span style="font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">3.8 <span style="font-size: 18px; font-weight: 600; color: #35423C">days</span></span>
+      <span style="font-size: 13px; color: #5E6B64">order date to delivery date</span>
+    </div>
+  </section>
+
+  <section aria-label="Delivery over time" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px">
+    <figure style="margin: 0; background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px 14px; display: flex; flex-direction: column; gap: 14px">
+      <figcaption style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em">Delivery outcomes per month</span><span style="font-size: 12.5px; color: #5E6B64">By delivery date · 370 delivered</span></span>
+        <button type="button" style="flex-shrink: 0; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #E1E6E0; background: #FFFFFF; color: #35423C; font-size: 12.5px; cursor: pointer">Data table</button>
+      </figcaption>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: #35423C; font-variant-numeric: tabular-nums">
+        <span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 2px; background: #2A8763"></span>On time 304</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 2px; background: #E39A2E"></span>Delayed 55</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 2px; background: #B4533A"></span>Exception 11</span>
+      </div>
+      <div style="position: relative; height: 210px; margin: 2px 0 0 30px">
+        <div style="position: absolute; left: 0; right: 0; bottom: 100%; border-top: 1px solid #EDF1EC"><span style="position: absolute; left: -30px; top: -8px; width: 24px; text-align: right; font-size: 11px; color: #5E6B64">80</span></div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 75%; border-top: 1px solid #EDF1EC"><span style="position: absolute; left: -30px; top: -8px; width: 24px; text-align: right; font-size: 11px; color: #5E6B64">60</span></div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 50%; border-top: 1px solid #EDF1EC"><span style="position: absolute; left: -30px; top: -8px; width: 24px; text-align: right; font-size: 11px; color: #5E6B64">40</span></div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 25%; border-top: 1px solid #EDF1EC"><span style="position: absolute; left: -30px; top: -8px; width: 24px; text-align: right; font-size: 11px; color: #5E6B64">20</span></div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid #C9D1CB"><span style="position: absolute; left: -30px; top: -8px; width: 24px; text-align: right; font-size: 11px; color: #5E6B64">0</span></div>
+        <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 6px; padding: 0 4px">
+          <sc-for list="{{outcomeBars}}" as="c" hint-placeholder-count="12">
+            <div title="{{c.tip}}" style="flex: 1 1 0; height: 100%; display: flex; justify-content: center">
+              <div style="width: 64%; max-width: 30px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px">
+                <sc-if value="{{c.hasEx}}" hint-placeholder-val="{{false}}"><div style="height: {{c.exH}}; background: #B4533A; border-radius: 4px 4px 0 0"></div></sc-if>
+                <sc-if value="{{c.hasDe}}" hint-placeholder-val="{{true}}"><div style="height: {{c.deH}}; background: #E39A2E; border-radius: {{c.deR}}"></div></sc-if>
+                <div style="height: {{c.onH}}; background: #2A8763"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; padding: 0 4px; margin-left: 30px">
+        <sc-for list="{{outcomeBars}}" as="c" hint-placeholder-count="12"><span style="flex: 1 1 0; text-align: center; font-size: 11px; color: #5E6B64">{{c.label}}</span></sc-for>
+      </div>
+    </figure>
+
+    <figure style="margin: 0; background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px 14px; display: flex; flex-direction: column; gap: 14px">
+      <figcaption style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em">On-time delivery rate per month</span><span style="font-size: 12.5px; color: #5E6B64">On-time ÷ delivered · by delivery date</span></span>
+        <button type="button" style="flex-shrink: 0; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #E1E6E0; background: #FFFFFF; color: #35423C; font-size: 12.5px; cursor: pointer">Data table</button>
+      </figcaption>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: #35423C">
+        <span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 14px; height: 2px; background: #2A8763"></span>Monthly rate</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 14px; height: 0; border-top: 2px dashed #808F87"></span>Year: 82.2%</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; border: 2px solid #2A8763; background: #FFFFFF; box-sizing: border-box"></span>Under 20 deliveries</span>
+      </div>
+      <svg viewBox="0 0 720 220" role="img" aria-label="On-time delivery rate per month in 2025, between 72.7 percent in May and 89.3 percent in April" style="width: 100%; height: auto; display: block; font-family: Figtree, 'Segoe UI', system-ui, sans-serif">
+        <line x1="44" y1="16" x2="700" y2="16" style="stroke: #EDF1EC; stroke-width: 1"></line>
+        <line x1="44" y1="61" x2="700" y2="61" style="stroke: #EDF1EC; stroke-width: 1"></line>
+        <line x1="44" y1="106" x2="700" y2="106" style="stroke: #EDF1EC; stroke-width: 1"></line>
+        <line x1="44" y1="151" x2="700" y2="151" style="stroke: #EDF1EC; stroke-width: 1"></line>
+        <line x1="44" y1="196" x2="700" y2="196" style="stroke: #C9D1CB; stroke-width: 1"></line>
+        <text x="36" y="20" style="font-size: 11px; fill: #5E6B64; text-anchor: end">100%</text>
+        <text x="36" y="65" style="font-size: 11px; fill: #5E6B64; text-anchor: end">90%</text>
+        <text x="36" y="110" style="font-size: 11px; fill: #5E6B64; text-anchor: end">80%</text>
+        <text x="36" y="155" style="font-size: 11px; fill: #5E6B64; text-anchor: end">70%</text>
+        <text x="36" y="200" style="font-size: 11px; fill: #5E6B64; text-anchor: end">60%</text>
+        <line x1="44" y1="96.1" x2="700" y2="96.1" style="stroke: #808F87; stroke-width: 1.5; stroke-dasharray: 5 4"></line>
+        <polyline points="44,103.3 103.64,101.05 163.27,87.1 222.91,64.15 282.55,138.85 342.18,91.15 401.82,106 461.45,101.05 521.09,80.35 580.73,97.9 640.36,87.1 700,85.3" style="fill: none; stroke: #2A8763; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round"></polyline>
+        <circle cx="44" cy="103.3" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="103.64" cy="101.05" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="163.27" cy="87.1" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="222.91" cy="64.15" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="282.55" cy="138.85" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="342.18" cy="91.15" r="4.5" style="fill: #FFFFFF; stroke: #2A8763; stroke-width: 2"></circle>
+        <circle cx="401.82" cy="106" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="461.45" cy="101.05" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="521.09" cy="80.35" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="580.73" cy="97.9" r="3.5" style="fill: #2A8763"></circle>
+        <circle cx="640.36" cy="87.1" r="4.5" style="fill: #FFFFFF; stroke: #2A8763; stroke-width: 2"></circle>
+        <circle cx="700" cy="85.3" r="3.5" style="fill: #2A8763"></circle>
+        <text x="222.91" y="52" style="font-size: 11px; font-weight: 700; fill: #17201C; text-anchor: middle">89.3%</text>
+        <text x="282.55" y="156" style="font-size: 11px; font-weight: 700; fill: #17201C; text-anchor: middle">72.7%</text>
+        <text x="44" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Jan</text>
+        <text x="103.64" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Feb</text>
+        <text x="163.27" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Mar</text>
+        <text x="222.91" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Apr</text>
+        <text x="282.55" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">May</text>
+        <text x="342.18" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Jun</text>
+        <text x="401.82" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Jul</text>
+        <text x="461.45" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Aug</text>
+        <text x="521.09" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Sep</text>
+        <text x="580.73" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Oct</text>
+        <text x="640.36" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: middle">Nov</text>
+        <text x="700" y="214" style="font-size: 11px; fill: #5E6B64; text-anchor: end">Dec</text>
+      </svg>
+      <p style="margin: 0; font-size: 12.5px; color: #5E6B64">Jun (15 of 18) and Nov (16 of 19) had fewer than 20 deliveries, so one delivery moves them by about 5 points. The axis starts at 60%.</p>
+    </figure>
+  </section>
+
+  <section aria-label="Delivery time by place" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px">
+    <figure style="margin: 0; background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+      <figcaption style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em">Average delivery time by region</span><span style="font-size: 12.5px; color: #5E6B64">Days from order to delivery · slowest first</span></figcaption>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <sc-for list="{{regions}}" as="r" hint-placeholder-count="5">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <span style="width: 132px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 13px; font-weight: 600">{{r.name}}</span><span style="font-size: 11.5px; color: #5E6B64; font-variant-numeric: tabular-nums">n={{r.n}} · {{r.onTime}} on time</span></span>
+            <div style="flex: 1 1 auto; height: 16px; border-radius: 4px; background: #EEF1ED"><div title="{{r.tip}}" style="width: {{r.w}}; height: 100%; border-radius: 4px; background: #2A8763"></div></div>
+            <span style="width: 64px; text-align: right; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums">{{r.days}} days</span>
+          </div>
+        </sc-for>
+      </div>
+    </figure>
+
+    <figure style="margin: 0; background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+      <figcaption style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em">Average delivery time by warehouse</span><span style="font-size: 12.5px; color: #5E6B64">Days from order to delivery · slowest first</span></figcaption>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{warehouses}}" as="r" hint-placeholder-count="9">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <span style="width: 132px; flex-shrink: 0; display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 13px; font-weight: 600">{{r.name}}</span><span style="font-size: 11.5px; color: #5E6B64; font-variant-numeric: tabular-nums">n={{r.n}} · {{r.onTime}} on time</span></span>
+            <div style="flex: 1 1 auto; height: 14px; border-radius: 4px; background: #EEF1ED"><div title="{{r.tip}}" style="width: {{r.w}}; height: 100%; border-radius: 4px; background: #2A8763"></div></div>
+            <span style="width: 64px; text-align: right; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums">{{r.days}} days</span>
+          </div>
+        </sc-for>
+      </div>
+    </figure>
+  </section>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var onTime = [54, 30, 32, 25, 16, 15, 28, 30, 18, 18, 16, 22];
+    var delayed = [11, 5, 3, 2, 6, 3, 6, 6, 3, 3, 3, 4];
+    var exception = [2, 2, 3, 1, 0, 0, 1, 1, 0, 1, 0, 0];
+    var pct = function (v) { return (v / 80 * 100).toFixed(2) + '%'; };
+    var place = function (row) {
+      return {
+        name: row[0], days: row[1], n: row[2], onTime: row[3],
+        w: (parseFloat(row[1]) / 5 * 100).toFixed(1) + '%',
+        tip: row[0] + ': ' + row[1] + ' days on average over ' + row[2] + ' deliveries'
+      };
+    };
+    return {
+      outcomeBars: months.map(function (m, i) {
+        var total = onTime[i] + delayed[i] + exception[i];
+        return {
+          label: m, onH: pct(onTime[i]), deH: pct(delayed[i]), exH: pct(exception[i]),
+          hasDe: delayed[i] > 0, hasEx: exception[i] > 0, deR: exception[i] > 0 ? '0' : '4px 4px 0 0',
+          tip: m + ' 2025: ' + total + ' delivered · ' + onTime[i] + ' on time · ' + delayed[i] + ' delayed · ' + exception[i] + ' exception'
+        };
+      }),
+      regions: [
+        ['US-C', '4.6', 71, '81.7%'], ['EU', '4.2', 72, '81.9%'], ['UK', '3.7', 49, '81.6%'],
+        ['US-E', '3.6', 90, '78.9%'], ['US-W', '3.3', 88, '86.4%']
+      ].map(place),
+      warehouses: [
+        ['DFW-DC1', '4.6', 39, '82.1%'], ['CHI-DC1', '4.5', 32, '81.3%'], ['AMS-FC1', '4.2', 40, '82.5%'],
+        ['BER-FC1', '4.1', 32, '81.3%'], ['LON-FC1', '3.7', 49, '81.6%'], ['EWR-DC1', '3.6', 46, '80.4%'],
+        ['ATL-DC1', '3.5', 44, '77.3%'], ['SFO-DC2', '3.4', 44, '88.6%'], ['LAX-DC1', '3.3', 44, '84.1%']
+      ].map(place)
+    };
+  }
+}
+</script>
+</body>
+</html>

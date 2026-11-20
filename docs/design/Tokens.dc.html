@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Palette, type and parts</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F6E4F}a:hover{color:#17201C}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 1200px; height: 1320px; box-sizing: border-box; padding: 48px 56px; background: #F4F6F2; color: #17201C; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-direction: column; gap: 28px">
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #5E6B64">Handoff for the app</span>
+    <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Palette, type and parts</h1>
+    <p style="margin: 0; max-width: 78ch; color: #5E6B64">Layout: a dark rail with an accent bar on the active item, white panels on a warm ground, small radii, tabular numbers. The three brand colours come from the brief; chart marks are deeper steps of them, checked for colour-blind separation.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; overflow: hidden">
+      <div style="height: 96px; background: #AFD0BF"></div>
+      <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 700">Sage · #AFD0BF</span><span style="font-size: 13px; color: #5E6B64">Tints, question chips, the ground of icon squares, small-sample bars of a green series. Never text.</span></div>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; overflow: hidden">
+      <div style="height: 96px; background: #808F87"></div>
+      <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 700">Grey-green · #808F87</span><span style="font-size: 13px; color: #5E6B64">Icons and secondary strokes. 3.4:1 on white: enough for icons, not for body text.</span></div>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; overflow: hidden">
+      <div style="height: 96px; background: #F4B266"></div>
+      <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 700">Amber · #F4B266</span><span style="font-size: 13px; color: #5E6B64">The Ask button, the active menu item, the forecast band. Ink text on it reads at 9:1.</span></div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+      <span style="font-size: 15px; font-weight: 700">Neutrals</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; font-size: 13px">
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #F4F6F2; border: 1px solid #E1E6E0"></span>Ground #F4F6F2</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E1E6E0"></span>Panel #FFFFFF</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #E1E6E0"></span>Line #E1E6E0</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #EDF1EC"></span>Grid line #EDF1EC</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #17201C"></span>Ink #17201C</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #35423C"></span>Ink 2 #35423C</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #5E6B64"></span>Muted #5E6B64 · 5.6:1</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #1F6E4F"></span>Green text #1F6E4F · 6.2:1</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #16211C"></span>Rail #16211C</span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 28px; height: 28px; border-radius: 6px; background: #93A39A"></span>Rail muted #93A39A · 6.3:1</span>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+      <span style="font-size: 15px; font-weight: 700">Chart marks</span>
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 44px; height: 14px; border-radius: 3px; background: #2A8763"></span><span><strong>On time</strong>, and any single series · #2A8763</span></span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 44px; height: 14px; border-radius: 3px; background: #E39A2E"></span><span><strong>Delayed</strong>, and delay rates · #E39A2E</span></span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 44px; height: 14px; border-radius: 3px; background: #B4533A"></span><span><strong>Exception</strong> · #B4533A</span></span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 44px; height: 14px; border-radius: 3px; background: #F6D3A1; box-shadow: inset 0 0 0 1px #E39A2E"></span><span>Small sample of an amber series, plus a “small sample” tag</span></span>
+        <span style="display: flex; align-items: center; gap: 10px"><span style="width: 44px; height: 0; border-top: 2px dashed #C27A16"></span><span>Forecast line · #C27A16, band amber at 30%</span></span>
+      </div>
+      <p style="margin: 0; padding: 10px 12px; border-radius: 8px; background: #F7F9F6; font-size: 12.5px; color: #35423C">Validator: lightness inside the band, chroma ≥ 0.10, colour-blind separation ΔE 14.6 (protan), normal-vision ΔE 20.2. Amber marks sit under 3:1 on white, so every chart keeps value labels and its data table.</p>
+    </div>
+  </div>
+
+  <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+    <span style="font-size: 15px; font-weight: 700">Type · Figtree, numbers in tabular figures</span>
+    <div style="display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 10px 20px; align-items: baseline">
+      <span style="font-size: 12.5px; color: #5E6B64">Page title · 26 / 700, −0.02em</span><span style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em">Overview</span>
+      <span style="font-size: 12.5px; color: #5E6B64">Card title · 15 / 700</span><span style="font-size: 15px; font-weight: 700">Delivery outcomes per month</span>
+      <span style="font-size: 12.5px; color: #5E6B64">Answer sentence · 17 / 500</span><span style="font-size: 17px; font-weight: 500">Highest delay rate: GLS 25.0% (2 of 8) on only 8 deliveries.</span>
+      <span style="font-size: 12.5px; color: #5E6B64">Body · 14 / 400</span><span style="font-size: 14px">Ask in plain language. The AI picks a computation, code runs it.</span>
+      <span style="font-size: 12.5px; color: #5E6B64">Caption · 12.5 / 400, muted</span><span style="font-size: 12.5px; color: #5E6B64">By delivery date · 1 Jan–31 Dec 2025 · 370 delivered</span>
+      <span style="font-size: 12.5px; color: #5E6B64">Label · 11 / 600, caps, 0.06em</span><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #5E6B64">Reading this chart</span>
+      <span style="font-size: 12.5px; color: #5E6B64">Figures · 30 and 44 / 700</span><span style="display: flex; align-items: baseline; gap: 24px; font-variant-numeric: tabular-nums"><span style="font-size: 30px; font-weight: 700; letter-spacing: -0.02em">82.2%</span><span style="font-size: 44px; font-weight: 700; letter-spacing: -0.03em">405</span></span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+      <span style="font-size: 15px; font-weight: 700">Buttons and chips</span>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+        <button type="button" style="height: 46px; padding: 0 22px; border: 0; border-radius: 8px; background: #F4B266; color: #17201C; font-size: 15px; font-weight: 700">Ask</button>
+        <button type="button" style="height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #E1E6E0; background: #FFFFFF; color: #35423C; font-size: 12.5px">Data table</button>
+        <button type="button" style="min-height: 34px; padding: 6px 10px; border: 0; background: transparent; color: #1F6E4F; font-size: 13px; font-weight: 600">How this was computed</button>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+        <button type="button" style="min-height: 34px; padding: 6px 12px; border-radius: 999px; border: 1px solid #C6E0D2; background: #EEF6F1; color: #35423C; font-size: 13px">Example question</button>
+        <button type="button" style="min-height: 34px; padding: 6px 12px; border-radius: 999px; border: 1px solid #CBD3CD; background: #FFFFFF; color: #35423C; font-size: 13px">Follow-up: Only carriers with ≥ 20 deliveries</button>
+      </div>
+      <span style="font-size: 12.5px; color: #5E6B64">Every control is at least 34 px tall, the Ask button and input 46 px. Focus ring: 2 px #E39A2E, 2 px offset.</span>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+      <span style="font-size: 15px; font-weight: 700">States and tags</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <span style="display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 999px; background: #E6F2EC; border: 1px solid #C6E0D2; font-size: 13px; font-weight: 600; color: #1F6E4F"><span style="width: 8px; height: 8px; border-radius: 50%; background: #2A8763"></span>AI online</span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 999px; background: #FBEAD2; border: 1px solid #F0C68E; font-size: 13px; font-weight: 600; color: #7A4E10"><span style="width: 8px; height: 8px; border-radius: 50%; background: #E39A2E"></span>AI busy, try again shortly</span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 999px; background: #F6E4DF; border: 1px solid #E5BBAE; font-size: 13px; font-weight: 600; color: #8A3A27"><span style="width: 8px; height: 8px; border-radius: 50%; background: #B4533A"></span>AI unavailable: the dashboard still works</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+        <span style="padding: 1px 6px; border-radius: 4px; background: #FBEAD2; color: #7A4E10; font-size: 11px; font-weight: 600">small sample</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 999px; background: #E6F2EC; color: #1F6E4F; font-size: 12px; font-weight: 600">Every number checked against the computation</span>
+        <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 999px; background: #EEF1ED; color: #35423C; font-size: 12px; font-weight: 600">rough forecast</span>
+      </div>
+      <div style="display: flex; gap: 8px; padding: 10px; border-radius: 10px; background: #16211C">
+        <span style="position: relative; display: flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 8px; background: rgba(244, 178, 102, 0.14); color: #F4B266; font-weight: 600; font-size: 13px"><span style="position: absolute; left: -10px; top: 9px; width: 3px; height: 18px; border-radius: 0 3px 3px 0; background: #F4B266"></span>Active item</span>
+        <span style="display: flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 8px; color: #E7EEEA; font-size: 13px">Idle item</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="background: #FFFFFF; border: 1px solid #E1E6E0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+    <span style="font-size: 15px; font-weight: 700">As CSS variables in the app</span>
+    <pre style="margin: 0; padding: 14px 16px; border-radius: 8px; background: #F7F9F6; border: 1px solid #EDF1EC; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 12.5px; line-height: 1.6; color: #35423C; white-space: pre-wrap">--ground: #F4F6F2;  --panel: #FFFFFF;  --line: #E1E6E0;  --grid: #EDF1EC;
+--ink: #17201C;  --ink-2: #35423C;  --muted: #5E6B64;  --green-text: #1F6E4F;
+--rail: #16211C;  --rail-ink: #E7EEEA;  --rail-muted: #93A39A;
+--sage: #AFD0BF;  --grey-green: #808F87;  --amber: #F4B266;
+--mark-on-time: #2A8763;  --mark-delayed: #E39A2E;  --mark-exception: #B4533A;
+--mark-small: #F6D3A1;  --forecast-line: #C27A16;  --radius-card: 12px;  --radius-control: 8px;</pre>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1200,"height":1320}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
