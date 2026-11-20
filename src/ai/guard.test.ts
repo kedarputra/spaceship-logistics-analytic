@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkNumbers } from "./guard";
+import { checkForecastWording, checkNumbers } from "./guard";
 
 const FACTS = [
   "Period: 1–30 Nov 2025 (last month), by delivery date",
@@ -59,5 +59,32 @@ describe("the number guard (ADR 0009 §4)", () => {
 
   it("does not mistake words that contain a number word for one", () => {
     expect(checkNumbers("None of the orders were lost; someone may ask often.", FACTS)).toEqual({ ok: true });
+  });
+});
+
+describe("the wording of a forecast sentence (ADR 0003 §7, ticket 23)", () => {
+  const Q2 = { target: { labels: ["Q2 2026", "Apr–Jun 2026"], units: "285" } };
+
+  it("rejects the plan read as an order to place", () => {
+    expect(checkForecastWording("Reorder 405 units for Jan–Mar 2026.", {}).ok).toBe(false);
+    expect(checkForecastWording("There are 405 units to plan for over Jan–Mar 2026.", {})).toEqual({ ok: true });
+  });
+
+  it("requires the SKU as the data writes it, and only that way", () => {
+    const sku = { skuId: "CRAYON-0008" };
+    expect(checkForecastWording("CRAYON-0008 cannot be forecast on its own.", sku)).toEqual({ ok: true });
+    expect(checkForecastWording("crayon-0008 cannot be forecast on its own.", sku).ok).toBe(false);
+    expect(checkForecastWording("crayon-0008 (CRAYON-0008) cannot be forecast on its own.", sku).ok).toBe(false);
+  });
+
+  it("requires the demand in the months asked about, as a whole number beside their name", () => {
+    expect(checkForecastWording("In Q2 2026, demand is forecast at 285 units; plan for 739 units through Jun 2026.", Q2)).toEqual({ ok: true });
+    expect(checkForecastWording("Over Jan–Jun 2026, demand is forecast at 570 units; that is 739 units to plan for.", Q2).ok).toBe(false);
+  });
+
+  it('does not find the demand inside another number, nor the month at the end of a range: "3" in "33", "Feb 2026" in "Jan–Feb 2026"', () => {
+    const feb = { target: { labels: ["Feb 2026"], units: "3" } };
+    expect(checkForecastWording("Over Jan–Feb 2026, plan for 33 units.", feb).ok).toBe(false);
+    expect(checkForecastWording("In Feb 2026, demand is forecast at 3 units; over Jan–Feb 2026, plan for 33 units.", feb)).toEqual({ ok: true });
   });
 });

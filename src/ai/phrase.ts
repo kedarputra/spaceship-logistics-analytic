@@ -1,8 +1,8 @@
 import type { Answer, SentenceSource } from "@/tools/answer";
-import { type ForecastAnswer, forecastFacts, requiredForecastWords } from "@/tools/forecast-answer";
-import { factsFor, requiredNames, wordingContext } from "@/tools/sentence";
+import { type ForecastAnswer, forecastFacts, forecastWordingContext, requiredForecastWords } from "@/tools/forecast-answer";
+import { factsFor, requiredWords, wordingContext } from "@/tools/sentence";
 import type { ChatMessage, Completion, LlmClient } from "./client";
-import { checkNumbers, checkPlanWording, checkWording } from "./guard";
+import { checkForecastWording, checkNumbers, checkWording } from "./guard";
 import { forecastPhraseMessages, phraseMessages } from "./prompts";
 
 /**
@@ -53,14 +53,14 @@ function briefFor(question: string, answer: PhraseableAnswer): Brief {
       facts,
       messages: forecastPhraseMessages(question, answer, facts),
       required: requiredForecastWords(answer),
-      wordedRight: (sentence) => checkPlanWording(sentence).ok,
+      wordedRight: (sentence) => checkForecastWording(sentence, forecastWordingContext(answer)).ok,
     };
   }
   const facts = factsFor(answer);
   return {
     facts,
     messages: phraseMessages(question, answer, facts),
-    required: requiredNames(answer),
+    required: requiredWords(answer),
     wordedRight: (sentence) => checkWording(sentence, wordingContext(answer)).ok,
   };
 }

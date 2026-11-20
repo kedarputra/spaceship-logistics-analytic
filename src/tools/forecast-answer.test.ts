@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerForecast, type ForecastAnswer, forecastFacts, presentForecast, requiredForecastWords } from "./forecast-answer";
+import { answerForecast, type ForecastAnswer, forecastFacts, forecastWordingContext, presentForecast, requiredForecastWords } from "./forecast-answer";
 import { forecastAnswerOf, forecastResultFor, ROUGH_SERIES } from "./forecast-fixtures";
 import { forecastSpecSchema } from "./spec";
 
@@ -49,6 +49,32 @@ describe("the forecast answer's sentence, written by code (ADR 0003 §7, ADR 000
     expect(forecastAnswerOf(CRAYON_0008).interpretation).toBe(
       "Demand forecast for category CRAYON, the category of SKU CRAYON-0008: units ordered per month by order date, Jan–Mar 2026, from orders 1 Jan–31 Dec 2025.",
     );
+  });
+});
+
+describe("months asked about inside the reach (ticket 23)", () => {
+  const q2 = forecastAnswerOf({ scope: { type: "total" }, target: { type: "quarter", quarter: 2 } });
+
+  it("answers the question first: the target's own demand, then the units to plan for through its end", () => {
+    expect(q2.targetDemand).toEqual({ label: "Q2 2026", monthsLabel: "Apr–Jun 2026", units: 285 });
+    expect(q2.sentence).toBe(
+      "In Q2 2026 (Apr–Jun 2026), demand is forecast at 285 units. Over Jan–Jun 2026, demand is forecast at 570 units; with 169 units of safety stock, that is 739 units to plan for, to have stock through Jun 2026.",
+    );
+  });
+
+  it("puts both figures in the facts, and gives the wording check the target's names and demand", () => {
+    const facts = forecastFacts(q2);
+    expect(facts).toContain("In Q2 2026 (Apr–Jun 2026), demand is forecast at 285 units.");
+    expect(facts).toContain("Over Jan–Jun 2026, demand is forecast at 570 units.");
+    expect(forecastWordingContext(q2)).toEqual({ target: { labels: ["Q2 2026", "Apr–Jun 2026"], units: "285" } });
+  });
+
+  it("names a single month once, and adds nothing when the target starts with the forecast", () => {
+    const march = forecastAnswerOf({ scope: { type: "total" }, target: { type: "month", month: 3 } });
+    expect(march.sentence.startsWith("In Mar 2026, demand is forecast at 95 units. Over Jan–Mar 2026,")).toBe(true);
+    const q1 = forecastAnswerOf({ scope: { type: "total" }, target: { type: "quarter", quarter: 1 } });
+    expect(q1.targetDemand).toBeUndefined();
+    expect(q1.sentence.startsWith("Over Jan–Mar 2026, demand is forecast at 285 units;")).toBe(true);
   });
 });
 

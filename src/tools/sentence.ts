@@ -68,9 +68,22 @@ export function cutRankingDirection(result: QueryResult): Direction | undefined 
   return isCut(result) ? result.order : undefined;
 }
 
-/** What the wording check needs to know about a result (ticket 22). */
-export function wordingContext(result: QueryResult): { direction: Direction | undefined; countLike: boolean } {
-  return { direction: cutRankingDirection(result), countLike: result.metric.kind === "count" || result.metric.kind === "sum" };
+/** What the wording check needs to know about a result (tickets 22 and 23). */
+export interface WordingContext {
+  direction: Direction | undefined;
+  countLike: boolean;
+  /** A series' point labels ("w/c 6 Oct"), and how many a sentence may name: the extremes, three each. */
+  series: { labels: string[]; maxNamed: number } | undefined;
+}
+
+export function wordingContext(result: QueryResult): WordingContext {
+  const groupBy = result.spec.groupBy;
+  const isSeries = groupBy !== undefined && isTimeDimension(groupBy);
+  return {
+    direction: cutRankingDirection(result),
+    countLike: result.metric.kind === "count" || result.metric.kind === "sum",
+    series: isSeries ? { labels: result.rows.map((row) => row.label), maxNamed: 2 * MAX_NAMED_POINTS } : undefined,
+  };
 }
 
 /** "370 delivered, 304 on time, 55 delayed and 11 exception", from the metric over the whole period. */
@@ -102,6 +115,21 @@ function seriesExtremes(result: QueryResult): { highest: ResultRow[]; lowest: Re
   };
 }
 
+/** Tied points named in a sentence or the facts; past this, they are counted instead (ticket 23). */
+export const MAX_NAMED_POINTS = 3;
+
+/** " each" after a value several rows share. */
+function each(rows: readonly ResultRow[]): string {
+  return rows.length > 1 ? " each" : "";
+}
+
+/** "w/c 6 Oct, w/c 17 Nov and w/c 15 Dec", or past three, "7 of the 14 weeks, including w/c 29 Sep, w/c 20 Oct and w/c 27 Oct". */
+function pointsText(points: readonly ResultRow[], result: QueryResult, groupBy: GroupBy): string {
+  const labels = points.map((row) => row.label);
+  if (labels.length <= MAX_NAMED_POINTS) return andList(labels);
+  return `${labels.length} of the ${result.rows.length} ${DIMENSION_WORDS[groupBy].many}, including ${andList(labels.slice(0, MAX_NAMED_POINTS))}`;
+}
+
 function lowered(label: string): string {
   return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 }
@@ -114,8 +142,16 @@ function capitalized(text: string): string {
  * How a ranking is worded: `leader` opens a count ranking ("Most", "Fewest") or another ranking
  * ("Highest", "Lowest"); `direction` is "highest" or "lowest" inside a sentence.
  */
+/**
+ * The direction a ranking's first group is named by: "lowest" for a lowest-first ranking, never "top"
+ * (ticket 23: "Top" for the lowest made the model call the lowest "top"). Shared by the facts and the prompt.
+ */
+export function rankingDirection(result: QueryResult): Direction {
+  return result.order ?? "highest";
+}
+
 function rankingWords(result: QueryResult): { leader: string; direction: Direction } {
-  const direction = result.order ?? "highest";
+  const direction = rankingDirection(result);
   const countLike = result.metric.unit === "orders" || result.metric.unit === "units";
   if (countLike) return { leader: direction === "lowest" ? "Fewest" : "Most", direction };
   return { leader: capitalized(direction), direction };
@@ -128,8 +164,7 @@ function categorySentence(result: QueryResult, groupBy: GroupBy): string {
   if (ranking === undefined) {
     const top = tiedFirst(result.rows);
     if (top[0] === undefined) return `No ${DIMENSION_WORDS[groupBy].many} in ${periodPhrase(result)}.`;
-    const each = top.length > 1 ? " each" : "";
-    return `${words.leader} ${metric}: ${andList(top.map((row) => row.label))}, with ${detail(result, top[0])}${each}.`;
+    return `${words.leader} ${metric}: ${andList(top.map((row) => row.label))}, with ${detail(result, top[0])}${each(top)}.`;
   }
   const { top, topReliable, minDelivered } = ranking;
   const heading = `${capitalized(words.direction)} ${metric}`;
@@ -162,12 +197,11 @@ function timeSentence(result: QueryResult, groupBy: GroupBy): string {
       return `${heading}: ${overallText}no ${unit.one} has at least ${SMALL_SAMPLE_MIN_DELIVERED} deliveries, so no ${unit.one} stands out reliably.`;
     }
     const among = reliableOnly ? `, among ${unit.many} with at least ${SMALL_SAMPLE_MIN_DELIVERED} deliveries` : "";
-    return `${heading}: ${overallText}highest in ${andList(highest.map((row) => row.label))} (${value(result, highest[0])}), lowest in ${andList(lowest.map((row) => row.label))} (${value(result, lowest[0])})${among}.`;
+    return `${heading}: ${overallText}highest in ${pointsText(highest, result, groupBy)} (${value(result, highest[0])}), lowest in ${pointsText(lowest, result, groupBy)} (${value(result, lowest[0])})${among}.`;
   }
   if (highest[0] === undefined || highest[0].value === 0) return `${heading}: none.`;
-  const each = highest.length > 1 ? " each" : "";
   const inAll = overall === undefined ? "" : `${value(result, overall)} in all; `;
-  return `${heading}: ${inAll}the most in ${andList(highest.map((row) => row.label))} (${value(result, highest[0])}${each}).`;
+  return `${heading}: ${inAll}the most in ${pointsText(highest, result, groupBy)} (${value(result, highest[0])}${each(highest)}).`;
 }
 
 /** The sentence code writes for a result, one template per kind (ADR 0009 §4). */
@@ -182,10 +216,11 @@ export function templateSentence(result: QueryResult): string {
 }
 
 /**
- * The groups any sentence for this result must name: the leaders of a ranking with all their ties,
- * and, when the top is a small sample, the top group with at least 20 (ADR 0001 §6).
+ * What any sentence for this result must contain: the leaders of a ranking with all their ties,
+ * and, when the first group is a small sample, the first group with at least 20 and its value
+ * exactly as formatted (ADR 0001 §6, ticket 23).
  */
-export function requiredNames(result: QueryResult): string[] {
+export function requiredWords(result: QueryResult): string[] {
   const groupBy = result.spec.groupBy;
   if (groupBy === undefined || isTimeDimension(groupBy)) return [];
   const { ranking } = result;
@@ -194,7 +229,9 @@ export function requiredNames(result: QueryResult): string[] {
     case "reliable":
       return tiedFirst(result.rows).map((row) => row.label);
     case "small-sample-top":
-      return ranking.topReliable === undefined ? [ranking.top.label] : [ranking.top.label, ranking.topReliable.label];
+      return ranking.topReliable === undefined
+        ? [ranking.top.label]
+        : [ranking.top.label, ranking.topReliable.label, value(result, ranking.topReliable)];
     case "no-reliable-group":
       return [];
   }
@@ -220,14 +257,16 @@ function seriesFacts(result: QueryResult, groupBy: GroupBy): string[] {
   const [low] = lowest;
   if (high === undefined || low === undefined) return [];
   if (!isRatio(result)) {
-    const each = highest.length > 1 ? " each" : "";
-    return [`Most: ${andList(highest.map((row) => row.label))} (${value(result, high)}${each})`];
+    return [
+      `Most: ${pointsText(highest, result, groupBy)} (${value(result, high)}${each(highest)})`,
+      `Fewest: ${pointsText(lowest, result, groupBy)} (${value(result, low)}${each(lowest)})`,
+    ];
   }
   const unit = DIMENSION_WORDS[groupBy].one;
   const among = reliableOnly ? ` with at least ${SMALL_SAMPLE_MIN_DELIVERED} deliveries` : "";
   return [
-    `Highest ${unit}${among}: ${andList(highest.map((row) => row.label))} (${value(result, high)})`,
-    `Lowest ${unit}${among}: ${andList(lowest.map((row) => row.label))} (${value(result, low)})`,
+    `Highest ${unit}${among}: ${pointsText(highest, result, groupBy)} (${value(result, high)})`,
+    `Lowest ${unit}${among}: ${pointsText(lowest, result, groupBy)} (${value(result, low)})`,
   ];
 }
 
@@ -260,8 +299,9 @@ export function factsFor(result: QueryResult): string[] {
   }
   if (result.ranking !== undefined) {
     const { top, topReliable, minDelivered } = result.ranking;
-    lines.push(`Top: ${rowText(result, top)}`);
-    if (topReliable !== undefined) lines.push(`Top with at least ${minDelivered} delivered orders: ${rowText(result, topReliable)}`);
+    const first = capitalized(rankingDirection(result));
+    lines.push(`${first}: ${rowText(result, top)}`);
+    if (topReliable !== undefined) lines.push(`${first} with at least ${minDelivered} delivered orders: ${rowText(result, topReliable)}`);
     if (result.ranking.case === "no-reliable-group") lines.push(`No group has at least ${minDelivered} delivered orders.`);
   }
   if (result.metric.smallSampleRule) {

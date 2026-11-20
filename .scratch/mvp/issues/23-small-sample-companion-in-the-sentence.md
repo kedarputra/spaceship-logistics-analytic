@@ -5,7 +5,7 @@
 **Blocked by:** 22
 _22 Fixes from the live check of the answer sentence_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] "Which carrier is the least reliable?" (on-time rate by carrier, ascending, limit 1). The model wrote: "GLS is the least reliable with 62.5% (5 of 8), which is a small sample. USPS is the top among groups with at least 20 delivered orders." The guard kept it because USPS is named. But the sentence drops USPS's value (74.5%, 35 of 47) and calls the lowest group "top". When the facts carry the n ≥ 20 companion, a model sentence must contain the companion's value exactly as formatted. It must not use "top" or "highest" for an ascending ranking, or "bottom" or "lowest" for a descending one. Otherwise the template stands; it already reads "among carriers with at least 20, USPS 74.5% (35 of 47)".
 - [ ] Optional: when many points of a series tie at an extreme, the sentence names at most three and counts the rest. Seen live: "the lowest weeks were w/c 29 Sep, w/c 20 Oct, w/c 27 Oct, w/c 10 Nov, w/c 24 Nov, w/c 22 Dec and w/c 29 Dec with 0". A reader is better served by "no delayed orders in 7 of the 14 weeks".
@@ -14,3 +14,7 @@ _22 Fixes from the live check of the answer sentence_
 - [ ] Same check: "Forecast demand for SKU crayon-0008" gave "crayon-0008 cannot be forecast …", with the user's casing copied. The guard matches the SKU without regard to case. It should accept only the canonical ID (CRAYON-0008), so a model sentence with the wrong case falls back to the template.
 
 Already fixed outside this ticket: the assumption note for an ascending "best" ranking now reads "The worst is read as the lowest on-time delivery rate." It used to say "Best" was the highest even for "least reliable".
+
+## Comments
+
+- 2026-11-20: When the first group is a small sample, a model sentence must give the n >= 20 companion's value exactly as formatted; 'top' and 'bottom' join the words that contradict a ranking cut by a limit; the facts and prompt name the first group by the ranking's direction instead of 'Top'. Tied series points are named three at most and counted beyond that; a series sentence naming more than 6 points falls back. Forecasts: months asked about inside the reach get their own demand first (In Q2 2026 (Apr-Jun 2026), 285 units), required in a model sentence as a whole number beside their name; a SKU must be written as the data writes it. Verified with a fake model replaying the four live sentences (each falls back, correct ones kept), npm run check, and the built app in headless Edge.

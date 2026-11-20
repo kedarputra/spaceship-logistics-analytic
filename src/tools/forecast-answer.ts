@@ -49,23 +49,54 @@ function demandClause(result: ForecastResult): string {
   return `Over ${result.monthsLabel}, ${demandWords(result)} is forecast at ${formatCount(result.recommendation.demand)} units`;
 }
 
+/**
+ * "In Q2 2026 (Apr–Jun 2026), demand is forecast at 285 units." for months asked about after the
+ * first forecast month: the answer to the question, ahead of the plan that runs to them (ticket 23).
+ */
+function targetSentence(result: ForecastResult): string | undefined {
+  const target = result.targetDemand;
+  if (target === undefined) return undefined;
+  const months = target.label === target.monthsLabel ? "" : ` (${target.monthsLabel})`;
+  return `In ${target.label}${months}, ${demandWords(result)} is forecast at ${formatCount(target.units)} units.`;
+}
+
 function templateSentence(result: ForecastResult, roughNote: string | undefined): string {
   const { recommendation, sku } = result;
   const skuPart = sku === undefined ? "" : `${sku.id} has ${countOf(sku.orders.length, "order")}, too few to forecast on its own. `;
-  const sentence = `${skuPart}${demandClause(result)}; with ${formatCount(recommendation.safetyStock)} units of safety stock, that is ${formatCount(recommendation.units)} units to plan for.`;
+  const target = targetSentence(result);
+  const targetPart = target === undefined ? "" : `${target} `;
+  const lastMonth = result.forecastMonths.at(-1)?.label;
+  const through = target === undefined || lastMonth === undefined ? "" : `, to have stock through ${lastMonth}`;
+  const sentence = `${skuPart}${targetPart}${demandClause(result)}; with ${formatCount(recommendation.safetyStock)} units of safety stock, that is ${formatCount(recommendation.units)} units to plan for${through}.`;
   return roughNote === undefined ? sentence : `${sentence} ${roughNote}`;
 }
 
 /**
- * Words a model's sentence must contain: the scope it is about (for a SKU question, the SKU and its
- * category), and "rough" for a rough forecast (ADR 0003 §4).
+ * Words a model's sentence must contain, in any case: the scope it is about (for a SKU question,
+ * the SKU and its category), and "rough" for a rough forecast (ADR 0003 §4).
  */
 export function requiredForecastWords(result: ForecastResult): string[] {
   const { scope } = result.spec;
-  let scopeWords: string[] = [];
-  if (result.sku !== undefined) scopeWords = [result.sku.id, result.sku.category];
-  else if (scope.type !== "total") scopeWords = [scope.value];
-  return result.method.rough ? [...scopeWords, "rough"] : scopeWords;
+  const words: string[] = [];
+  if (result.sku !== undefined) words.push(result.sku.id, result.sku.category);
+  else if (scope.type !== "total") words.push(scope.value);
+  if (result.method.rough) words.push("rough");
+  return words;
+}
+
+/** What the forecast wording check needs (ticket 23): the SKU exactly as the data writes it, and the months asked about. */
+export interface ForecastWordingContext {
+  skuId?: string;
+  /** The names of the months asked about, and their demand as the facts write it. */
+  target?: { labels: string[]; units: string };
+}
+
+export function forecastWordingContext(result: ForecastResult): ForecastWordingContext {
+  const target = result.targetDemand;
+  return {
+    ...(result.sku === undefined ? {} : { skuId: result.sku.id }),
+    ...(target === undefined ? {} : { target: { labels: [target.label, target.monthsLabel], units: formatCount(target.units) } }),
+  };
 }
 
 function describeForecast(result: ForecastResult): string {
@@ -83,9 +114,11 @@ function skuFacts(answer: ForecastAnswer): string[] {
 export function forecastFacts(answer: ForecastAnswer): string[] {
   const { recommendation, forecastMonths } = answer;
   const score = winnerScore(answer);
+  const target = targetSentence(answer);
   const facts = [
     ...(answer.horizon.reachNote === undefined ? [] : [answer.horizon.reachNote]),
     ...skuFacts(answer),
+    ...(target === undefined ? [] : [target]),
     `What is forecast: units ordered per month by order date, for ${answer.scopeLabel}, from orders ${answer.period}.`,
     `The forecast covers ${answer.monthsLabel} (${countOf(answer.horizon.months, "month")}).`,
     `Month by month, the forecast is ${andList(forecastMonths.map((month) => `${month.label} ${formatDecimal(month.units)}`))} units.`,

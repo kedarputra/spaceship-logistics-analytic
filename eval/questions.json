@@ -201,6 +201,20 @@
       }
     },
     {
+      "id": "forecast-target-quarter",
+      "question": "What will demand be in Q2?",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "total"
+        },
+        "target": {
+          "type": "quarter",
+          "quarter": 2
+        }
+      }
+    },
+    {
       "id": "forecast-beyond-reach",
       "question": "What will demand look like in 2027?",
       "expected": {

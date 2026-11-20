@@ -164,6 +164,19 @@ export interface ForecastHorizon {
   reachNote?: string;
 }
 
+/** A forecast target (GLOSSARY): the months a question names, as their first and last month, and its name. */
+export interface TargetMonths {
+  label: string;
+  from: string;
+  to: string;
+}
+
+/**
+ * What was asked, resolved: the months to forecast, and the target months when they start after the
+ * first forecast month ("in Q2"), so their own demand leads the answer (ticket 23).
+ */
+type ResolvedHorizon = { horizon: ForecastHorizon; target?: TargetMonths } | { past: string };
+
 /** A SKU's own orders, and why it is not forecast on its own (ADR 0003 §9). */
 export interface SkuHistory {
   id: string;
@@ -202,6 +215,8 @@ export interface SeriesForecast {
   recommendation: InventoryRecommendation;
   /** The recommendation before rounding, for the explanation: forecast demand + 1.65 × σ × √months = total. */
   exact: { demand: number; safetyStock: number; total: number };
+  /** The demand in the months asked about, rounded, when they start after the first forecast month (ticket 23). */
+  targetDemand?: { label: string; monthsLabel: string; units: number };
   januaryCaveat?: string;
 }
 
@@ -243,23 +258,23 @@ function countHorizon(requested: NonNullable<ForecastSpec["horizon"]>): Forecast
 type Target = NonNullable<ForecastSpec["target"]>;
 
 /** The year a quarter or month without one is read in: the next one that ends on or after the first forecast month. */
-function nextYear(lastMonth: number, first: string): number {
-  const year = Number(first.slice(0, 4));
-  return monthKey(year, lastMonth) >= first ? year : year + 1;
+function nextYear(lastMonth: number, firstMonth: string): number {
+  const year = Number(firstMonth.slice(0, 4));
+  return monthKey(year, lastMonth) >= firstMonth ? year : year + 1;
 }
 
 /** The first and last month a target covers, and its name: "2027", "Q3 2026", "Mar 2026". */
-function targetMonths(target: Target, first: string): { from: string; to: string; label: string } {
+function targetMonths(target: Target, firstMonth: string): TargetMonths {
   switch (target.type) {
     case "year":
       return { from: monthKey(target.year, 1), to: monthKey(target.year, 12), label: String(target.year) };
     case "quarter": {
       const lastMonth = 3 * target.quarter;
-      const year = target.year ?? nextYear(lastMonth, first);
+      const year = target.year ?? nextYear(lastMonth, firstMonth);
       return { from: monthKey(year, lastMonth - 2), to: monthKey(year, lastMonth), label: `Q${target.quarter} ${year}` };
     }
     case "month": {
-      const key = monthKey(target.year ?? nextYear(target.month, first), target.month);
+      const key = monthKey(target.year ?? nextYear(target.month, firstMonth), target.month);
       return { from: key, to: key, label: formatMonths(key, key) };
     }
   }
@@ -269,24 +284,26 @@ function targetMonths(target: Target, first: string): { from: string; to: string
  * The months that reach a target, from the first forecast month and at most 6 (ticket 14). Wholly
  * beyond the reach, the answer says so first and shows the furthest months it can.
  */
-function targetHorizon(target: Target, first: string): ForecastHorizon | { past: string } {
-  const { from, to, label } = targetMonths(target, first);
-  const reachEnd = monthsAfter(first, MAX_MONTHS - 1).at(-1)?.key ?? first;
+function targetHorizon(target: Target, firstMonth: string): ResolvedHorizon {
+  const asked = targetMonths(target, firstMonth);
+  const { from, to, label } = asked;
+  const reachEnd = monthsAfter(firstMonth, MAX_MONTHS - 1).at(-1)?.key ?? firstMonth;
   const reach = formatMonths(reachEnd, reachEnd);
-  if (to < first) {
-    const start = formatMonths(first, first);
+  if (to < firstMonth) {
+    const start = formatMonths(firstMonth, firstMonth);
     return { past: `${label} is before the forecast, which starts in ${start}. Past demand is a question about orders, such as "Units ordered by month".` };
   }
-  if (from > reachEnd) return { months: MAX_MONTHS, notes: [], reachNote: `The forecast reaches ${reach} at most; ${label} is beyond it.` };
-  if (to > reachEnd) return { months: MAX_MONTHS, notes: [`The forecast reaches ${reach} at most, so it covers only part of ${label}.`] };
-  const notes = from > first ? [`To reach ${label}, the forecast covers ${formatMonths(first, to)}.`] : [];
-  return { months: monthsBetween(first, to) + 1, notes };
+  if (from > reachEnd) return { horizon: { months: MAX_MONTHS, notes: [], reachNote: `The forecast reaches ${reach} at most; ${label} is beyond it.` } };
+  if (to > reachEnd) return { horizon: { months: MAX_MONTHS, notes: [`The forecast reaches ${reach} at most, so it covers only part of ${label}.`] } };
+  const months = monthsBetween(firstMonth, to) + 1;
+  if (from <= firstMonth) return { horizon: { months, notes: [] } };
+  return { horizon: { months, notes: [`To reach ${label}, the forecast covers ${formatMonths(firstMonth, to)}.`] }, target: asked };
 }
 
-/** The months to forecast for what was asked, starting with the month `first` (ADR 0003 §6). */
-function resolveHorizon(spec: Pick<ForecastSpec, "horizon" | "target">, first: string): ForecastHorizon | { past: string } {
-  if (spec.target !== undefined) return targetHorizon(spec.target, first);
-  return spec.horizon === undefined ? DEFAULT_HORIZON : countHorizon(spec.horizon);
+/** The months to forecast for what was asked, starting with `firstMonth` (ADR 0003 §6). */
+function resolveHorizon(spec: Pick<ForecastSpec, "horizon" | "target">, firstMonth: string): ResolvedHorizon {
+  if (spec.target !== undefined) return targetHorizon(spec.target, firstMonth);
+  return { horizon: spec.horizon === undefined ? DEFAULT_HORIZON : countHorizon(spec.horizon) };
 }
 
 function isJanuary(month: MonthUnits): boolean {
@@ -344,7 +361,7 @@ function isRough(score: HoldoutScore | undefined): boolean {
 }
 
 /** The forecast for one monthly series: method chosen on the holdout, refit on all months, floored at 0. */
-export function forecastSeries(history: readonly MonthUnits[], horizon: ForecastHorizon = DEFAULT_HORIZON): SeriesForecast {
+export function forecastSeries(history: readonly MonthUnits[], horizon: ForecastHorizon = DEFAULT_HORIZON, target?: TargetMonths): SeriesForecast {
   const series = history.map((month) => month.units);
   const scores = holdoutScores(series);
   const winner = chooseMethod(scores);
@@ -370,6 +387,7 @@ export function forecastSeries(history: readonly MonthUnits[], horizon: Forecast
   const first = forecastMonths[0];
   const final = forecastMonths.at(-1);
   const demand = sum(forecastMonths.map((month) => month.units));
+  const inTarget = target === undefined ? [] : forecastMonths.filter((month) => month.key >= target.from && month.key <= target.to);
   const safetyStock = SAFETY_Z * sigma * Math.sqrt(horizon.months);
   const total = demand + safetyStock;
   const unitsToPlanFor = Math.ceil(total);
@@ -380,6 +398,10 @@ export function forecastSeries(history: readonly MonthUnits[], horizon: Forecast
     forecastMonths,
     monthsLabel: first === undefined || final === undefined ? "" : formatMonths(first.key, final.key),
     horizon: { ...horizon, notes },
+    targetDemand:
+      target === undefined
+        ? undefined
+        : { label: target.label, monthsLabel: formatMonths(target.from, target.to), units: Math.round(sum(inTarget.map((month) => month.units))) },
     holdout,
     candidates: scores.map((score) => ({ ...score, label: METHOD_LABELS[score.method] })),
     method: {
@@ -450,9 +472,9 @@ export function runForecast(spec: ForecastSpec, dataset: Dataset): ForecastResul
   const coverage = dataPeriod(dataset.orders);
   const orders = ordersIn(scope, dataset.orders);
   const history = unitsOverTime(orders, coverage, "month").map(({ bucket, value }) => ({ key: bucket.key, label: bucket.label, units: value }));
-  const first = monthsAfter(coverage.to, 1)[0]?.key ?? coverage.to;
-  const horizon = resolveHorizon(spec, first);
-  if ("past" in horizon) return { kind: "no-data", message: horizon.past };
+  const firstMonth = monthsAfter(coverage.to, 1)[0]?.key ?? coverage.to;
+  const resolved = resolveHorizon(spec, firstMonth);
+  if ("past" in resolved) return { kind: "no-data", message: resolved.past };
 
   return {
     kind: "forecast",
@@ -461,6 +483,6 @@ export function runForecast(spec: ForecastSpec, dataset: Dataset): ForecastResul
     scopeNote: scopeNoteFor(scope, orders),
     sku,
     period: formatPeriod(coverage),
-    ...forecastSeries(history, horizon),
+    ...forecastSeries(history, resolved.horizon, resolved.target),
   };
 }

@@ -3,6 +3,7 @@ import type { Answer } from "@/tools/answer";
 import { EXAMPLE_IDS, UNSUPPORTED_REASONS } from "@/tools/examples";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import { DIMENSION_VALUES, type Interpretation, interpretationSchema, isTimeDimension, METRIC_GUIDE } from "@/tools/spec";
+import { MAX_NAMED_POINTS, rankingDirection } from "@/tools/sentence";
 import { DIMENSION_WORDS } from "@/tools/words";
 import type { ChatMessage } from "./client";
 
@@ -12,7 +13,7 @@ import type { ChatMessage } from "./client";
  * date: periods stay symbolic and code resolves them (ADR 0002 §1). Bump PROMPT_VERSION whenever
  * this file changes, so cached interpretations from the old prompt are not reused.
  */
-export const PROMPT_VERSION = "prompts-6";
+export const PROMPT_VERSION = "prompts-7";
 
 let jsonSchema: unknown;
 
@@ -165,13 +166,16 @@ export function interpretMessages(question: string): ChatMessage[] {
 function smallSampleCase(answer: Answer): string {
   const { ranking } = answer;
   if (ranking === undefined) return "No ranking: nothing to flag.";
+  const direction = rankingDirection(answer);
   switch (ranking.case) {
     case "reliable":
-      return `The top group, ${ranking.top.label}, has at least ${ranking.minDelivered} delivered orders, so it can be named as the top.`;
-    case "small-sample-top":
-      return `The top group, ${ranking.top.label}, is a small sample: say so, and also name ${ranking.topReliable?.label ?? "the top group"} as the top among groups with at least ${ranking.minDelivered} delivered orders.`;
+      return `The ${direction} group, ${ranking.top.label}, has at least ${ranking.minDelivered} delivered orders, so it can be named as the ${direction}.`;
+    case "small-sample-top": {
+      const reliable = ranking.topReliable?.label ?? `the ${direction} group with enough deliveries`;
+      return `The ${direction} group, ${ranking.top.label}, is a small sample: say so, and also give ${reliable}, the ${direction} among groups with at least ${ranking.minDelivered} delivered orders, with its value as the facts give it.`;
+    }
     case "no-reliable-group":
-      return `No group has at least ${ranking.minDelivered} delivered orders: name no winner, say the ranking is not reliable, and mention the top group only as a small sample.`;
+      return `No group has at least ${ranking.minDelivered} delivered orders: name no winner, say the ranking is not reliable, and mention the ${direction} group only as a small sample.`;
   }
 }
 
@@ -185,7 +189,7 @@ const PLAIN_TEXT_RULE = "- Plain text only: no markdown, no lists, no greeting, 
 const PHRASE_SYSTEM = `You write the opening of an answer about a dataset of logistics orders: one or two plain sentences that answer the question from the facts you are given.
 ${NUMBER_RULES}
 - When the facts flag a small sample, say so.
-- Name every group tied at the top, and, when the top group is a small sample, also the top group with enough deliveries.
+- Name every group tied first, and, when the first group is a small sample, also the first group with enough deliveries and its value.
 - Describe the first group the way the "Order" fact says: with "lowest first" it is the lowest, fewest or fastest, never the highest, most or slowest; with "highest first" the other way round.
 - Copy every name exactly as the facts write it, not as the question spells it.
 - Never call a count a share, a rate or a percentage.
@@ -197,6 +201,7 @@ ${NUMBER_RULES}
 - Call the plan "units to plan for". Never call it an order, a reorder, a purchase or stock to buy: the data has no stock on hand.
 - For one category, warehouse or region, name it as the facts write it.
 - For a SKU, say first that it cannot be forecast on its own and why, then give its category's forecast, naming both.
+- When the facts give the demand in the months asked about ("In Q2 2026 …"), give that first, then the units to plan for through their end.
 - When the facts open with how far the forecast reaches, the answer already shows that sentence first: do not repeat it; give the forecast for the months it covers.
 - When the facts say the forecast is rough, say so with the word "rough".
 ${PLAIN_TEXT_RULE}`;
@@ -206,7 +211,10 @@ function seriesInstruction(answer: Answer): string[] {
   const groupBy = answer.spec.groupBy;
   if (groupBy === undefined || !isTimeDimension(groupBy)) return [];
   const unit = DIMENSION_WORDS[groupBy].one;
-  return [`This is a series by ${unit}: give the overall figure, the highest and lowest ${unit} as the facts name them, and any small samples; do not list every ${unit}.`];
+  const many = DIMENSION_WORDS[groupBy].many;
+  return [
+    `This is a series by ${unit}: give the overall figure, the highest and lowest ${unit} as the facts name them, and any small samples; do not list every ${unit}. When several ${many} tie, give their count as the facts do and name at most ${MAX_NAMED_POINTS}.`,
+  ];
 }
 
 /** The phrase call (ADR 0009 §4, §10): the question, the spec in words, the definition, the small-sample case, and the facts. */

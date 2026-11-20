@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { type Answer, answerQuery } from "@/tools/answer";
-import { type ForecastAnswer, forecastFacts, presentForecast } from "@/tools/forecast-answer";
+import { type ForecastAnswer, forecastFacts, forecastWordingContext, presentForecast } from "@/tools/forecast-answer";
 import { forecastAnswerOf, forecastResultFor, ROUGH_SERIES } from "@/tools/forecast-fixtures";
 import { factsFor, templateSentence, wordingContext } from "@/tools/sentence";
 import { querySpecSchema } from "@/tools/spec";
 import { AiError, type CompletionRequest, type LlmClient } from "./client";
-import { checkNumbers, checkPlanWording, checkWording } from "./guard";
+import { checkForecastWording, checkNumbers, checkWording } from "./guard";
 import { phrase } from "./phrase";
 import { phraseMessages } from "./prompts";
 
@@ -40,7 +40,7 @@ describe("phrase: result → one or two sentences (ADR 0009 §4)", () => {
     expect(prompt).toContain(QUESTION);
     expect(prompt).toContain(RANKING.interpretation);
     expect(prompt).toContain("Delayed orders divided by delivered orders.");
-    expect(prompt).toContain("The top group, GLS, is a small sample");
+    expect(prompt).toContain("The highest group, GLS, is a small sample");
     for (const fact of factsFor(RANKING)) expect(prompt).toContain(fact);
   });
 
@@ -83,8 +83,8 @@ describe("phrase: result → one or two sentences (ADR 0009 §4)", () => {
     const template = { sentence: templateSentence(RANKING), source: "template", cacheable: true };
     expect(await phrase(QUESTION, RANKING, fakeModel("   ").client)).toEqual(template);
     expect(await phrase(QUESTION, RANKING, fakeModel("GLS ".repeat(200)).client)).toEqual(template);
-    expect(await phrase(QUESTION, RANKING, fakeModel('"GLS is a small sample; USPS leads among reliable carriers."').client)).toEqual({
-      sentence: "GLS is a small sample; USPS leads among reliable carriers.",
+    expect(await phrase(QUESTION, RANKING, fakeModel('"GLS is a small sample; USPS leads among reliable carriers at 23.4%."').client)).toEqual({
+      sentence: "GLS is a small sample; USPS leads among reliable carriers at 23.4%.",
       source: "model",
       cacheable: true,
     });
@@ -223,10 +223,14 @@ describe("phrase: a forecast → its opening sentence, with the same guard and f
       forecastAnswerOf({ scope: { type: "region", value: "UK" } }),
       forecastAnswerOf({ scope: { type: "sku", value: "CRAYON-0008" } }),
       forecastAnswerOf({ scope: { type: "total" }, target: { type: "year", year: 2027 } }),
+      forecastAnswerOf({ scope: { type: "total" }, target: { type: "quarter", quarter: 2 } }),
+      forecastAnswerOf({ scope: { type: "total" }, target: { type: "month", month: 3 } }),
+      forecastAnswerOf({ scope: { type: "warehouse", value: "LON-FC1" }, target: { type: "month", month: 2 } }),
+      forecastAnswerOf({ scope: { type: "sku", value: "crayon-0008" }, target: { type: "quarter", quarter: 2 } }),
     ];
     for (const answer of answers) {
       expect(checkNumbers(answer.sentence, forecastFacts(answer).join("\n"))).toEqual({ ok: true });
-      expect(checkPlanWording(answer.sentence)).toEqual({ ok: true });
+      expect(checkForecastWording(answer.sentence, forecastWordingContext(answer))).toEqual({ ok: true });
     }
   });
 });
@@ -247,6 +251,18 @@ describe("phrase: a forecast for one scope or a SKU (ticket 14)", () => {
     expect(await kept(sku, "CRAYON-0008 has too few orders to forecast; for its category CRAYON, plan for 55 units over Jan–Mar 2026.")).toBe(true);
   });
 
+  it("drops a SKU sentence that copies the question's casing, crayon-0008, instead of the ID as the data writes it (ticket 23)", async () => {
+    const lower = forecastAnswerOf({ scope: { type: "sku", value: "crayon-0008" } });
+    expect(await kept(lower, "crayon-0008 cannot be forecast on its own; for its category CRAYON, plan for 55 units over Jan–Mar 2026.")).toBe(false);
+    expect(await kept(lower, "CRAYON-0008 cannot be forecast on its own; for its category CRAYON, plan for 55 units over Jan–Mar 2026.")).toBe(true);
+  });
+
+  it("drops a sentence about months asked about inside the reach that gives only the plan, not their own demand (ticket 23)", async () => {
+    const q2 = forecastAnswerOf({ scope: { type: "total" }, target: { type: "quarter", quarter: 2 } });
+    expect(await kept(q2, "Over Jan–Jun 2026, demand is forecast at 570 units; with 169 units of safety stock, that is 739 units to plan for.")).toBe(false);
+    expect(await kept(q2, "In Q2 2026, demand is forecast at 285 units; to have stock through Jun 2026, plan for 739 units.")).toBe(true);
+  });
+
   it("asks for a sentence in the template's shape, a SKU's reason first, and the reach first when the months asked lie beyond it", async () => {
     const { client, requests } = fakeModel("CRAYON-0008 cannot be forecast; plan for 55 units of CRAYON.");
     await phrase("How many CRAYON-0008 should we plan for?", sku, client);
@@ -259,6 +275,56 @@ describe("phrase: a forecast for one scope or a SKU (ticket 14)", () => {
     expect(system).toContain(
       "When the facts open with how far the forecast reaches, the answer already shows that sentence first: do not repeat it; give the forecast for the months it covers.",
     );
+  });
+});
+
+describe("the small-sample companion and tied points, from the live check after ticket 22 (ticket 23)", () => {
+  // "Which carrier is the least reliable?": GLS 62.5% (5 of 8) is a small sample; USPS 74.5% (35 of 47) is the lowest with 20 or more.
+  const leastReliable = answerFor({ metric: "on_time_rate", groupBy: "carrier", sort: "asc", limit: 1, assumption: "best" });
+  const delayedByWeek = answerFor({ metric: "delayed_orders", groupBy: "week", period: { type: "last", count: 3, unit: "month" } });
+  const kept = async (answer: Answer, reply: string) => (await phrase("question", answer, fakeModel(reply).client)).source === "model";
+
+  it("drops the live sentence that named USPS without its value and called the lowest group top", async () => {
+    const live = "GLS is the least reliable with 62.5% (5 of 8), which is a small sample. USPS is the top among groups with at least 20 delivered orders.";
+    expect(await kept(leastReliable, live)).toBe(false);
+  });
+
+  it("requires the companion's value, exactly as formatted", async () => {
+    expect(await kept(leastReliable, "GLS is lowest at 62.5% (5 of 8), a small sample; USPS is lowest among carriers with at least 20 deliveries.")).toBe(false);
+    expect(
+      await kept(leastReliable, "GLS has the lowest on-time rate at 62.5% (5 of 8), on only 8 deliveries; among carriers with at least 20, USPS is lowest at 74.5% (35 of 47)."),
+    ).toBe(true);
+  });
+
+  it('rejects "top" and "highest" for a lowest-first ranking, and "bottom" and "lowest" for a highest-first one', async () => {
+    const usps = "among carriers with at least 20, USPS is at 74.5% (35 of 47)";
+    expect(await kept(leastReliable, `GLS is at the top with 62.5% (5 of 8), a small sample; ${usps}.`)).toBe(false);
+    expect(await kept(leastReliable, `GLS is lowest at 62.5% (5 of 8), a small sample; ${usps}.`)).toBe(true);
+    expect(await kept(RANKING, "GLS is at the bottom at 25.0%, on only 8 deliveries; USPS has 23.4% among carriers with at least 20.")).toBe(false);
+    expect(await kept(RANKING, "GLS is at the top at 25.0%, on only 8 deliveries; among carriers with at least 20, USPS has 23.4%.")).toBe(true);
+  });
+
+  it("names the first group by the ranking's direction in the facts and the prompt, never \"Top\" for the lowest", () => {
+    const facts = factsFor(leastReliable);
+    expect(facts).toContain("Lowest: GLS: 62.5% (5 of 8), a small sample");
+    expect(facts).toContain("Lowest with at least 20 delivered orders: USPS: 74.5% (35 of 47)");
+    expect(facts.some((fact) => fact.startsWith("Top"))).toBe(false);
+    const user = phraseMessages("Which carrier is the least reliable?", leastReliable, facts)[1]?.content ?? "";
+    expect(user).toContain(
+      "The lowest group, GLS, is a small sample: say so, and also give USPS, the lowest among groups with at least 20 delivered orders, with its value as the facts give it.",
+    );
+  });
+
+  it("drops the live sentence that listed 7 tied weeks, and keeps one that counts them", async () => {
+    const live =
+      "There were 10 delayed orders over the 14 weeks; the lowest weeks were w/c 29 Sep, w/c 20 Oct, w/c 27 Oct, w/c 10 Nov, w/c 24 Nov, w/c 22 Dec and w/c 29 Dec with 0.";
+    expect(await kept(delayedByWeek, live)).toBe(false);
+    const counted = "There were 10 delayed orders over the 14 weeks, the most in w/c 6 Oct, w/c 17 Nov and w/c 15 Dec (2 each), and none in 7 of the 14 weeks.";
+    expect(await kept(delayedByWeek, counted)).toBe(true);
+  });
+
+  it("gives tied points in the facts as at most three names and a count", () => {
+    expect(factsFor(delayedByWeek)).toContain("Fewest: 7 of the 14 weeks, including w/c 29 Sep, w/c 20 Oct and w/c 27 Oct (0 each)");
   });
 });
 
