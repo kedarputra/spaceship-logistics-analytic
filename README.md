@@ -39,10 +39,9 @@ _How a question becomes a validated query spec, how the query tool or the foreca
 Interpretation is measured with `npm run eval`: it sends the committed questions in `eval/questions.json` through the model and reports how many specs match, with each miss. It needs the LLM gateway, so it runs on the server and never in CI.
 
 Last run on the server, 20 Nov 2026:
-- **Result:** 30 of 30 specs match (100%), the same in two runs back to back. No misses.
+- **Result:** 34 of 34 specs match (100%), the same in two runs back to back. No misses. Four of the 34 are the questions the Overview and Ask pages suggest; a test keeps every suggested question in the set.
 - **Model:** Gemma 4 12B (instruct, Q5_K_M) behind the gateway's `chat` alias, with structured output in `json_schema` mode.
 - **How to read it:** the list is small. It grew from failures seen with the real model, reworded so it doesn't copy the prompt's own examples. Treat it as a regression check, not a benchmark.
-- **Since then:** the set holds 34 questions. The four added with the redesign (ticket 24) are the questions the Overview and Ask pages suggest that were not in it yet; a test keeps every suggested question in the set. They have not been through a run yet.
 
 ## Data definitions
 

@@ -29,6 +29,10 @@ _24 Redesign: tokens, the rail, Overview and Ask_
   - The SKU note.
 - [ ] **Rail.** It gains Delivery, Carriers and Forecast. On Overview, the carrier card links to `/carriers` and the forecast card to `/forecast`.
 - [ ] **No new arithmetic.** A figure that needs a metric the app lacks adds it to `domain/definitions.ts` with a test (ADR 0011 §6).
+- [ ] **Polish found on the live site after ticket 24 (20 Nov 2026):**
+  - **Model name in the rail.** The footer reads "chat on this server": it shows the gateway's model alias. It should read "Gemma 4 12B on this server". Use a display name kept in config (default "Gemma 4 12B", with an optional env override), never the alias.
+  - **Bar value labels.** On Orders per month the labels on the highest and lowest bars (75, 18) are light grey. Make them ink, weight 700, as in the design.
+  - **Delayed card.** On the Delayed KPI card "55 / 370" breaks across two lines. Keep "55 / 370" together.
 - [ ] **Tests.**
   - They use the golden numbers in `docs/design/README.md`: the region and warehouse times, the full carrier table, and the 22 scope forecasts including CRAYON 55, BOOK 53, and UK equal to LON-FC1 at 40.
   - `npm run check` passes.
