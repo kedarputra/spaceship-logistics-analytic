@@ -6,21 +6,29 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 |---|---|
 | **Order** | One row of the dataset, identified by `order_id`. |
 | **Status** | `delivered`, `delayed`, `in_transit`, `exception`, `canceled`. Delayed and exception orders were still delivered (they have a `delivery_date`). |
-| **Completed delivery** | An order with a `delivery_date`: delivered, delayed, or exception. |
-| **Delivered order** *(proposed)* | Either `status = delivered` or any completed delivery. See D4 in `docs/decisions-open.md`. |
-| **Delayed order** | `status = delayed`. Also called "delivered late". |
-| **On-time delivery rate** *(proposed)* | On-time deliveries divided by the chosen denominator (D4). Always shown with numerator and denominator. |
-| **Delivery time** | `delivery_date − order_date` in whole days, over completed deliveries. |
-| **Delay rate** | Delayed orders divided by completed deliveries, per group (for example per carrier). Shown with n. |
-| **Anchor date** *(proposed)* | The date that relative periods count back from: 2025-12-31, the last date in the data. Shown in the UI. |
-| **Relative period** | "Last month", "last 3 months", "last week": resolved against the anchor date into explicit dates before computation. |
+| **Delivered order** | An order with a `delivery_date`: status delivered, delayed, or exception. Also called a completed delivery. Not the same as `status = delivered`, which is an on-time delivery. ADR 0001. |
+| **On-time delivery** | A delivered order with `status = delivered`. |
+| **Delayed order** | A delivered order with `status = delayed`. "Delivered late" means the same. Exception orders are not delayed orders. |
+| **Delivery outcome** | How a delivered order turned out: on time, delayed, or exception. Every delivered order has exactly one. |
+| **Exception order** | A delivered order with `status = exception`: something went wrong, but the data does not say it was late. Counted as neither on time nor delayed. |
+| **On-time delivery rate** | On-time deliveries divided by delivered orders. Always shown with numerator and denominator. ADR 0001. |
+| **Delay rate** | Delayed orders divided by delivered orders, per group (for example per carrier). Shown with n. |
+| **Delivery time** | `delivery_date − order_date` in whole days, over delivered orders. |
+| **Small sample** | A group with fewer than 20 delivered orders. Rates and averages on it are flagged, and a ranking never names it as the winner on its own. ADR 0001. |
+| **Anchor date** | The latest `order_date` or `delivery_date` in the data (2025-12-31). Relative periods count back from it; the UI shows it as "Data as of". ADR 0002. |
+| **Relative period** | A period named against the anchor date. "Last month" is the full month before the anchor's month; "last 3 months" is the 3 months ending with the anchor's month; "this month" is the anchor's month. Always shown with its resolved dates. ADR 0002. |
+| **Week** | An ISO week, Monday to Sunday, named by its Monday ("w/c 6 Oct"), never by its week number. ADR 0002. |
 | **Carrier** | The shipping company on the order. |
 | **Region / warehouse** | Fulfilment region (US-E, US-W, US-C, EU, UK) and the warehouse code that shipped the order. |
 | **SKU / product category** | Product identifier and its category (CRAYON, PAPER, ...). |
 | **Demand** | Units ordered (`quantity`) per period, by `order_date`. |
-| **Forecast horizon** | How many future periods are forecast, such as the next 4 months. |
-| **Inventory recommendation** | Units to plan for the horizon: forecast demand plus safety stock. There is no on-hand stock data, so it is a plan, not a reorder quantity. |
+| **Forecast scope** | The series a forecast covers: the total, one product category, one warehouse, or one region. Never a single SKU. ADR 0003. |
+| **Forecast horizon** | How many future months are forecast: 1 to 6, and 3 when the question does not say. ADR 0003. |
+| **Safety stock** | Units added to forecast demand to cover forecast error at a 95% service level. ADR 0003. |
+| **Inventory recommendation** | Units to plan for over the horizon: forecast demand plus safety stock. There is no on-hand stock data, so it is a plan, not a reorder quantity. |
+| **Rough forecast** | A forecast whose holdout error is more than half of actual demand (WAPE over 50%). Shown with that label. ADR 0003. |
 | **Query spec** | The structured, validated object the AI layer produces from a question: tool, metric, dimensions, filters, time range, chart hint. Code executes it; the LLM never writes SQL or code. |
 | **Tool** | A computation path the AI layer can select: the **query tool** (aggregations and KPIs) or the **forecast tool**. |
 | **Explanation panel** | What every answer shows: filters, metrics and dimensions, the resolved query spec, and the underlying rows or summary. |
+| **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |
 | **Gross / net order value** | `order_value_usd` as given (gross), or after the promo discount (net). |

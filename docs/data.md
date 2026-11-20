@@ -48,11 +48,13 @@ Use these as test expectations once a definition is chosen.
 | Delayed orders, November 2025 | 3 by delivery date, 4 by order date |
 | Delayed orders, December 2025 | 4 by delivery date, 3 by order date |
 | Delayed orders, order date from 2025-10-01 | 10 orders across 7 ISO weeks |
+| Delayed orders by week, Oct–Dec 2025 by delivery date (ADR 0002) | 10 over 14 weekly buckets, 7 non-zero: w/c 6 Oct 2, 13 Oct 1, 3 Nov 1, 17 Nov 2, 1 Dec 1, 8 Dec 1, 15 Dec 2 |
 | Carrier with highest delay rate (delayed ÷ completed) | GLS 2/8 = 25.0%; USPS 11/47 = 23.4%; UPS 17/78 = 21.8%; Royal Mail 5/25 = 20.0% |
 | Units per month, all 2025 (Jan–Dec) | 233, 86, 148, 56, 115, 64, 126, 103, 94, 79, 113, 93 (total 1,310) |
 | Units per month, CRAYON | 60, 12, 34, 11, 3, 22, 5, 25, 23, 14, 4, 16 |
 | Units per month, BOOK | 3, 7, 6, 1, 9, 3, 10, 16, 4, 16, 16, 4 |
 | Gross order value, all rows | USD 13,695.87 (net after promo: 13,568.01) |
+| Forecast, total units (ADR 0003) | Holdout MAE: average 18.89, 3-month moving average 16.22, regression 35.21, Holt 25.24. Winner: moving average, 95.0/month. σ 41.66. 3 months: plan 405 (285 + 120 safety stock); 4 months: plan 518 (380 + 138) |
 
 ## Which date field
 

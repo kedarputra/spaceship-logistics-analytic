@@ -6,14 +6,24 @@
 |---|---|
 | Fri 20 Nov | Repo, knowledge base, and Sandcastle set up. Decide D1–D9 and record the ADRs. Run `/to-tickets`. |
 | Sat 21 Nov | Build: data and KPI module, dashboard, query spec and query tool, natural-language flow with the explanation panel. |
-| Sun 22 Nov | Forecast tool, tests, deploy to a paid host, test the deployed app from another device. |
+| Sun 22 Nov | Forecast tool, tests, deploy to the home server (service, watchdog, monitors; ADR 0010), test the deployed app from another device. |
 | Mon 23 Nov, morning | README final, Loom recorded, submission email sent. **Target.** |
 | Tue 24 Nov, 16:30 | **Hard deadline.** Nothing after this. |
 
 ## Checklist before sending
 
-- [ ] Deployed URL works in a private window on another device, with no login or with the test account.
-- [ ] Hosting is pay-as-you-go (not a free trial) and will stay up through the review.
+- [ ] Deployed URL works in a private window on another device, with no login.
+- [ ] `GET /api/health` on the deployed URL returns `{"rows":400,"anchor":"2025-12-31"}` (ADR 0005).
+- [ ] `GET /api/health?ai=1` reports the AI as up and the model as Gemma 4 12B (`ACTIVE = gemma12`).
+- [ ] The `spaceship` Windows service survives a reboot test: after a restart, the dashboard answers without anyone logging in (ADR 0010).
+- [ ] Auto-logon with an immediate screen lock is on, and the BIOS powers on after AC loss.
+- [ ] The watchdog has deployed at least one commit end to end, and a deliberately failing commit was rolled back and recorded in `.buruk`.
+- [ ] Rate limits answer 429 above 20 requests per minute on `/api/ask` and 120 per minute on `/api/*`.
+- [ ] The gateway key file is outside the repo and readable only by the server account and LocalService; no key is in the repo or its history.
+- [ ] UptimeRobot keyword check (`"rows":400` on `/api/health`, every 5 minutes) is active, and its phone app and email alerts have fired once in a test.
+- [ ] The scheduled GitHub Actions uptime workflow has run green at least once against `https://wms.nalabs.ai`.
+- [ ] Review window started (`docs/runbook.md`): Windows Update paused, the chat model frozen at `gemma12`, no heavy GPU work, long jobs held back.
+- [ ] The README and the email carry the hosting sentence from ADR 0010, word for word.
 - [ ] Every example question in R3 and R9 works on the deployed app.
 - [ ] The README covers every R12 item and has the AI usage section (R14).
 - [ ] No secrets in the repository or its git history.
@@ -46,4 +56,4 @@ At the end, total the hours spent by Kedar (planning, reviewing, testing, record
 
 ## AI usage paragraph for the README (draft, adjust to what actually happened)
 
-> This project was built with AI assistance, disclosed here as the brief asks. I made the product and architecture decisions (see `docs/adr/`), wrote the requirements and data definitions, and reviewed every change. Claude Code agents, run through Sandcastle, implemented tickets test-first; each ticket was reviewed by a second agent and by me before it was merged. At runtime the app calls Claude only to turn a question into a structured query spec and to phrase the result; all numbers come from deterministic code.
+> This project was built with AI assistance, disclosed here as the brief asks. I made the product and architecture decisions (see `docs/adr/`), wrote the requirements and data definitions, and reviewed every change. Claude Code agents, run through Sandcastle, implemented tickets test-first; each ticket was reviewed by a second agent and by me before it was merged. At runtime the app calls our own self-hosted LLM (Gemma 4 12B through our gateway, no third-party AI provider) only to turn a question into a structured query spec and to phrase the result; all numbers come from deterministic code.

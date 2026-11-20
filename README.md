@@ -9,6 +9,25 @@ An AI-powered analytics dashboard for a logistics client, built as Spaceship's A
 
 _Local setup steps and the environment variables (see `.env.example`)._
 
+## Deployment
+
+Self-hosted on our own server behind a Cloudflare Tunnel. Questions are answered by our own LLM on our own GPU, with no third-party AI provider, and the gateway stores no request bodies. Monitored with phone alerts.
+
+Details in ADR 0010 (hosting) and ADR 0009 (LLM). There is no login.
+
+| Setting | Value |
+|---|---|
+| Public URL | `https://wms.nalabs.ai` → Cloudflare Tunnel → `next start` on `127.0.0.1:4800` |
+| Process | Windows service `spaceship` (WinSW, LocalService), starts at boot, restarts on crash |
+| Deploys | A watchdog checks `main` every 2 minutes, builds each new commit in its own folder (`npm ci`, `npm run check`), switches over, and rolls back if `/api/health` fails |
+| Environment variables | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY_FILE` (see `.env.example`); the key itself lives in a file outside the repo |
+| Rate limit, `/api/ask` | 20 requests per IP per minute, then 429 |
+| Rate limit, `/api/*` | 120 requests per IP per minute, then 429 |
+| Health check | `GET /api/health` returns `{"rows":400,"anchor":"2025-12-31"}`; `?ai=1` also checks the LLM |
+| Monitoring | UptimeRobot keyword check every 5 minutes with phone alerts; a daily GitHub Actions check |
+
+How the pieces start after a reboot, and the review-window checklist, are in `docs/runbook.md`.
+
 ## Architecture
 
 _System overview, key design decisions (see `docs/adr/`), and the data flow from question to chart._

@@ -14,6 +14,9 @@ coverage/
 # Spaceship's original brief: kept locally, restated in docs/requirements.md
 docs/brief/
 
+# Operator-only notes about our server (remote access, machine paths): never pushed
+docs/private/
+
 # OS and editor
 .DS_Store
 Thumbs.db
