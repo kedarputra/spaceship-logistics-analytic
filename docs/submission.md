@@ -54,6 +54,6 @@ The brief expects 6 to 10 hours. Recording the time keeps the README's AI usage 
 
 At the end, total the hours spent by Kedar (planning, reviewing, testing, recording) separately from agent run time.
 
-## AI usage paragraph for the README (draft, adjust to what actually happened)
+## AI usage paragraph for the README
 
-> This project was built with AI assistance, disclosed here as the brief asks. I made the product and architecture decisions (see `docs/adr/`), wrote the requirements and data definitions, and reviewed every change. Claude Code agents, run through Sandcastle, implemented tickets test-first; each ticket was reviewed by a second agent and by me before it was merged. At runtime the app calls our own self-hosted LLM (Gemma 4 12B through our gateway, no third-party AI provider) only to turn a question into a structured query spec and to phrase the result; all numbers come from deterministic code.
+Written in ticket 19: the README's "AI usage" section is the final text, so quote it from there. It replaces the draft that stood here, which assumed Sandcastle would build the tickets; they were built in interactive Claude Code sessions instead.
