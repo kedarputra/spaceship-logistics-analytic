@@ -36,5 +36,9 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Cached answer** | An answer whose interpretation, and usually its sentence, came from the server's question cache instead of a new model call. Marked "Cached". ADR 0008 §2, ADR 0009. |
 | **Assumption** | The ambiguous word a question used ("best", "performance", "late") and the documented default it was read with. The answer states it and offers the other readings as chips. ADR 0006 §8. |
 | **Explanation panel** | What every answer shows: filters, metrics and dimensions, the resolved query spec, and the underlying rows or summary. |
+| **Status rewrite** | An order count filtered by status, rewritten after validation into its canonical metric ("order count with status delayed" → delayed orders). Shown in the explanation panel as "Rewritten". ADR 0006 §2. |
+| **Number guard** | The check on the model's sentence: every number in it must appear in the facts block exactly as formatted there, written as digits. A sentence must also be complete, name every group the result requires, and be worded the right way round. ADR 0009 §4. |
+| **Template fallback** | The sentence code writes from the result, opening the answer when the model's sentence fails the number guard or the phrase call fails. ADR 0009 §4. |
+| **Pipeline trace** | The strip in the explanation panel showing R7's stages in order (question, interpretation, tool selected, computation, result, phrasing, chart), each with what happened and its time. A retry, a template fallback, a status rewrite and a rough forecast are flagged. It names why a sentence was dropped, never the model's own words. ADR 0008 §4. |
 | **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |
 | **Gross / net order value** | `order_value_usd` as given (gross), or after the promo discount (net). |

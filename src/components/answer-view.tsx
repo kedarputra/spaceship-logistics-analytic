@@ -3,6 +3,7 @@
 import { type FormEvent, useRef, useState } from "react";
 import type { Answer, FollowUp } from "@/tools/answer";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
+import { TRACE_STAGES, type TraceStage } from "@/tools/trace-stage";
 import { EXAMPLE_QUESTIONS, MAX_QUESTION_LENGTH } from "@/tools/examples";
 import { AnswerOutcome, type AnswerOutcomeState } from "./answer-card";
 import { type HistoryEntry, useQuestionHistory } from "./history";
@@ -28,6 +29,23 @@ function isForecast(body: unknown): body is ForecastAnswer {
   );
 }
 
+function isTraceStage(value: unknown): value is TraceStage {
+  if (!isRecord(value)) return false;
+  const { stage, detail, ms, flagged } = value;
+  return (
+    TRACE_STAGES.some((name) => name === stage) &&
+    typeof detail === "string" &&
+    (ms === undefined || typeof ms === "number") &&
+    (flagged === undefined || flagged === true)
+  );
+}
+
+/** The pipeline trace an answer came with, when the reply carries a readable one. */
+function traceOf(body: Record<string, unknown>): TraceStage[] | undefined {
+  const { trace } = body;
+  return Array.isArray(trace) && trace.every(isTraceStage) ? trace : undefined;
+}
+
 function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
@@ -42,8 +60,8 @@ function toOutcome(body: unknown): AnswerOutcomeState {
   if (!isRecord(body)) return UNREADABLE;
   // /api/ask says whether its cache served the answer; /api/run never uses it.
   const cached = body.cached === true;
-  if (isAnswer(body)) return { kind: "answer", answer: body, cached };
-  if (isForecast(body)) return { kind: "forecast", forecast: body, cached };
+  if (isAnswer(body)) return { kind: "answer", answer: body, cached, trace: traceOf(body) };
+  if (isForecast(body)) return { kind: "forecast", forecast: body, cached, trace: traceOf(body) };
   if (typeof body.error === "string") return { kind: "error", message: body.error, details: issueMessages(body.issues) };
   if (typeof body.message !== "string") return UNREADABLE;
   if (body.kind === "no-data") return { kind: "no-data", message: body.message };

@@ -105,10 +105,23 @@ function numbersIn(text: string): string[] {
   return text.match(NUMBER) ?? [];
 }
 
-export function checkNumbers(sentence: string, facts: string): GuardVerdict {
+/** What breaks the number guard: a number in words or a multiplier, or a number not in the facts. */
+export interface NumberProblem {
+  kind: "word" | "invented";
+  /** The offending text, as the sentence writes it. */
+  text: string;
+}
+
+export function findNumberProblem(sentence: string, facts: string): NumberProblem | undefined {
   const word = NUMBER_WORDS.exec(sentence);
-  if (word !== null) return { ok: false, reason: `the number word "${word[0]}"` };
+  if (word !== null) return { kind: "word", text: word[0] };
   const allowed = new Set(numbersIn(facts));
   const invented = numbersIn(sentence).find((number) => !allowed.has(number));
-  return invented === undefined ? { ok: true } : { ok: false, reason: `the number "${invented}" is not in the facts` };
+  return invented === undefined ? undefined : { kind: "invented", text: invented };
+}
+
+export function checkNumbers(sentence: string, facts: string): GuardVerdict {
+  const problem = findNumberProblem(sentence, facts);
+  if (problem === undefined) return { ok: true };
+  return { ok: false, reason: problem.kind === "word" ? `the number word "${problem.text}"` : `the number "${problem.text}" is not in the facts` };
 }

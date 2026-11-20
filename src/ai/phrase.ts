@@ -1,8 +1,8 @@
-import type { Answer, SentenceSource } from "@/tools/answer";
+import type { Answer } from "@/tools/answer";
 import { type ForecastAnswer, forecastFacts, forecastWordingContext, requiredForecastWords } from "@/tools/forecast-answer";
 import { factsFor, requiredWords, wordingContext } from "@/tools/sentence";
-import type { ChatMessage, Completion, LlmClient } from "./client";
-import { checkForecastWording, checkNumbers, checkWording } from "./guard";
+import { AiError, type AiErrorKind, type ChatMessage, type Completion, type LlmClient } from "./client";
+import { checkForecastWording, checkWording, findNumberProblem, type GuardVerdict, type NumberProblem } from "./guard";
 import { forecastPhraseMessages, phraseMessages } from "./prompts";
 
 /**
@@ -16,12 +16,19 @@ import { forecastPhraseMessages, phraseMessages } from "./prompts";
 /** An answer that opens with a sentence the model may write. */
 export type PhraseableAnswer = Answer | ForecastAnswer;
 
-export interface Phrased {
-  sentence: string;
-  source: SentenceSource;
-  /** False for a template standing in for a failed call: the next ask should try the model again. */
-  cacheable: boolean;
-}
+export type Phrased =
+  | { sentence: string; source: "model"; cacheable: true }
+  | {
+      sentence: string;
+      source: "template";
+      /** False for a template standing in for a failed call: the next ask should try the model again. */
+      cacheable: boolean;
+      /**
+       * Why the template stands, for the pipeline trace (ticket 17). It names the kind of problem,
+       * never the model's own words, so no number the model wrote reaches the page.
+       */
+      rejectedBecause: string;
+    };
 
 /** What one phrase call sends, and the checks that depend on the kind of answer. */
 interface Brief {
@@ -30,8 +37,19 @@ interface Brief {
   /** Words the sentence must contain, ignoring case. */
   required: readonly string[];
   /** Wording the number guard cannot see, such as a superlative pointing the wrong way. */
-  wordedRight: (sentence: string) => boolean;
+  wordingVerdict: (sentence: string) => GuardVerdict;
 }
+
+const FAILED_CALL_REASONS: Record<AiErrorKind, string> = {
+  "not-configured": "the AI is not configured",
+  busy: "the model was busy",
+  unavailable: "the model was unavailable",
+};
+
+const NUMBER_PROBLEM_REASONS: Record<NumberProblem["kind"], string> = {
+  word: "a number in words or a multiplier",
+  invented: "a number not in the facts",
+};
 
 const MAX_REPLY_TOKENS = 160;
 const MAX_SENTENCE_LENGTH = 400;
@@ -53,7 +71,7 @@ function briefFor(question: string, answer: PhraseableAnswer): Brief {
       facts,
       messages: forecastPhraseMessages(question, answer, facts),
       required: requiredForecastWords(answer),
-      wordedRight: (sentence) => checkForecastWording(sentence, forecastWordingContext(answer)).ok,
+      wordingVerdict: (sentence) => checkForecastWording(sentence, forecastWordingContext(answer)),
     };
   }
   const facts = factsFor(answer);
@@ -61,45 +79,60 @@ function briefFor(question: string, answer: PhraseableAnswer): Brief {
     facts,
     messages: phraseMessages(question, answer, facts),
     required: requiredWords(answer),
-    wordedRight: (sentence) => checkWording(sentence, wordingContext(answer)).ok,
+    wordingVerdict: (sentence) => checkWording(sentence, wordingContext(answer)),
   };
 }
 
+/** The answer's template sentence (it arrives carrying one), standing in for the model's. */
+function template(answer: PhraseableAnswer, cacheable: boolean, rejectedBecause: string): Phrased {
+  return { sentence: answer.sentence, source: "template", cacheable, rejectedBecause };
+}
+
+/** The template when the call failed or could not be made, not cached so the next ask tries again. */
+export function templateAfterFailedCall(answer: PhraseableAnswer, error: unknown): Phrased {
+  return template(answer, false, error instanceof AiError ? FAILED_CALL_REASONS[error.kind] : "the model call failed");
+}
+
 export async function phrase(question: string, answer: PhraseableAnswer, client: LlmClient): Promise<Phrased> {
-  // The answer arrives carrying its template sentence.
-  const template = (cacheable: boolean): Phrased => ({ sentence: answer.sentence, source: "template", cacheable });
   const brief = briefFor(question, answer);
   let completion: Completion;
   try {
     completion = await client.complete({ messages: brief.messages, temperature: 0.2, maxTokens: MAX_REPLY_TOKENS });
-  } catch {
-    return template(false);
+  } catch (error) {
+    return templateAfterFailedCall(answer, error);
   }
   const sentence = tidy(completion.text);
-  return isAcceptable(sentence, completion, brief) ? { sentence, source: "model", cacheable: true } : template(true);
+  const rejectedBecause = rejection(sentence, completion, brief);
+  return rejectedBecause === undefined ? { sentence, source: "model", cacheable: true } : template(answer, true, rejectedBecause);
 }
 
 /**
- * Every word in the sentence, ignoring case, each on its own: a word found inside a longer required
- * one does not count, so "CRAYON-0008" alone does not name the category CRAYON.
+ * The first required word the sentence leaves out, ignoring case, each word on its own: a word found
+ * inside a longer required one does not count, so "CRAYON-0008" alone does not name the category CRAYON.
  */
-function containsEvery(sentence: string, words: readonly string[]): boolean {
+function missingWord(sentence: string, words: readonly string[]): string | undefined {
   let text = sentence.toLowerCase();
-  for (const word of [...words].sort((a, b) => b.length - a.length).map((each) => each.toLowerCase())) {
-    if (!text.includes(word)) return false;
-    text = text.replaceAll(word, " ");
+  for (const word of [...words].sort((a, b) => b.length - a.length)) {
+    if (!text.includes(word.toLowerCase())) return word;
+    text = text.replaceAll(word.toLowerCase(), " ");
   }
-  return true;
+  return undefined;
 }
 
 /**
- * Whether the model's sentence may open the answer: complete (not cut off by the token limit, ending
- * like a sentence), every number from the facts, every required word in it, and worded the right
- * way round for the result (ticket 22).
+ * Why the model's sentence may not open the answer, or undefined when it may: it must be complete
+ * (not cut off by the token limit, ending like a sentence), take every number from the facts,
+ * contain every required word, and be worded the right way round for the result (ticket 22).
  */
-function isAcceptable(sentence: string, completion: Completion, brief: Brief): boolean {
-  if (completion.finishReason === "length") return false;
-  if (sentence === "" || sentence.length > MAX_SENTENCE_LENGTH || !ENDS_LIKE_A_SENTENCE.test(sentence)) return false;
-  if (!checkNumbers(sentence, brief.facts.join("\n")).ok || !containsEvery(sentence, brief.required)) return false;
-  return brief.wordedRight(sentence);
+function rejection(sentence: string, completion: Completion, brief: Brief): string | undefined {
+  if (completion.finishReason === "length") return "cut off by the token limit";
+  if (sentence === "") return "an empty reply";
+  if (sentence.length > MAX_SENTENCE_LENGTH) return `longer than ${MAX_SENTENCE_LENGTH} characters`;
+  if (!ENDS_LIKE_A_SENTENCE.test(sentence)) return "does not end like a sentence";
+  const numberProblem = findNumberProblem(sentence, brief.facts.join("\n"));
+  if (numberProblem !== undefined) return NUMBER_PROBLEM_REASONS[numberProblem.kind];
+  const missing = missingWord(sentence, brief.required);
+  if (missing !== undefined) return `leaves out "${missing}"`;
+  const wording = brief.wordingVerdict(sentence);
+  return wording.ok ? undefined : wording.reason;
 }

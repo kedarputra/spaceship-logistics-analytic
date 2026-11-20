@@ -65,9 +65,13 @@ describe("the chart, chosen by code (ADR 0006 §6)", () => {
   });
 
   it("shows a category as horizontal bars, at most 12, with the rest left to the table", () => {
-    expect(answerFor(HIGHEST_DELAY_RATE).chart).toEqual({ type: "horizontal-bars", hiddenRows: 0 });
+    expect(answerFor(HIGHEST_DELAY_RATE).chart).toEqual({
+      type: "horizontal-bars",
+      hiddenRows: 0,
+      reason: "Category + rate → horizontal bars, ranked, so the names stay readable.",
+    });
     const destinations = answerFor({ metric: "order_count", groupBy: "destination" });
-    expect(destinations.chart).toEqual({ type: "horizontal-bars", hiddenRows: destinations.rows.length - 12 });
+    expect(destinations.chart).toMatchObject({ type: "horizontal-bars", hiddenRows: destinations.rows.length - 12 });
     expect(destinations.rows.length).toBe(47);
   });
 

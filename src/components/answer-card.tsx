@@ -4,6 +4,7 @@ import { formatPeriod } from "@/domain/periods";
 import type { Answer, FollowUp } from "@/tools/answer";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { ResultRow } from "@/tools/query";
+import type { TraceStage } from "@/tools/trace-stage";
 import type { QuerySpec } from "@/tools/spec";
 import { DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "@/tools/words";
 import { answerChartProps } from "./answer-chart";
@@ -11,6 +12,7 @@ import { Chart } from "./chart";
 import { CachedNote } from "./cached-note";
 import { ForecastCard } from "./forecast-card";
 import { Fact, Table, type TextTable } from "./text-table";
+import { ChartAndTraceFacts } from "./trace-strip";
 
 /**
  * An answer as the user sees it: the number or chart, the table, the follow-up chips, and the
@@ -21,8 +23,8 @@ export type AnswerOutcomeState =
   | { kind: "idle" }
   | { kind: "loading" }
   /** `cached`: the server's question cache served it (B1, ADR 0008 §1). */
-  | { kind: "answer"; answer: Answer; cached?: boolean }
-  | { kind: "forecast"; forecast: ForecastAnswer; cached?: boolean }
+  | { kind: "answer"; answer: Answer; cached?: boolean; trace?: TraceStage[] }
+  | { kind: "forecast"; forecast: ForecastAnswer; cached?: boolean; trace?: TraceStage[] }
   | { kind: "no-data"; message: string }
   | { kind: "error"; message: string; details: string[] }
   /** Out of scope, or the model could not produce a valid spec: why, and questions that work. */
@@ -124,7 +126,7 @@ function periodText(answer: Answer): string {
 }
 
 /** ADR 0006 §7: everything needed to check the number, collapsed by default. */
-function ExplanationPanel({ answer }: { answer: Answer }) {
+function ExplanationPanel({ answer, trace }: { answer: Answer; trace?: TraceStage[] }) {
   const { metric, rewrite, ranking, matchingOrders } = answer;
   const hidden = matchingOrders === undefined ? 0 : matchingOrders.total - matchingOrders.orders.length;
   return (
@@ -139,6 +141,7 @@ function ExplanationPanel({ answer }: { answer: Answer }) {
           {ranking === undefined ? null : ` A group with fewer than ${ranking.minDelivered} delivered orders is a small sample.`}
         </Fact>
         {rewrite === undefined ? null : <Fact term="Rewritten">{`${rewrite.from} → ${rewrite.to}`}</Fact>}
+        <ChartAndTraceFacts chartReason={answer.chart.reason} trace={trace} />
         <Fact term="Spec">
           <pre className="overflow-x-auto rounded bg-slate-50 p-2 text-xs">{JSON.stringify(answer.requestedSpec, null, 2)}</pre>
         </Fact>
@@ -172,7 +175,12 @@ function ExplanationPanel({ answer }: { answer: Answer }) {
   );
 }
 
-function AnswerCard({ answer, cached, onFollowUp }: { answer: Answer; cached?: boolean } & Pick<AnswerActions, "onFollowUp">) {
+function AnswerCard({
+  answer,
+  cached,
+  trace,
+  onFollowUp,
+}: { answer: Answer; cached?: boolean; trace?: TraceStage[] } & Pick<AnswerActions, "onFollowUp">) {
   const chart = answerChartProps(answer);
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -204,7 +212,7 @@ function AnswerCard({ answer, cached, onFollowUp }: { answer: Answer; cached?: b
           ))}
         </div>
       )}
-      <ExplanationPanel answer={answer} />
+      <ExplanationPanel answer={answer} trace={trace} />
     </article>
   );
 }
@@ -217,9 +225,9 @@ export function AnswerOutcome({ outcome, onFollowUp, onAsk }: { outcome: AnswerO
     case "loading":
       return <p className="text-sm text-slate-500">Working on it…</p>;
     case "answer":
-      return <AnswerCard answer={outcome.answer} cached={outcome.cached} onFollowUp={onFollowUp} />;
+      return <AnswerCard answer={outcome.answer} cached={outcome.cached} trace={outcome.trace} onFollowUp={onFollowUp} />;
     case "forecast":
-      return <ForecastCard forecast={outcome.forecast} cached={outcome.cached} />;
+      return <ForecastCard forecast={outcome.forecast} cached={outcome.cached} trace={outcome.trace} />;
     case "no-data":
       return <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{outcome.message}</p>;
     case "unsupported":

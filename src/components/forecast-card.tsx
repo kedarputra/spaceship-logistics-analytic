@@ -1,9 +1,12 @@
 import { formatCount, formatDecimal, formatPercent } from "@/domain/format";
 import { formatDate } from "@/domain/periods";
 import { NOT_A_REORDER, RANGE_Z, SAFETY_Z, type SkuHistory } from "@/tools/forecast";
+import { FORECAST_CHART_REASON } from "@/tools/chart";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
+import type { TraceStage } from "@/tools/trace-stage";
 import { CachedNote } from "./cached-note";
 import { ForecastChart, type ForecastChartRow } from "./forecast-chart";
+import { ChartAndTraceFacts } from "./trace-strip";
 import { Fact, Table } from "./text-table";
 
 /**
@@ -29,7 +32,7 @@ export function forecastChartRows(forecast: ForecastAnswer): ForecastChartRow[] 
   return [...history, ...ahead];
 }
 
-function ForecastPanel({ forecast }: { forecast: ForecastAnswer }) {
+function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: TraceStage[] }) {
   const { exact, horizon, method, recommendation } = forecast;
   return (
     <details className="mt-4 rounded-md border border-slate-200 p-3 text-sm">
@@ -47,6 +50,7 @@ function ForecastPanel({ forecast }: { forecast: ForecastAnswer }) {
           {`${formatDecimal(exact.demand, 2)} + ${formatDecimal(exact.safetyStock, 2)} = ${formatDecimal(exact.total, 2)}, rounded up to ${formatCount(recommendation.units)} units to plan for. ${NOT_A_REORDER}`}
         </Fact>
         <Fact term="95% range">{`Forecast ± ${RANGE_Z} × σ × √(months ahead), floored at 0.`}</Fact>
+        <ChartAndTraceFacts chartReason={FORECAST_CHART_REASON} trace={trace} />
         <Fact term="Spec">
           <pre className="overflow-x-auto rounded bg-slate-50 p-2 text-xs">{JSON.stringify(forecast.spec, null, 2)}</pre>
         </Fact>
@@ -88,7 +92,7 @@ function SkuOrders({ sku }: { sku: SkuHistory }) {
   );
 }
 
-export function ForecastCard({ forecast, cached }: { forecast: ForecastAnswer; cached?: boolean }) {
+export function ForecastCard({ forecast, cached, trace }: { forecast: ForecastAnswer; cached?: boolean; trace?: TraceStage[] }) {
   const { recommendation } = forecast;
   const notes = [forecast.scopeNote, forecast.januaryCaveat, ...forecast.horizon.notes].filter((note) => note !== undefined);
   return (
@@ -133,7 +137,7 @@ export function ForecastCard({ forecast, cached }: { forecast: ForecastAnswer; c
           ))}
         </ul>
       )}
-      <ForecastPanel forecast={forecast} />
+      <ForecastPanel forecast={forecast} trace={trace} />
     </article>
   );
 }

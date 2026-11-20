@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { AiError } from "@/ai/client";
 import { createInterpretationCache } from "@/ai/cache";
 import type { InterpretOutcome } from "@/ai/interpret";
 import type { Phrased } from "@/ai/phrase";
 import type { Interpretation } from "@/tools/spec";
+import { TRACE_STAGES } from "@/tools/trace-stage";
 import { handleAsk } from "./handle-ask";
 
 const MODEL_SENTENCE = "3 orders were delivered late in 1–30 Nov 2025.";
@@ -15,7 +17,10 @@ const MODEL_SENTENCE = "3 orders were delivered late in 1–30 Nov 2025.";
 function setup(outcome: () => Promise<InterpretOutcome>, phrasing: () => Promise<Phrased> = async () => ({ sentence: MODEL_SENTENCE, source: "model", cacheable: true })) {
   let calls = 0;
   let phraseCalls = 0;
+  let clock = 0;
   const deps = {
+    // A clock that moves 10 ms on every reading, so each timed stage takes 10 ms.
+    now: () => (clock += 10),
     interpret: async () => {
       calls += 1;
       return outcome();
@@ -103,6 +108,7 @@ describe("POST /api/ask: the answer (R3, R7)", () => {
       sentence: "Delayed orders: 3 in 1–30 Nov 2025, by delivery date.",
       source: "template",
       cacheable: false,
+      rejectedBecause: "the model was busy",
     }));
     await ask("How many orders were delivered late last month?");
     expect((await ask("How many orders were delivered late last month?")).body).toMatchObject({ cached: true });
@@ -224,5 +230,85 @@ describe("POST /api/ask: when the AI cannot answer (ADR 0009 §9)", () => {
       status: 503,
       body: { error: "AI unavailable right now. The dashboard still works." },
     });
+  });
+});
+
+describe("POST /api/ask: the pipeline trace (B5, ADR 0008 §4)", () => {
+  const traceSchema = z.object({
+    trace: z.array(z.strictObject({ stage: z.enum(TRACE_STAGES), detail: z.string(), ms: z.number().optional(), flagged: z.boolean().optional() })),
+  });
+  const traceOf = (body: unknown) => traceSchema.parse(body).trace;
+  const stage = (body: unknown, name: string) => traceOf(body).find((entry) => entry.stage === name);
+
+  it("gives every stage of R7 in order, timed where it takes time: model interpretation, computation, phrasing with the guard passed", async () => {
+    const { ask } = setup(interpreted(LATE_LAST_MONTH));
+    const { body } = await ask("How many orders were delivered late last month?");
+    expect(traceOf(body)).toEqual([
+      { stage: "question", detail: "asked in words" },
+      { stage: "interpretation", detail: "by the model", ms: 10 },
+      { stage: "tool", detail: "query tool: delayed orders" },
+      { stage: "computation", detail: "computed in code", ms: 10 },
+      { stage: "result", detail: "1 value" },
+      { stage: "phrasing", detail: "by the model, guard passed", ms: 10 },
+      { stage: "chart", detail: "answer card" },
+    ]);
+  });
+
+  it("says when the cache answered: the interpretation and the sentence, with no model call", async () => {
+    const { ask } = setup(interpreted(LATE_LAST_MONTH));
+    await ask("How many orders were delivered late last month?");
+    const { body } = await ask("How many orders were delivered late last month?");
+    expect(stage(body, "interpretation")).toMatchObject({ detail: "from the cache, no model call" });
+    expect(stage(body, "phrasing")).toEqual({ stage: "phrasing", detail: "sentence from the cache (guard passed)" });
+  });
+
+  it("flags a cached template with the reason the model's sentence was dropped", async () => {
+    const { ask } = setup(interpreted(LATE_LAST_MONTH), async () => ({
+      sentence: "Delayed orders: 3 in 1–30 Nov 2025, by delivery date.",
+      source: "template",
+      cacheable: true,
+      rejectedBecause: "a number not in the facts",
+    }));
+    await ask("How many orders were delivered late last month?");
+    const { body } = await ask("How many orders were delivered late last month?");
+    expect(stage(body, "phrasing")).toEqual({ stage: "phrasing", detail: "template from the cache: a number not in the facts", flagged: true });
+  });
+
+  it("flags a retry, a template fallback with its reason, a phrase step that threw, and a status rewrite", async () => {
+    const retried = setup(async () => ({ kind: "interpreted", interpretation: LATE_LAST_MONTH, attempts: 2 }));
+    expect(stage((await retried.ask("late last month")).body, "interpretation")).toEqual({
+      stage: "interpretation",
+      detail: "by the model, after one retry: the first reply was not a valid spec",
+      ms: 10,
+      flagged: true,
+    });
+    const rejected = setup(interpreted(LATE_LAST_MONTH), async () => ({
+      sentence: "template",
+      source: "template",
+      cacheable: true,
+      rejectedBecause: "a number not in the facts",
+    }));
+    expect(stage((await rejected.ask("late last month")).body, "phrasing")).toEqual({
+      stage: "phrasing",
+      detail: "template: a number not in the facts",
+      ms: 10,
+      flagged: true,
+    });
+    const threw = setup(interpreted(LATE_LAST_MONTH), async () => {
+      throw new Error("a bug in the phrase step");
+    });
+    expect(stage((await threw.ask("late last month")).body, "phrasing")).toMatchObject({ detail: "template: the phrase step failed", flagged: true });
+    const rewrite = setup(interpreted({ tool: "query", metric: "order_count", filters: { status: ["delayed"] } }));
+    expect(stage((await rewrite.ask("orders with status delayed")).body, "computation")).toMatchObject({
+      detail: "status rewrite: order count with status delayed → delayed orders",
+      flagged: true,
+    });
+  });
+
+  it("traces a forecast, and sends no trace with an answer that has no explanation panel", async () => {
+    const forecast = setup(interpreted({ tool: "forecast", scope: { type: "total" } }));
+    expect(stage((await forecast.ask("How much inventory should I plan?")).body, "tool")).toEqual({ stage: "tool", detail: "forecast tool: all products" });
+    const unknown = setup(interpreted({ tool: "forecast", scope: { type: "sku", value: "CRAYON-9999" } }));
+    expect((await unknown.ask("Forecast SKU CRAYON-9999")).body).not.toHaveProperty("trace");
   });
 });

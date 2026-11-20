@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Answer } from "@/tools/answer";
+import { handleRun } from "./handle-run";
 import { POST } from "./route";
 
 function post(body: string, headers: Record<string, string> = {}): Promise<Response> {
@@ -59,7 +60,7 @@ describe("POST /api/run: the answer around the numbers (ADR 0006 §6–8)", () =
   it("carries the interpretation, the chart chosen by code, and the follow-up chips", async () => {
     const answer = await run({ metric: "delayed_orders", period: { type: "previous", unit: "month" } });
     expect(answer.interpretation).toBe("Delayed orders, 1–30 Nov 2025 by delivery date.");
-    expect(answer.chart).toEqual({ type: "answer-card", hiddenRows: 0 });
+    expect(answer.chart).toMatchObject({ type: "answer-card", hiddenRows: 0 });
     expect(answer.followUps.map((followUp) => followUp.label)).toContain("December 2025 instead?");
   });
 
@@ -159,5 +160,30 @@ describe("POST /api/run: what it refuses (ADR 0009 §7–8)", () => {
   it("rejects a body without a spec, or with fields beside it", async () => {
     expect((await post(JSON.stringify({ tool: "query", metric: "order_count" }))).status).toBe(400);
     expect((await post(JSON.stringify({ spec: { tool: "query", metric: "order_count" }, question: "hi" }))).status).toBe(400);
+  });
+});
+
+describe("POST /api/run: the pipeline trace (B5, ADR 0008 §4)", () => {
+  it("shows no interpretation and a template sentence, since /api/run never calls the model", async () => {
+    let clock = 0;
+    const response = await handleRun(
+      new Request("http://localhost/api/run", {
+        method: "POST",
+        body: JSON.stringify({ spec: { tool: "query", metric: "delay_rate", groupBy: "carrier", sort: "desc", limit: 1 } }),
+      }),
+      () => (clock += 5),
+    );
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      trace: [
+        { stage: "question", detail: "a spec sent by a follow-up or a history re-run" },
+        { stage: "interpretation", detail: "skipped: the spec was sent, no model call" },
+        { stage: "tool", detail: "query tool: delay rate" },
+        { stage: "computation", detail: "computed in code", ms: 5 },
+        { stage: "result", detail: "1 of 9 carriers shown" },
+        { stage: "phrasing", detail: "template, no model call" },
+        { stage: "chart", detail: "horizontal bars" },
+      ],
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { type ChartType, chooseChart, MAX_CATEGORY_BARS } from "./chart";
+import { type ChartType, chartReason, chooseChart, MAX_CATEGORY_BARS, type ResultShape } from "./chart";
 import { getDataset } from "@/domain/orders";
 import { type NoDataResult, type QueryResult, runQuery } from "./query";
 import { templateSentence } from "./sentence";
@@ -15,6 +15,8 @@ export interface AnswerChart {
   type: ChartType;
   /** Category rows past the chart's 12 bars; the table shows them all. */
   hiddenRows: number;
+  /** Why this chart, in one sentence (B5, ADR 0008 §4). */
+  reason: string;
 }
 
 /** A chip that runs a variant of the answer through /api/run. */
@@ -78,8 +80,9 @@ export function chartFor(result: QueryResult): AnswerChart {
   const kind = result.metric.kind;
   const measure = kind === "rate" || kind === "average" ? kind : "count";
   const shareOfWhole = result.metric.id === "delivery_outcomes" || (groupBy === "status" && measure === "count");
-  const type = chooseChart({ dimension: dimensionKind(groupBy), measure, shareOfWhole });
-  return { type, hiddenRows: type === "horizontal-bars" ? Math.max(0, result.rows.length - MAX_CATEGORY_BARS) : 0 };
+  const shape: ResultShape = { dimension: dimensionKind(groupBy), measure, shareOfWhole };
+  const type = chooseChart(shape);
+  return { type, hiddenRows: type === "horizontal-bars" ? Math.max(0, result.rows.length - MAX_CATEGORY_BARS) : 0, reason: chartReason(shape) };
 }
 
 /** The same question for another metric. A category ranking turns around, so "best" stays best; time keeps its order. */

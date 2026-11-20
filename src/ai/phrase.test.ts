@@ -6,7 +6,7 @@ import { factsFor, templateSentence, wordingContext } from "@/tools/sentence";
 import { querySpecSchema } from "@/tools/spec";
 import { AiError, type CompletionRequest, type LlmClient } from "./client";
 import { checkForecastWording, checkNumbers, checkWording } from "./guard";
-import { phrase } from "./phrase";
+import { phrase, templateAfterFailedCall } from "./phrase";
 import { phraseMessages } from "./prompts";
 
 function answerFor(spec: Record<string, unknown>): Answer {
@@ -28,6 +28,8 @@ function fakeModel(reply: string | Error, finishReason = "stop") {
 }
 
 const QUESTION = "Which carrier has the highest delay rate?";
+/** The trace never repeats the model's number, only what kind it was (ticket 17). */
+const WORDS = "a number in words or a multiplier";
 const RANKING = answerFor({ metric: "delay_rate", groupBy: "carrier", sort: "desc", limit: 1 });
 
 describe("phrase: result → one or two sentences (ADR 0009 §4)", () => {
@@ -54,24 +56,39 @@ describe("phrase: result → one or two sentences (ADR 0009 §4)", () => {
       sentence: templateSentence(RANKING),
       source: "template",
       cacheable: true,
+      rejectedBecause: "a number not in the facts",
     });
   });
 
   it("falls back to the template for a number in words or a multiplier", async () => {
     const template = { sentence: templateSentence(RANKING), source: "template", cacheable: true };
-    expect(await phrase(QUESTION, RANKING, fakeModel("GLS is late twice as often as USPS.").client)).toEqual(template);
-    expect(await phrase(QUESTION, RANKING, fakeModel("Three carriers do worse than average.").client)).toEqual(template);
+    expect(await phrase(QUESTION, RANKING, fakeModel("GLS is late twice as often as USPS.").client)).toEqual({ ...template, rejectedBecause: WORDS });
+    expect(await phrase(QUESTION, RANKING, fakeModel("Three carriers do worse than average.").client)).toEqual({
+      ...template,
+      rejectedBecause: WORDS,
+    });
   });
 
-  it("falls back to the template when the call fails, and marks that sentence not worth caching", async () => {
+  it("falls back to the template when the call fails, marks that sentence not worth caching, and says why", async () => {
     const failed = { sentence: templateSentence(RANKING), source: "template", cacheable: false };
-    expect(await phrase(QUESTION, RANKING, fakeModel(new AiError("busy")).client)).toEqual(failed);
-    expect(await phrase(QUESTION, RANKING, fakeModel(new Error("socket hang up")).client)).toEqual(failed);
+    expect(await phrase(QUESTION, RANKING, fakeModel(new AiError("busy")).client)).toEqual({ ...failed, rejectedBecause: "the model was busy" });
+    expect(await phrase(QUESTION, RANKING, fakeModel(new AiError("unavailable")).client)).toEqual({ ...failed, rejectedBecause: "the model was unavailable" });
+    expect(await phrase(QUESTION, RANKING, fakeModel(new Error("socket hang up")).client)).toEqual({ ...failed, rejectedBecause: "the model call failed" });
+  });
+
+  it("gives the template when the AI is not configured, before any call (ticket 17)", () => {
+    expect(templateAfterFailedCall(RANKING, new AiError("not-configured"))).toEqual({
+      sentence: templateSentence(RANKING),
+      source: "template",
+      cacheable: false,
+      rejectedBecause: "the AI is not configured",
+    });
   });
 
   it("falls back to the template when the sentence leaves out a group it must name (ADR 0001 §6, ties)", async () => {
     const withoutUsps = "GLS has the highest delay rate at 25.0%, on only 8 deliveries.";
-    expect((await phrase(QUESTION, RANKING, fakeModel(withoutUsps).client)).source).toBe("template");
+    // USPS and its value are both missing; the longest required word is checked first.
+    expect(await phrase(QUESTION, RANKING, fakeModel(withoutUsps).client)).toMatchObject({ source: "template", rejectedBecause: 'leaves out "23.4%"' });
     const tie = answerFor({ metric: "order_count", groupBy: "destination", sort: "desc", limit: 1 });
     expect((await phrase("Which city gets the most orders?", tie, fakeModel("Boston, MA gets the most orders, 15.").client)).source).toBe("template");
     expect((await phrase("Which city gets the most orders?", tie, fakeModel("Boston, MA and Leeds, UK tie with 15 orders each.").client)).source).toBe(
@@ -81,8 +98,8 @@ describe("phrase: result → one or two sentences (ADR 0009 §4)", () => {
 
   it("falls back to the template for an empty or runaway reply, and tidies a quoted one", async () => {
     const template = { sentence: templateSentence(RANKING), source: "template", cacheable: true };
-    expect(await phrase(QUESTION, RANKING, fakeModel("   ").client)).toEqual(template);
-    expect(await phrase(QUESTION, RANKING, fakeModel("GLS ".repeat(200)).client)).toEqual(template);
+    expect(await phrase(QUESTION, RANKING, fakeModel("   ").client)).toEqual({ ...template, rejectedBecause: "an empty reply" });
+    expect(await phrase(QUESTION, RANKING, fakeModel("GLS ".repeat(200)).client)).toEqual({ ...template, rejectedBecause: "longer than 400 characters" });
     expect(await phrase(QUESTION, RANKING, fakeModel('"GLS is a small sample; USPS leads among reliable carriers at 23.4%."').client)).toEqual({
       sentence: "GLS is a small sample; USPS leads among reliable carriers at 23.4%.",
       source: "model",
@@ -97,6 +114,17 @@ describe("sentences that pass the number guard but are wrong or cut off (ticket 
   const promoOrders = answerFor({ metric: "order_count", filters: { promo: ["yes"] } });
   const kept = async (answer: Answer, reply: string, finishReason = "stop") =>
     (await phrase("question", answer, fakeModel(reply, finishReason).client)).source === "model";
+
+  it("says why each dropped sentence was dropped, for the pipeline trace (ticket 17)", async () => {
+    const reason = async (answer: Answer, reply: string, finishReason = "stop") => {
+      const phrased = await phrase("question", answer, fakeModel(reply, finishReason).client);
+      return phrased.source === "template" ? phrased.rejectedBecause : undefined;
+    };
+    expect(await reason(byMonth, "The on-time rate was 82.2% overall.", "length")).toBe("cut off by the token limit");
+    expect(await reason(byMonth, "The on-time rate was 82.2% overall")).toBe("does not end like a sentence");
+    expect(await reason(fastestRegion, "US-W has the slowest delivery time.")).toBe('"slowest" contradicts the lowest first ranking');
+    expect(await reason(byMonth, "The on-time rate was 82.2% overall.")).toBeUndefined();
+  });
 
   it('drops a reply the token limit cut off (finish_reason "length")', async () => {
     expect(await kept(byMonth, "The on-time rate was 82.2% overall.", "length")).toBe(false);
@@ -192,11 +220,13 @@ describe("phrase: a forecast → its opening sentence, with the same guard and f
       sentence: forecast.sentence,
       source: "template",
       cacheable: true,
+      rejectedBecause: "a number not in the facts",
     });
     expect(await phrase(FORECAST_QUESTION, forecast, fakeModel(new AiError("busy")).client)).toEqual({
       sentence: forecast.sentence,
       source: "template",
       cacheable: false,
+      rejectedBecause: "the model was busy",
     });
   });
 

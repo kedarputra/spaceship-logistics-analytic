@@ -3,7 +3,7 @@ import { AiError, createClient, type LlmClient } from "./client";
 import { configuredModel, type LlmConfig, readLlmConfig } from "./config";
 import { type AiHealth, createAiHealthCheck, modelAnswering } from "./health";
 import { type InterpretOutcome, interpret } from "./interpret";
-import { type PhraseableAnswer, type Phrased, phrase } from "./phrase";
+import { type PhraseableAnswer, type Phrased, phrase, templateAfterFailedCall } from "./phrase";
 
 /**
  * The app's one connection to the model. The configuration is read on each question, so a key
@@ -38,8 +38,8 @@ export function phraseAnswer(question: string, answer: PhraseableAnswer): Promis
   let client: LlmClient;
   try {
     client = connection().client;
-  } catch {
-    return Promise.resolve({ sentence: answer.sentence, source: answer.sentenceSource, cacheable: false });
+  } catch (error) {
+    return Promise.resolve(templateAfterFailedCall(answer, error));
   }
   return phrase(question, answer, client);
 }
