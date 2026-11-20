@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
+import { Figtree } from "next/font/google";
 import type { ReactNode } from "react";
+import { AppShell } from "@/components/app-shell";
+import { getDataset } from "@/domain/orders";
 import "./globals.css";
+
+// Downloaded at build time and served from this app (ADR 0011 §4): no visitor's browser calls Google.
+const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Logistics Analytics",
@@ -9,8 +15,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
-      <body className="bg-slate-50 text-slate-900 antialiased">{children}</body>
+    <html lang="en" className={figtree.variable}>
+      <body>
+        <AppShell dataset={getDataset()}>{children}</AppShell>
+      </body>
     </html>
   );
 }

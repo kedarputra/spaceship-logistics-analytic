@@ -21,10 +21,10 @@ describe("KPI cards (R1, ADR 0001)", () => {
     const html = renderToStaticMarkup(<KpiCards kpis={dashboardKpis(getDataset().orders)} />);
     expect(cardTexts(html)).toEqual([
       card("totalOrders", "400 27 in transit · 3 canceled"),
-      card("deliveredOrders", "370 304 on time · 55 delayed · 11 exception"),
-      card("delayedOrders", "55"),
-      card("onTimeRate", "82.2% · 304 / 370"),
-      card("averageDeliveryDays", "3.8 days"),
+      card("deliveredOrders", "370 304 on time 55 delayed 11 exception"),
+      card("delayedOrders", "55 Delay rate 14.9% · 55 / 370"),
+      card("onTimeRate", "82.2% 304 / 370"),
+      card("averageDeliveryDays", "3.8 days Order date to delivery date"),
     ]);
   });
 
@@ -32,10 +32,10 @@ describe("KPI cards (R1, ADR 0001)", () => {
     const html = renderToStaticMarkup(<KpiCards kpis={dashboardKpis([])} />);
     expect(cardTexts(html)).toEqual([
       card("totalOrders", "0 0 in transit · 0 canceled"),
-      card("deliveredOrders", "0 0 on time · 0 delayed · 0 exception"),
-      card("delayedOrders", "0"),
-      card("onTimeRate", "n/a · 0 / 0"),
-      card("averageDeliveryDays", "n/a"),
+      card("deliveredOrders", "0 0 on time 0 delayed 0 exception"),
+      card("delayedOrders", "0 Delay rate n/a · 0 / 0"),
+      card("onTimeRate", "n/a 0 / 0"),
+      card("averageDeliveryDays", "n/a Order date to delivery date"),
     ]);
   });
 });

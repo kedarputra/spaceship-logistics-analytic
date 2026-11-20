@@ -6,7 +6,10 @@ import { anchorDate } from "./periods";
 
 export const ORDER_STATUSES = ["delivered", "delayed", "in_transit", "exception", "canceled"] as const;
 
-const DATASET_PATH = path.join(process.cwd(), "data", "mock_logistics_data.csv");
+/** The dataset file, in data/. */
+export const DATASET_FILE = "mock_logistics_data.csv";
+
+const DATASET_PATH = path.join(process.cwd(), "data", DATASET_FILE);
 
 const text = z.string().min(1);
 const isoDate = z.iso.date();

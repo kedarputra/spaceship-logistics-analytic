@@ -46,8 +46,11 @@ describe("dashboard KPIs on the dataset (ADR 0001, Reading B in docs/data.md)", 
     expect(kpis.deliveredOrders).toEqual({ count: 370, onTime: 304, delayed: 55, exception: 11 });
   });
 
-  it("counts 55 delayed orders", () => {
-    expect(kpis.delayedOrders).toBe(55);
+  it("counts 55 delayed orders, a delay rate of 55 / 370 = 14.86%", () => {
+    expect(kpis.delayedOrders.count).toBe(55);
+    expect(kpis.delayedOrders.delayRate.numerator).toBe(55);
+    expect(kpis.delayedOrders.delayRate.denominator).toBe(370);
+    expect((kpis.delayedOrders.delayRate.value ?? Number.NaN) * 100).toBeCloseTo(14.86, 2);
   });
 
   it("has an on-time delivery rate of 304 / 370 = 82.16%", () => {
@@ -230,7 +233,7 @@ describe("zero denominators", () => {
     expect(dashboardKpis([])).toEqual({
       totalOrders: { count: 0, inTransit: 0, canceled: 0 },
       deliveredOrders: { count: 0, onTime: 0, delayed: 0, exception: 0 },
-      delayedOrders: 0,
+      delayedOrders: { count: 0, delayRate: { numerator: 0, denominator: 0, value: null } },
       onTimeRate: { numerator: 0, denominator: 0, value: null },
       averageDeliveryDays: { numerator: 0, denominator: 0, value: null },
     });

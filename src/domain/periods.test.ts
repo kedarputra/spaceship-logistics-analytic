@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getDataset } from "./orders";
-import { anchorDate, buckets, dataPeriod, formatDate, formatPeriod, noDataMessage, resolvePeriod } from "./periods";
+import { anchorDate, buckets, dataPeriod, formatDate, formatPeriod, formatYears, noDataMessage, resolvePeriod } from "./periods";
 
 const YEAR_2025 = { from: "2025-01-01", to: "2025-12-31" };
 
@@ -166,5 +166,12 @@ describe("formatDate", () => {
   it("rejects a value that is not a YYYY-MM-DD date", () => {
     expect(() => formatDate("31/12/2025")).toThrow();
     expect(() => formatDate("2025-13-01")).toThrow();
+  });
+});
+
+describe("formatYears", () => {
+  it("names the one year a period lies in, or the first and last", () => {
+    expect(formatYears({ from: "2025-01-01", to: "2025-12-31" })).toBe("2025");
+    expect(formatYears({ from: "2024-12-30", to: "2025-01-05" })).toBe("2024–2025");
   });
 });

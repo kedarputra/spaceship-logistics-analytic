@@ -64,8 +64,8 @@ describe("the explanation panel (ADR 0006 §7)", () => {
   const panel = panelOf(render(answer));
   const panelText = textOf(panel);
 
-  it("is collapsed by default", () => {
-    expect(panel).toMatch(/^<details(?![^>]*\bopen\b)/);
+  it("is open by default: the Ask page shows how every answer was computed (ticket 24)", () => {
+    expect(panel).toMatch(/^<details[^>]*\bopen\b/);
   });
 
   it("states the interpretation, the period as asked with its dates and date field, the filters and the definition", () => {
@@ -135,5 +135,32 @@ describe("safety and errors", () => {
     expect(textOf(renderToStaticMarkup(<AnswerOutcome outcome={{ kind: "no-data", message }} onFollowUp={() => undefined} onAsk={() => undefined} />))).toContain(
       message,
     );
+  });
+});
+
+describe("the answer on the Ask page (ticket 24, docs/design/Ask.dc.html)", () => {
+  const ranking = answerFor({ metric: "delay_rate", groupBy: "carrier", sort: "desc", limit: 1 });
+
+  it("says who wrote the sentence: the model, every number checked, or code", () => {
+    expect(textOf(render({ ...ranking, sentenceSource: "model" }))).toContain("Written by the model, every number checked");
+    expect(textOf(render({ ...ranking, sentenceSource: "template" }))).toContain("Written by code from the result");
+  });
+
+  it("names the question it answers when given one", () => {
+    const html = renderToStaticMarkup(
+      <AnswerOutcome
+        question="Which carrier has the highest delay rate?"
+        outcome={{ kind: "answer", answer: ranking }}
+        onFollowUp={() => undefined}
+        onAsk={() => undefined}
+      />,
+    );
+    expect(textOf(html).trim().startsWith("Which carrier has the highest delay rate?")).toBe(true);
+  });
+
+  it("ranks as bars with n and the small-sample tag, adding the first group with at least 20 when the top is a small sample", () => {
+    const text = textOf(render(ranking));
+    expect(text).toContain("GLS n=8 small sample 25.0% USPS n=47 first with n ≥ 20 23.4%");
+    expect(text).toContain("USPS 23.4% 11 / 47 47 First with n ≥ 20");
   });
 });

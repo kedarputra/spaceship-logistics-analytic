@@ -5,7 +5,7 @@
 **Blocked by:** 16, 17
 _16 Query history · 17 Pipeline trace and "why this chart"_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] **Tokens.**
   - The colours, radii and focus ring from `docs/design/README.md` are CSS variables in `src/app/globals.css` (Tailwind `@theme`).
@@ -45,3 +45,7 @@ _16 Query history · 17 Pipeline trace and "why this chart"_
   - The Overview figures and the Ask flow keep their current golden numbers, and the architecture test passes.
   - `npm run check` passes.
   - Look at the built app in headless Edge at 1280 px and at the narrowest width, and compare it with the design files.
+
+## Comments
+
+- 2026-11-20: Done: ADR 0011 tokens in globals.css (Tailwind's own colours cleared) and the chart marks in palette.ts, with a test that keeps raw hex values to those two files; Figtree self-hosted through next/font/google with tabular figures; the dark rail with the menu, the data block and a live AI status polled at most once a minute; the Overview with the ask box, five KPI cards (the Delayed card's delay rate now comes from dashboardKpis), the two month charts with data tables and only the extreme order bars labelled, the carrier card from the query tool's ranking and the forecast card with its table; the Ask page with ?q= asked on load, the sentence badge, How this was computed open with the stage strip, Try these, Recent questions and What it won't answer. The four suggested questions missing from eval/questions.json were added to it and a test pins every suggested question there; they still need an npm run eval on the server. Checked in headless Edge at 1280, 390 and 320 px.

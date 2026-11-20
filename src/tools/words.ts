@@ -74,6 +74,11 @@ export function countOf(count: number, noun: string): string {
   return `${formatCount(count)} ${noun}${count === 1 ? "" : "s"}`;
 }
 
+/** "all products" → "All products". */
+export function capitalized(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
+
 /** "A", "A and B", "A, B and C". */
 export function andList(items: readonly string[]): string {
   if (items.length <= 1) return items.join("");

@@ -1,59 +1,100 @@
+import type { ReactNode } from "react";
 import { type DashboardKpis, KPI_DEFINITIONS } from "@/domain/definitions";
-import { formatCount, formatDays, formatFraction, formatPercent } from "@/domain/format";
+import { formatCount, formatDays, formatDecimal, formatFraction, formatPercent } from "@/domain/format";
+import { Icon, type IconName } from "./icons";
+import { Marked } from "./marked";
+import { OUTCOME_SERIES, type Tone } from "./series";
 
 interface KpiCardProps {
   label: string;
-  value: string;
-  /** Shown right after the value, as in "82.2% · 304 / 370". */
-  fraction?: string;
-  /** The breakdown, on its own line below the value. */
-  detail?: string;
   definition: string;
+  icon: IconName;
+  /** Amber for the delayed card; green, on a sage tint, for the rest. */
+  tone?: Tone;
+  value: ReactNode;
+  /** The breakdown or the rate's parts, below the figure. */
+  detail: ReactNode;
 }
 
-function KpiCard({ label, value, fraction, detail, definition }: KpiCardProps) {
+function KpiCard({ label, definition, icon, tone = "green", value, detail }: KpiCardProps) {
   return (
-    <li className="flex flex-col rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-medium text-slate-600">{label}</h2>
-      <p className="mt-1 text-3xl font-semibold tabular-nums">
-        {value}
-        {fraction === undefined ? null : (
-          <span className="whitespace-nowrap text-base font-normal text-slate-600">{` · ${fraction}`}</span>
-        )}
-      </p>
-      {detail === undefined ? null : <p className="mt-1 text-sm text-slate-700 tabular-nums">{detail}</p>}
-      <p className="mt-auto pt-3 text-xs text-slate-500">{definition}</p>
+    <li className="card flex flex-col gap-1.5 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-small font-semibold text-ink-2">{label}</h2>
+        <span className={`grid size-7 place-items-center rounded-small ${tone === "amber" ? "bg-warn-tint text-warn-icon" : "bg-chip text-grey-green"}`}>
+          <Icon name={icon} size={15} strokeWidth={1.9} />
+        </span>
+      </div>
+      <p className="text-kpi">{value}</p>
+      <div className="text-small text-ink-2">{detail}</div>
+      <p className="mt-1.5 border-t border-grid pt-2.5 text-note text-muted">{definition}</p>
     </li>
   );
 }
 
-/** The five KPI cards of R1. Shows the computed KPIs; computes nothing itself. */
+/** The five KPI cards of R1 (ADR 0011 §6). Shows the computed KPIs; computes nothing itself. */
 export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
   const { totalOrders, deliveredOrders, delayedOrders, onTimeRate, averageDeliveryDays } = kpis;
+  const onTimeShare = onTimeRate.value === null ? 0 : onTimeRate.value * 100;
   return (
     <section aria-label="Key figures">
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,168px),1fr))] gap-3">
         <KpiCard
           {...KPI_DEFINITIONS.totalOrders}
+          icon="box"
           value={formatCount(totalOrders.count)}
           detail={`${formatCount(totalOrders.inTransit)} in transit · ${formatCount(totalOrders.canceled)} canceled`}
         />
         <KpiCard
           {...KPI_DEFINITIONS.deliveredOrders}
+          icon="truck"
           value={formatCount(deliveredOrders.count)}
-          detail={[
-            `${formatCount(deliveredOrders.onTime)} on time`,
-            `${formatCount(deliveredOrders.delayed)} delayed`,
-            `${formatCount(deliveredOrders.exception)} exception`,
-          ].join(" · ")}
+          detail={
+            <span className="flex flex-wrap gap-x-2.5 gap-y-1">
+              {OUTCOME_SERIES.map(({ key, label, mark }) => (
+                <Marked key={key} mark={mark}>{`${formatCount(deliveredOrders[key])} ${label.toLowerCase()}`}</Marked>
+              ))}
+            </span>
+          }
         />
-        <KpiCard {...KPI_DEFINITIONS.delayedOrders} value={formatCount(delayedOrders)} />
+        <KpiCard
+          {...KPI_DEFINITIONS.delayedOrders}
+          icon="clock"
+          tone="amber"
+          value={formatCount(delayedOrders.count)}
+          detail={`Delay rate ${formatPercent(delayedOrders.delayRate.value)} · ${formatFraction(delayedOrders.delayRate)}`}
+        />
         <KpiCard
           {...KPI_DEFINITIONS.onTimeRate}
+          icon="target"
           value={formatPercent(onTimeRate.value)}
-          fraction={formatFraction(onTimeRate)}
+          detail={
+            <span className="flex items-center gap-2.5">
+              <span
+                role="img"
+                aria-label={`${formatPercent(onTimeRate.value)} of delivered orders on time`}
+                className="h-1.5 flex-auto rounded-mark bg-track"
+              >
+                <span className="block h-full rounded-mark bg-mark-on-time" style={{ width: `${onTimeShare}%` }} />
+              </span>
+              {formatFraction(onTimeRate)}
+            </span>
+          }
         />
-        <KpiCard {...KPI_DEFINITIONS.averageDeliveryDays} value={formatDays(averageDeliveryDays.value)} />
+        <KpiCard
+          {...KPI_DEFINITIONS.averageDeliveryDays}
+          icon="calendar"
+          value={
+            averageDeliveryDays.value === null ? (
+              formatDays(null)
+            ) : (
+              <>
+                {formatDecimal(averageDeliveryDays.value)} <span className="text-unit text-ink-2">days</span>
+              </>
+            )
+          }
+          detail="Order date to delivery date"
+        />
       </ul>
     </section>
   );

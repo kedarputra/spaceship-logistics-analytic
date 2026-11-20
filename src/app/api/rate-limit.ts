@@ -7,7 +7,8 @@
 export const RATE_LIMIT_MESSAGE = "Too many questions in a minute, try again shortly.";
 
 const WINDOW_MS = 60_000;
-const ASK_LIMIT = 20;
+/** Questions to /api/ask per IP a minute; the Ask page states it. */
+export const QUESTIONS_PER_MINUTE = 20;
 const API_LIMIT = 120;
 /** Past this many IPs, forget the ones with no request left in the window. */
 const SWEEP_AT_KEYS = 10_000;
@@ -55,7 +56,7 @@ function slidingWindow(limit: number, windowMs: number) {
 }
 
 export function createApiRateLimiter(): ApiRateLimiter {
-  const ask = slidingWindow(ASK_LIMIT, WINDOW_MS);
+  const ask = slidingWindow(QUESTIONS_PER_MINUTE, WINDOW_MS);
   const api = slidingWindow(API_LIMIT, WINDOW_MS);
   return {
     take(pathname, key, now) {

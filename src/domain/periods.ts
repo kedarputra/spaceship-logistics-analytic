@@ -257,6 +257,12 @@ export function formatPeriod({ from, to }: Period, options: { year: boolean } = 
   return `${fromDay}–${toDay} ${toMonth}${year}`;
 }
 
+/** The year a period lies in, "2025", or its first and last year, "2024–2025". */
+export function formatYears({ from, to }: Period): string {
+  const [first, last] = [from.slice(0, 4), to.slice(0, 4)];
+  return first === last ? first : `${first}–${last}`;
+}
+
 /** "No data for … The data covers …" when the period misses the data entirely (ADR 0002 §6), otherwise null. */
 export function noDataMessage(period: Period, coverage: Period): string | null {
   if (period.to >= coverage.from && period.from <= coverage.to) return null;

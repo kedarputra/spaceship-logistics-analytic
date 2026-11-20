@@ -1,17 +1,17 @@
 "use client";
 
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { formatCount } from "@/domain/format";
 import type { Answer, FollowUp } from "@/tools/answer";
+import { MAX_QUESTION_LENGTH } from "@/tools/examples";
+import { SKU_NOT_FORECAST } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import { TRACE_STAGES, type TraceStage } from "@/tools/trace-stage";
-import { EXAMPLE_QUESTIONS, MAX_QUESTION_LENGTH } from "@/tools/examples";
 import { AnswerOutcome, type AnswerOutcomeState } from "./answer-card";
+import { QuestionField } from "./ask-box";
 import { type HistoryEntry, useQuestionHistory } from "./history";
 import { HistoryList } from "./history-list";
-
-/** The three questions of R3, asked in words like any other question. */
-const EXAMPLES = [EXAMPLE_QUESTIONS.late_last_month, EXAMPLE_QUESTIONS.delayed_by_week, EXAMPLE_QUESTIONS.highest_delay_rate];
-
+import { SUGGESTED_QUESTIONS } from "./suggested-questions";
 
 const UNREADABLE: AnswerOutcomeState = { kind: "error", message: "The server sent a reply this page cannot read.", details: [] };
 
@@ -86,16 +86,66 @@ async function post(path: "/api/run" | "/api/ask", payload: unknown): Promise<{ 
 
 const SAVED_SPEC_REJECTED = "This saved question no longer matches the app, so it was removed from the history. Ask it again.";
 
+
+/** "Try these" (ticket 24): the suggested questions by group, each a button that asks it. */
+function TryThese({ onAsk }: { onAsk: (question: string) => void }) {
+  return (
+    <section aria-labelledby="try-title" className="card flex flex-col gap-3 px-[18px] py-4">
+      <h2 id="try-title" className="text-card-title">
+        Try these
+      </h2>
+      {SUGGESTED_QUESTIONS.map(({ group, questions }) => (
+        <div key={group} className="flex flex-col gap-1.5">
+          <h3 className="text-label text-muted uppercase">{group}</h3>
+          <ul className="flex flex-col gap-1.5">
+            {questions.map((question) => (
+              <li key={question}>
+                <button type="button" onClick={() => onAsk(question)} className="chip chip-wide">
+                  {question}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** What the app does not answer, so a visitor does not have to find out by asking. */
+function Limits({ orderCount }: { orderCount: number }) {
+  return (
+    <section aria-labelledby="limits-title" className="flex flex-col gap-2 rounded-card border border-grid bg-inset px-[18px] py-4 text-small text-ink-2">
+      <h2 id="limits-title" className="font-bold text-ink">
+        What it won&apos;t answer
+      </h2>
+      <p>{`Questions outside these ${formatCount(orderCount)} orders, and combined forecast scopes such as crayons at one warehouse.`}</p>
+      <p>{SKU_NOT_FORECAST}</p>
+    </section>
+  );
+}
+
+export interface AskWorkspaceProps {
+  /** The question in the page's `q`, asked once when the page opens. */
+  initialQuestion?: string;
+  /** The rate limit on questions, stated under the form (ADR 0010 §5). */
+  questionsPerMinute: number;
+  orderCount: number;
+}
+
 /**
- * The question box and example chips (through /api/ask), follow-up chips and the question history
- * (through /api/run, without the model). The history lives in this browser's localStorage only.
+ * The Ask page's workspace (ticket 24): the form, the answer and how it was computed, and beside them
+ * the suggested questions, the question history and what the app won't answer. Questions in words go
+ * through /api/ask; follow-up chips and history re-runs send their spec to /api/run, without the
+ * model. The history lives in this browser's localStorage only.
  */
-export function AnswerView() {
-  const [draft, setDraft] = useState("");
-  const [question, setQuestion] = useState<string | null>(null);
+export function AskWorkspace({ initialQuestion, questionsPerMinute, orderCount }: AskWorkspaceProps) {
+  const [draft, setDraft] = useState(initialQuestion ?? "");
+  const [question, setQuestion] = useState<string | undefined>(undefined);
   const [outcome, setOutcome] = useState<AnswerOutcomeState>({ kind: "idle" });
   const history = useQuestionHistory();
   const latest = useRef(0);
+  const askedOnLoad = useRef(false);
 
   async function show(label: string, reply: () => Promise<AnswerOutcomeState>) {
     const request = ++latest.current;
@@ -106,12 +156,14 @@ export function AnswerView() {
     if (request === latest.current) setOutcome(next);
   }
 
-  const ask = (text: string) =>
+  const ask = (text: string) => {
+    setDraft(text);
     void show(text, async () => {
       const { outcome: answer } = await post("/api/ask", { question: text });
       history.record(text, answer);
       return answer;
     });
+  };
   const followUp = ({ label, spec }: FollowUp) => void show(label, async () => (await post("/api/run", { spec })).outcome);
   const rerun = (entry: HistoryEntry) =>
     void show(entry.question, async () => {
@@ -122,6 +174,13 @@ export function AnswerView() {
       return { ...answer, message: SAVED_SPEC_REJECTED };
     });
 
+  // The question in ?q= is asked once; the guard keeps a development double run from asking twice.
+  useEffect(() => {
+    if (askedOnLoad.current || initialQuestion === undefined) return;
+    askedOnLoad.current = true;
+    ask(initialQuestion);
+  });
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = draft.trim();
@@ -129,43 +188,23 @@ export function AnswerView() {
   }
 
   return (
-    <div>
-      <form onSubmit={submit} className="flex gap-2">
-        <label htmlFor="question" className="sr-only">
-          Your question
-        </label>
-        <input
-          id="question"
-          value={draft}
-          maxLength={MAX_QUESTION_LENGTH}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="Ask about orders, deliveries, carriers or demand"
-          className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={draft.trim() === ""}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:bg-slate-300"
-        >
-          Ask
-        </button>
-      </form>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {EXAMPLES.map((example) => (
-          <button
-            key={example}
-            type="button"
-            onClick={() => ask(example)}
-            className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-blue-900 hover:bg-blue-100"
-          >
-            {example}
+    <div className="flex flex-wrap items-start gap-5">
+      <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-4">
+        <form onSubmit={submit} className="card flex flex-wrap gap-2 p-4 shadow-raised">
+          <QuestionField id="ask-question" value={draft} onChange={(event) => setDraft(event.target.value)} className="h-12 flex-[1_1_280px]" />
+          <button type="submit" disabled={draft.trim() === ""} className="button-primary h-12 px-6">
+            Ask
           </button>
-        ))}
+          <span className="basis-full text-note text-muted">{`Up to ${MAX_QUESTION_LENGTH} characters · ${questionsPerMinute} questions a minute per visitor`}</span>
+        </form>
+        <div aria-live="polite" className="flex flex-col gap-4">
+          <AnswerOutcome question={question} outcome={outcome} onFollowUp={followUp} onAsk={ask} />
+        </div>
       </div>
-      <HistoryList entries={history.entries} onRerun={rerun} onClear={history.clearAll} />
-      {question === null ? null : <p className="mt-4 text-base font-medium">{question}</p>}
-      <div className="mt-2" aria-live="polite">
-        <AnswerOutcome outcome={outcome} onFollowUp={followUp} onAsk={ask} />
+      <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
+        <TryThese onAsk={ask} />
+        <HistoryList entries={history.entries} onRerun={rerun} onClear={history.clearAll} />
+        <Limits orderCount={orderCount} />
       </div>
     </div>
   );

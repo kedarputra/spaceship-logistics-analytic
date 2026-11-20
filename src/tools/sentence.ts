@@ -3,7 +3,7 @@ import { formatCount, formatMetricValue } from "@/domain/format";
 import { formatPeriod } from "@/domain/periods";
 import type { Direction, QueryResult, ResultRow, RowValues } from "./query";
 import { type GroupBy, isTimeDimension } from "./spec";
-import { andList, DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "./words";
+import { andList, capitalized, DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "./words";
 
 /**
  * The answer's opening sentence, written by code (ADR 0009 §4), and the facts block the model's
@@ -132,10 +132,6 @@ function pointsText(points: readonly ResultRow[], result: QueryResult, groupBy: 
 
 function lowered(label: string): string {
   return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
-}
-
-function capitalized(text: string): string {
-  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 /**

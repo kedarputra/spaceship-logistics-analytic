@@ -30,7 +30,8 @@ export interface Ratio {
 export interface DashboardKpis {
   totalOrders: { count: number; inTransit: number; canceled: number };
   deliveredOrders: { count: number } & DeliveryOutcomes;
-  delayedOrders: number;
+  /** Delayed orders, and their share of delivered orders: delayed ÷ delivered. */
+  delayedOrders: { count: number; delayRate: Ratio };
   /** On-time deliveries ÷ delivered orders. */
   onTimeRate: Ratio;
   /** Total delivery days ÷ delivered orders. */
@@ -322,7 +323,7 @@ export function dashboardKpis(orders: readonly Order[]): DashboardKpis {
       canceled: orders.filter((order) => order.status === "canceled").length,
     },
     deliveredOrders: { count: deliveredOrders(orders).length, ...outcomes },
-    delayedOrders: outcomes.delayed,
+    delayedOrders: { count: outcomes.delayed, delayRate: delayRate(orders) },
     onTimeRate: onTimeRate(orders),
     averageDeliveryDays: averageDeliveryDays(orders),
   };

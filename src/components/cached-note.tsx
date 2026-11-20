@@ -5,9 +5,9 @@
 export function CachedNote({ cached }: { cached?: boolean }) {
   if (cached !== true) return null;
   return (
-    <p className="mt-1 text-xs text-slate-500">
-      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">Cached</span> Served from the server&apos;s cache of
-      earlier questions.
-    </p>
+    <span className="inline-flex items-center gap-1.5 text-caption text-muted">
+      <span className="pill bg-track text-ink-2">Cached</span>
+      Served from the server&apos;s cache of earlier questions.
+    </span>
   );
 }

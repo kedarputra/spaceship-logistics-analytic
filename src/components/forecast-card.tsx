@@ -1,13 +1,14 @@
 import { formatCount, formatDecimal, formatPercent } from "@/domain/format";
 import { formatDate } from "@/domain/periods";
-import { NOT_A_REORDER, RANGE_Z, SAFETY_Z, type SkuHistory } from "@/tools/forecast";
 import { FORECAST_CHART_REASON } from "@/tools/chart";
+import { NOT_A_REORDER, RANGE_Z, SAFETY_Z, type SkuHistory } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { TraceStage } from "@/tools/trace-stage";
+import { AskedQuestion, ExplanationCard, PanelHeading, SentenceBadge, SpecBlock } from "./answer-parts";
 import { CachedNote } from "./cached-note";
 import { ForecastChart, type ForecastChartRow } from "./forecast-chart";
-import { ChartAndTraceFacts } from "./trace-strip";
 import { Fact, Table } from "./text-table";
+import { ChartAndTraceFacts } from "./trace-strip";
 
 /**
  * A forecast as the user sees it (R9, ADR 0003 §4, §7–8): the sentence, the units to plan for, the
@@ -35,9 +36,8 @@ export function forecastChartRows(forecast: ForecastAnswer): ForecastChartRow[] 
 function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: TraceStage[] }) {
   const { exact, horizon, method, recommendation } = forecast;
   return (
-    <details className="mt-4 rounded-md border border-slate-200 p-3 text-sm">
-      <summary className="cursor-pointer font-medium text-slate-700">How this was forecast</summary>
-      <dl className="mt-3 space-y-2">
+    <ExplanationCard title="How this was forecast">
+      <dl className="flex flex-col gap-2.5">
         <Fact term="Interpretation">{forecast.interpretation}</Fact>
         <Fact term="Method">{forecast.roughNote === undefined ? method.reason : `${method.reason} ${forecast.roughNote}`}</Fact>
         <Fact term="How chosen">
@@ -51,12 +51,13 @@ function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: 
         </Fact>
         <Fact term="95% range">{`Forecast ± ${RANGE_Z} × σ × √(months ahead), floored at 0.`}</Fact>
         <ChartAndTraceFacts chartReason={FORECAST_CHART_REASON} trace={trace} />
-        <Fact term="Spec">
-          <pre className="overflow-x-auto rounded bg-slate-50 p-2 text-xs">{JSON.stringify(forecast.spec, null, 2)}</pre>
-        </Fact>
       </dl>
-      <h3 className="mt-4 font-medium text-slate-700">{`Error on ${forecast.holdout}`}</h3>
-      <div className="overflow-x-auto">
+      <div className="flex flex-col gap-1.5">
+        <PanelHeading>Spec, as validated</PanelHeading>
+        <SpecBlock spec={forecast.spec} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <PanelHeading>{`Error on ${forecast.holdout}`}</PanelHeading>
         <Table
           headers={["Method", "MAE (units a month)", "WAPE", "Absolute error / actual units", ""]}
           rows={forecast.candidates.map((candidate) => [
@@ -68,76 +69,72 @@ function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: 
           ])}
         />
       </div>
-      <h3 className="mt-4 font-medium text-slate-700">{`Units ordered per month, ${forecast.period}`}</h3>
-      <div className="overflow-x-auto">
+      <div className="flex flex-col gap-1.5">
+        <PanelHeading>{`Units ordered per month, ${forecast.period}`}</PanelHeading>
         <Table headers={["Month", "Units"]} rows={forecast.history.map((month) => [month.label, formatCount(month.units)])} />
       </div>
-    </details>
+    </ExplanationCard>
   );
 }
 
 /** A SKU question (ADR 0003 §9): the SKU's own orders and why it is not forecast, ahead of its category's forecast. */
 function SkuOrders({ sku }: { sku: SkuHistory }) {
   return (
-    <section className="mt-3 rounded-md bg-slate-50 p-3 text-sm">
-      <h3 className="font-medium text-slate-700">{`SKU ${sku.id}`}</h3>
-      <p className="mt-1">{sku.reason}</p>
-      <div className="overflow-x-auto">
-        <Table
-          headers={["Order", "Order date", "Units", "Warehouse"]}
-          rows={sku.orders.map((order) => [order.orderId, formatDate(order.orderDate), formatCount(order.quantity), order.warehouse])}
-        />
-      </div>
+    <section className="flex flex-col gap-1.5 rounded-control border border-grid bg-inset p-3.5 text-small">
+      <h3 className="font-semibold">{`SKU ${sku.id}`}</h3>
+      <p>{sku.reason}</p>
+      <Table
+        headers={["Order", "Order date", "Units", "Warehouse"]}
+        rows={sku.orders.map((order) => [order.orderId, formatDate(order.orderDate), formatCount(order.quantity), order.warehouse])}
+      />
     </section>
   );
 }
 
-export function ForecastCard({ forecast, cached, trace }: { forecast: ForecastAnswer; cached?: boolean; trace?: TraceStage[] }) {
+export function ForecastCard({ question, forecast, cached, trace }: { question?: string; forecast: ForecastAnswer; cached?: boolean; trace?: TraceStage[] }) {
   const { recommendation } = forecast;
   const notes = [forecast.scopeNote, forecast.januaryCaveat, ...forecast.horizon.notes].filter((note) => note !== undefined);
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4">
-      {forecast.horizon.reachNote === undefined ? null : <p className="mb-2 text-base font-medium text-slate-900">{forecast.horizon.reachNote}</p>}
-      <p className="text-base text-slate-900">{forecast.sentence}</p>
-      <CachedNote cached={cached} />
-      <p className="mt-1 text-sm text-slate-600">{forecast.interpretation}</p>
-      {forecast.sku === undefined ? null : <SkuOrders sku={forecast.sku} />}
-      {forecast.roughNote === undefined ? null : (
-        <p className="mt-2 text-sm">
-          <span className="rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-900">Rough forecast</span>
-          {` ${forecast.roughNote}`}
-        </p>
-      )}
-      <div className="mt-3">
-        <p className="text-sm text-slate-600">{`Units to plan for, ${forecast.monthsLabel}`}</p>
-        <p className="text-4xl font-semibold">
-          {formatCount(recommendation.units)}
-          <span className="text-base font-normal text-slate-600">
-            {` · ${formatCount(recommendation.demand)} forecast + ${formatCount(recommendation.safetyStock)} safety stock`}
-          </span>
-        </p>
-      </div>
-      <div className="mt-3">
+    <>
+      <article aria-label="Forecast" className="card flex flex-col gap-3.5 p-5">
+        <AskedQuestion question={question} />
+        {forecast.horizon.reachNote === undefined ? null : <p className="text-sentence">{forecast.horizon.reachNote}</p>}
+        <p className="max-w-[68ch] text-sentence text-pretty">{forecast.sentence}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <SentenceBadge source={forecast.sentenceSource} />
+          <CachedNote cached={cached} />
+          <span className="text-caption text-muted">{forecast.interpretation}</span>
+        </div>
+        {forecast.sku === undefined ? null : <SkuOrders sku={forecast.sku} />}
+        {forecast.roughNote === undefined ? null : (
+          <p className="text-small text-ink-2">
+            <span className="pill mr-1.5 bg-track">Rough forecast</span>
+            {forecast.roughNote}
+          </p>
+        )}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-small font-semibold text-ink-2">{`Units to plan for, ${forecast.monthsLabel}`}</span>
+          <p className="text-plan">
+            {formatCount(recommendation.units)}
+            <span className="text-field font-normal tracking-normal text-muted">
+              {` · ${formatCount(recommendation.demand)} forecast + ${formatCount(recommendation.safetyStock)} safety stock`}
+            </span>
+          </p>
+        </div>
         <ForecastChart rows={forecastChartRows(forecast)} />
-      </div>
-      <div className="mt-3 overflow-x-auto">
         <Table
           headers={["Month", "Forecast", "95% range"]}
-          rows={forecast.forecastMonths.map((month) => [
-            month.label,
-            formatDecimal(month.units),
-            `${formatDecimal(month.low)}–${formatDecimal(month.high)}`,
-          ])}
+          rows={forecast.forecastMonths.map((month) => [month.label, formatDecimal(month.units), `${formatDecimal(month.low)}–${formatDecimal(month.high)}`])}
         />
-      </div>
-      {notes.length === 0 ? null : (
-        <ul className="mt-3 space-y-1 text-sm text-slate-600">
-          {notes.map((text) => (
-            <li key={text}>{text}</li>
-          ))}
-        </ul>
-      )}
+        {notes.length === 0 ? null : (
+          <ul className="flex flex-col gap-1 text-small text-ink-2">
+            {notes.map((text) => (
+              <li key={text}>{text}</li>
+            ))}
+          </ul>
+        )}
+      </article>
       <ForecastPanel forecast={forecast} trace={trace} />
-    </article>
+    </>
   );
 }

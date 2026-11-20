@@ -370,6 +370,56 @@
         "tool": "query",
         "metric": "on_time_rate"
       }
+    },
+    {
+      "id": "suggested-least-reliable",
+      "question": "Which carrier is the least reliable?",
+      "expected": {
+        "tool": "query",
+        "metric": "on_time_rate",
+        "groupBy": "carrier",
+        "sort": "asc",
+        "limit": 1,
+        "assumption": "best"
+      }
+    },
+    {
+      "id": "suggested-forecast-total",
+      "question": "Forecast demand for the next 3 months",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "total"
+        },
+        "horizon": {
+          "count": 3,
+          "unit": "month"
+        }
+      }
+    },
+    {
+      "id": "suggested-forecast-category",
+      "question": "Forecast CRAYON demand for the next 3 months",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "category",
+          "value": "CRAYON"
+        },
+        "horizon": {
+          "count": 3,
+          "unit": "month"
+        }
+      }
+    },
+    {
+      "id": "suggested-delay-rate-by-carrier",
+      "question": "What is the delay rate by carrier?",
+      "expected": {
+        "tool": "query",
+        "metric": "delay_rate",
+        "groupBy": "carrier"
+      }
     }
   ]
 }

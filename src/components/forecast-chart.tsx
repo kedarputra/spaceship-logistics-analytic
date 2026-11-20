@@ -2,7 +2,7 @@
 
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCount, formatDecimal } from "@/domain/format";
-import { CHART_INK, RANGE_BLUE, SERIES_COLORS } from "./palette";
+import { BAND_OPACITY, CHART_INK, MARKS } from "./palette";
 
 /** One month on the chart: units ordered, or the forecast and its 95% range. */
 export interface ForecastChartRow {
@@ -14,7 +14,7 @@ export interface ForecastChartRow {
 
 const HEIGHT = 280;
 const TICK = { fill: CHART_INK.label, fontSize: 12 };
-const DEMAND = SERIES_COLORS.blue;
+const DEMAND = MARKS.onTime;
 
 /** "95.0", or "13.4–176.6" for the range. */
 function tooltipValue(value: unknown): string {
@@ -25,7 +25,7 @@ function tooltipValue(value: unknown): string {
   return String(value);
 }
 
-/** History, a dashed forecast from the last month, and the shaded 95% range (ADR 0003 §8). All values arrive computed. */
+/** History, a dashed forecast from the last month, and the shaded 95% range (ADR 0003 §8, ADR 0011 §3). All values arrive computed. */
 export function ForecastChart({ rows }: { rows: ForecastChartRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={HEIGHT}>
@@ -39,20 +39,20 @@ export function ForecastChart({ rows }: { rows: ForecastChartRow[] }) {
           wrapperStyle={{ fontSize: 12 }}
           formatter={(value) => <span style={{ color: CHART_INK.label }}>{value}</span>}
         />
-        <Area name="95% range" dataKey="range" fill={RANGE_BLUE} fillOpacity={1} stroke="none" legendType="square" isAnimationActive={false} />
+        <Area name="95% range" dataKey="range" fill={MARKS.band} fillOpacity={BAND_OPACITY} stroke="none" legendType="square" isAnimationActive={false} />
         <Line
           name="Units ordered"
           dataKey="history"
           stroke={DEMAND}
           strokeWidth={2}
           legendType="plainline"
-          dot={{ r: 4, fill: DEMAND, stroke: "#ffffff", strokeWidth: 2 }}
+          dot={{ r: 4, fill: DEMAND, stroke: CHART_INK.surface, strokeWidth: 2 }}
           isAnimationActive={false}
         />
         <Line
           name="Forecast"
           dataKey="forecast"
-          stroke={DEMAND}
+          stroke={MARKS.forecastLine}
           strokeWidth={2}
           strokeDasharray="6 4"
           // The legend's line keeps the dash, so the forecast is told apart by more than its label.

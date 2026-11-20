@@ -132,6 +132,9 @@ const JANUARY_ENDING = "One year of data cannot show whether January repeats.";
 /** ADR 0003 §7: the recommendation is units to plan for, never an order to place. */
 export const NOT_A_REORDER = "This is not a reorder quantity: the data has no stock on hand.";
 
+/** ADR 0003 §9, as the pages say it: a SKU question gets the SKU's orders and its category's forecast. */
+export const SKU_NOT_FORECAST = "A single SKU is never forecast: each has too few orders. A SKU question gets its orders and its category's forecast.";
+
 export const METHOD_LABELS: Record<MethodId, string> = {
   average: "All-history average",
   moving_average: `${MOVING_WINDOW}-month moving average`,

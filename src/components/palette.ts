@@ -1,25 +1,41 @@
 /**
- * Chart colors: the first five categorical slots of the dataviz reference palette, in fixed order,
- * and the lighter step of the blue ramp for small samples. Validated on the white card surface:
- * all checks pass; aqua, yellow and magenta are under 3:1 contrast, so every chart ships a legend
- * or labels and a table.
+ * Chart marks (ADR 0011 §3): deeper steps of the brand colours, checked with the dataviz validator on
+ * white. On time, delayed, exception: lightness inside the band, chroma ≥ 0.10, colour-blind ΔE 14.6,
+ * normal-vision ΔE 20.2. Amber marks are under 3:1 on white, so every chart keeps value labels or its
+ * data table. The same values are CSS variables in globals.css; Recharts and SVG need them as values.
  */
-export const SERIES_COLORS = {
-  blue: "#2a78d6",
-  orange: "#eb6834",
-  aqua: "#1baf7a",
-  yellow: "#eda100",
-  magenta: "#e87ba4",
+export const MARKS = {
+  /** On time, and any single series. */
+  onTime: "#2a8763",
+  /** Delayed, and delay rates. */
+  delayed: "#e39a2e",
+  exception: "#b4533a",
+  /** A small sample of an amber series: drawn with a 1 px `delayed` ring and a "small sample" tag. */
+  smallAmber: "#f6d3a1",
+  /** A small sample of a green series: sage. */
+  smallGreen: "#afd0bf",
+  /** The forecast line, dashed. */
+  forecastLine: "#c27a16",
+  /** The forecast's 95% range, drawn at BAND_OPACITY. */
+  band: "#f4b266",
 } as const;
 
-/** Blue ramp step 250: the lightest step that still clears 2:1 on white. */
-export const SMALL_SAMPLE_BLUE = "#86b6ef";
+export const BAND_OPACITY = 0.3;
 
-/** The series blue at 15% on white, solid so the legend swatch matches: a forecast's 95% range band. */
-export const RANGE_BLUE = "#dfebf9";
+/**
+ * The two statuses that are not delivery outcomes, for a breakdown by status. Validated after the three
+ * outcome marks in stack order: every adjacent pair passes (worst colour-blind ΔE 10.5), and the chart
+ * keeps its legend and table.
+ */
+export const STATUS_MARKS = {
+  inTransit: "#2f6fae",
+  canceled: "#d27bae",
+} as const;
 
 export const CHART_INK = {
-  grid: "#e1e0d9",
-  axis: "#c3c2b7",
-  label: "#52514e",
+  grid: "#edf1ec",
+  axis: "#c9d1cb",
+  label: "#5e6b64",
+  /** The card surface: the gap between stacked segments and the ring around points. */
+  surface: "#ffffff",
 } as const;
