@@ -8,8 +8,8 @@ On the live site (21 Nov 2026) hovering looks like it does nothing. The Ask answ
 
 The tooltip only adds a quicker way to read a value. Every value it shows is also in the chart's Data table, which stays the full alternative.
 
-**Blocked by:** 25
-_25 Redesign: the Delivery, Carriers and Forecast pages_
+**Blocked by:** 29
+_29 Cards, bars and rows open the orders behind them (and, through it, 28 Raw data)_
 
 **Status:** ready-for-agent
 
@@ -32,7 +32,11 @@ _25 Redesign: the Delivery, Carriers and Forecast pages_
   - Months under 20 deliveries add "small sample".
 - [ ] **Keyboard and touch.**
   - Each plot is one tab stop. Left and right arrows move between months and show the same tooltip; Escape or leaving the plot hides it.
-  - A tap on a month shows it; a tap outside hides it.
+  - On touch, a first tap on a month shows its tooltip, a second tap on it opens its orders, and a tap outside hides it.
+- [ ] **A click opens the month's orders.**
+  - A click on a month, or Enter on the focused month, opens Raw data for that month.
+  - Orders per month uses the order date; the two delivery charts use the delivery date, limited to delivered orders.
+  - The tooltip's foot says so, e.g. "Click to view the 75 orders".
 - [ ] **Remove the native `title`s** this replaces, so two tooltips never show at once. Keep the plot's `aria-label` and the Data table.
 - [ ] **The recharts tooltips match.** Style the Ask answer chart's and the Forecast chart's tooltips the same way, with a custom content component or contentStyle and itemStyle. The Forecast range reads e.g. "13–177 units".
 - [ ] **Out of scope.** The ranked bars (region, warehouse, carriers) already print the value, n and on-time rate beside each bar. They get no hover.
