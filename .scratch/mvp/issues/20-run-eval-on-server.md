@@ -7,6 +7,10 @@ _11 Gateway smoke check · 19 README completion_
 
 **Status:** ready-for-human
 
-- [ ] If ticket 18 is done, run `npm run eval` on the server; otherwise work through the committed eval list by hand.
-- [ ] The README states the pass rate, the date, and the model, and briefly notes the misses.
+- [x] If ticket 18 is done, run `npm run eval` on the server; otherwise work through the committed eval list by hand.
+- [x] The README states the pass rate, the date, and the model, and briefly notes the misses.
 - [ ] Any miss that points to a bug gets its own ticket; prompt changes are re-evaluated before the review window starts.
+
+## Comments
+
+- 2026-11-20: `npm run eval` on the server against the real gateway, at commit 0a6a8ef (prompts-7). Result: 30 of 30 specs match (100%), the same in two runs back to back, 12 s each. The gateway reports the model as `chat`; behind that alias it is gemma12 (Gemma 4 12B instruct, Q5_K_M), in json_schema mode. There were no misses, so no bug tickets. The README paragraph under "AI approach" holds the result. Still open: run it again after any prompt change and right before the review window (ticket 21), then close this ticket.
