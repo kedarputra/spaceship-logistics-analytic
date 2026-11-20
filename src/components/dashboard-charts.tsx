@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import type { BucketValue, CarrierDelayRate, DeliveryOutcomes } from "@/domain/definitions";
+import type { BucketValue, DeliveryOutcomes, Ratio } from "@/domain/definitions";
 import { SMALL_SAMPLE_MIN_DELIVERED } from "@/domain/definitions";
 import { formatCount, formatFraction, formatPercent } from "@/domain/format";
 import { formatDate, type Period } from "@/domain/periods";
 import { chooseChart, type ResultShape } from "@/tools/chart";
+import type { ResultRow } from "@/tools/query";
 import { type BarChartType, Chart, type ChartRow, type ChartSeries } from "./chart";
 import { SERIES_COLORS, SMALL_SAMPLE_BLUE } from "./palette";
 
@@ -76,17 +77,24 @@ interface DashboardChartsProps {
   period: Period;
   ordersPerMonth: BucketValue<number>[];
   outcomesPerMonth: BucketValue<DeliveryOutcomes>[];
-  carriers: CarrierDelayRate[];
+  /** Delay rate per carrier, ranked by the query tool. */
+  carriers: ResultRow[];
+}
+
+/** A rate row's parts; a row without them is not a rate, which would be a bug upstream. */
+function ratioOf(row: ResultRow): Ratio {
+  if (row.numerator === undefined || row.denominator === undefined) throw new Error(`"${row.label}" carries no rate`);
+  return { numerator: row.numerator, denominator: row.denominator, value: row.value };
 }
 
 /** The three charts of R2. Shows computed results; the chart type comes from chooseChart. */
 export function DashboardCharts({ period, ordersPerMonth, outcomesPerMonth, carriers }: DashboardChartsProps) {
   const dates = `${formatDate(period.from)} – ${formatDate(period.to)}`;
 
-  const carrierRows: ChartRow[] = carriers.map(({ carrier, rate, smallSample }) => ({
-    label: `${carrier} (n=${formatCount(rate.denominator)})`,
-    values: { delayRate: rate.value },
-    muted: smallSample,
+  const carrierRows: ChartRow[] = carriers.map((row) => ({
+    label: `${row.label} (n=${formatCount(row.n)})`,
+    values: { delayRate: row.value },
+    muted: row.smallSample,
   }));
 
   return (
@@ -143,11 +151,11 @@ export function DashboardCharts({ period, ordersPerMonth, outcomesPerMonth, carr
         }
         table={{
           columns: ["Carrier", "Delay rate", "Delayed / delivered", "Note"],
-          rows: carriers.map(({ carrier, rate, smallSample }) => [
-            carrier,
-            formatPercent(rate.value),
-            formatFraction(rate),
-            smallSample ? "Small sample" : "",
+          rows: carriers.map((row) => [
+            row.label,
+            formatPercent(row.value),
+            formatFraction(ratioOf(row)),
+            row.smallSample ? "Small sample" : "",
           ]),
         }}
       />

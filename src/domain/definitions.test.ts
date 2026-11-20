@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   averageDeliveryDays,
   dashboardKpis,
-  delayRateByCarrier,
   deliveredOrders,
   deliveryOutcomes,
   deliveryOutcomesOverTime,
+  METRICS,
+  type MetricId,
   onTimeRate,
   orderCountOverTime,
   ratio,
@@ -58,6 +59,59 @@ describe("dashboard KPIs on the dataset (ADR 0001, Reading B in docs/data.md)", 
   it("has an average delivery time of 3.83 days over the 370 delivered orders", () => {
     expect(kpis.averageDeliveryDays.denominator).toBe(370);
     expect(kpis.averageDeliveryDays.value ?? Number.NaN).toBeCloseTo(3.83, 2);
+  });
+});
+
+describe("the 11 metrics of ADR 0006 §1 on the dataset (golden numbers in docs/data.md)", () => {
+  const { orders } = getDataset();
+  const count = (id: MetricId) => {
+    const metric = METRICS[id];
+    if (metric.kind === "rate" || metric.kind === "average") throw new Error(`${id} is not a count`);
+    return metric.compute(orders);
+  };
+  const ratioOf = (id: MetricId) => {
+    const metric = METRICS[id];
+    if (metric.kind !== "rate" && metric.kind !== "average") throw new Error(`${id} is not a ratio`);
+    return metric.compute(orders);
+  };
+
+  it("counts 400 orders, 370 delivered, 304 on time, 55 delayed, 11 exception", () => {
+    const counts: MetricId[] = ["order_count", "delivered_orders", "on_time_deliveries", "delayed_orders", "exception_orders"];
+    expect(counts.map(count)).toEqual([400, 370, 304, 55, 11]);
+  });
+
+  it("has an on-time rate of 304 / 370 (82.16%) and a delay rate of 55 / 370", () => {
+    expect(ratioOf("on_time_rate")).toMatchObject({ numerator: 304, denominator: 370 });
+    expect((ratioOf("on_time_rate").value ?? Number.NaN) * 100).toBeCloseTo(82.16, 2);
+    expect(ratioOf("delay_rate")).toMatchObject({ numerator: 55, denominator: 370 });
+  });
+
+  it("has an average delivery time of 3.83 days", () => {
+    expect(ratioOf("average_delivery_time").value ?? Number.NaN).toBeCloseTo(3.83, 2);
+  });
+
+  it("sums 1,310 units, USD 13,695.87 gross order value, and USD 13,568.01 net after promo discounts", () => {
+    expect(count("units")).toBe(1310);
+    expect(count("gross_order_value")).toBeCloseTo(13695.87, 2);
+    expect(count("net_order_value")).toBeCloseTo(13568.01, 2);
+  });
+
+  it("dates order volume and value by order_date and every delivery outcome by delivery_date (ADR 0002 §5)", () => {
+    const byDateField = (field: string) =>
+      Object.entries(METRICS)
+        .filter(([, metric]) => metric.dateField === field)
+        .map(([id]) => id)
+        .sort();
+    expect(byDateField("order_date")).toEqual(["gross_order_value", "net_order_value", "order_count", "units"]);
+    expect(byDateField("delivery_date")).toEqual([
+      "average_delivery_time",
+      "delay_rate",
+      "delayed_orders",
+      "delivered_orders",
+      "exception_orders",
+      "on_time_deliveries",
+      "on_time_rate",
+    ]);
   });
 });
 
@@ -128,51 +182,6 @@ describe("delivery outcomes over time, by delivery date (ADR 0002)", () => {
     const total = (outcome: "onTime" | "delayed" | "exception") =>
       months.reduce((sum, month) => sum + month.value[outcome], 0);
     expect([total("onTime"), total("delayed"), total("exception")]).toEqual([304, 55, 11]);
-  });
-});
-
-describe("delay rate by carrier (ADR 0001 §3, §6)", () => {
-  const year2025 = { from: "2025-01-01", to: "2025-12-31" };
-  const carriers = delayRateByCarrier(getDataset().orders, year2025);
-
-  it("ranks the 9 carriers by delay rate: GLS 2/8, USPS 11/47, UPS 17/78, Royal Mail 5/25 first", () => {
-    expect(carriers).toHaveLength(9);
-    expect(carriers.slice(0, 4).map(({ carrier, rate }) => [carrier, rate.numerator, rate.denominator])).toEqual([
-      ["GLS", 2, 8],
-      ["USPS", 11, 47],
-      ["UPS", 17, 78],
-      ["Royal Mail", 5, 25],
-    ]);
-    expect((carriers[0]?.rate.value ?? Number.NaN) * 100).toBeCloseTo(25.0, 1);
-    expect((carriers[1]?.rate.value ?? Number.NaN) * 100).toBeCloseTo(23.4, 1);
-    const values = carriers.map(({ rate }) => rate.value ?? Number.NaN);
-    expect(values).toEqual([...values].sort((a, b) => b - a));
-  });
-
-  it("flags GLS (8 delivered orders) and DPD (18) as small samples, and no other carrier", () => {
-    expect(carriers.filter(({ smallSample }) => smallSample).map(({ carrier, rate }) => [carrier, rate.denominator])).toEqual([
-      ["GLS", 8],
-      ["DPD", 18],
-    ]);
-  });
-
-  it("counts only the orders delivered inside the period, by delivery date (ADR 0002 §5)", () => {
-    const sample = [
-      order("delayed", "2025-04-28", "2025-05-02"),
-      order("delivered", "2025-05-30", "2025-06-02"),
-      order("delivered", "2025-04-20", "2025-04-25"),
-    ];
-    expect(delayRateByCarrier(sample, { from: "2025-05-01", to: "2025-05-31" })).toEqual([
-      { carrier: "DHL", rate: { numerator: 1, denominator: 1, value: 1 }, smallSample: true },
-    ]);
-  });
-
-  it("puts a carrier with no delivered orders last, with no rate", () => {
-    const sample = [order("delayed", "2025-05-01", "2025-05-08"), { ...order("in_transit", "2025-05-02", null), carrier: "GLS" }];
-    expect(delayRateByCarrier(sample, year2025)).toEqual([
-      { carrier: "DHL", rate: { numerator: 1, denominator: 1, value: 1 }, smallSample: true },
-      { carrier: "GLS", rate: { numerator: 0, denominator: 0, value: null }, smallSample: true },
-    ]);
   });
 });
 

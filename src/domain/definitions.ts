@@ -1,5 +1,5 @@
 import type { Order } from "./orders";
-import { type Bucket, type BucketUnit, daysBetween, groupByBucket, isInPeriod, type Period } from "./periods";
+import { type Bucket, type BucketUnit, daysBetween, groupByBucket, type Period } from "./periods";
 
 /**
  * The one home of the KPI definitions (ADR 0001, Reading B). The dashboard and the query tool
@@ -37,29 +37,6 @@ export interface DashboardKpis {
   averageDeliveryDays: Ratio;
 }
 
-/** Each KPI's name and its one-line definition, in the glossary's wording. */
-export const KPI_DEFINITIONS = {
-  totalOrders: {
-    label: "Total orders",
-    definition: "Every order in the data, including in-transit and canceled orders.",
-  },
-  deliveredOrders: {
-    label: "Delivered orders",
-    definition: "Orders with a delivery date: status delivered, delayed, or exception.",
-  },
-  delayedOrders: {
-    label: "Delayed orders",
-    definition: "Delivered orders with status delayed. Exception orders are not delayed orders.",
-  },
-  onTimeRate: {
-    label: "On-time delivery rate",
-    definition: "On-time deliveries divided by delivered orders.",
-  },
-  averageDeliveryDays: {
-    label: "Average delivery time",
-    definition: "Mean of delivery date − order date in days, over delivered orders.",
-  },
-} as const satisfies Record<keyof DashboardKpis, { label: string; definition: string }>;
 
 /** Divides with a guard: a zero denominator gives a null value, never NaN or Infinity. */
 export function ratio(numerator: number, denominator: number): Ratio {
@@ -98,45 +75,186 @@ export function averageDeliveryDays(orders: readonly Order[]): Ratio {
   return ratio(totalDays, delivered.length);
 }
 
+/** Units ordered: the sum of quantity. */
+export function units(orders: readonly Order[]): number {
+  return orders.reduce((sum, order) => sum + order.quantity, 0);
+}
+
+/** order_value_usd as given, before any promo discount (docs/data.md trap 6). */
+export function grossOrderValue(orders: readonly Order[]): number {
+  return orders.reduce((sum, order) => sum + order.order_value_usd, 0);
+}
+
+/** order_value_usd after the promo discount. */
+export function netOrderValue(orders: readonly Order[]): number {
+  return orders.reduce((sum, order) => sum + order.order_value_usd * (1 - order.promo_discount_pct / 100), 0);
+}
+
+export type MetricId =
+  | "order_count"
+  | "delivered_orders"
+  | "on_time_deliveries"
+  | "delayed_orders"
+  | "exception_orders"
+  | "on_time_rate"
+  | "delay_rate"
+  | "average_delivery_time"
+  | "units"
+  | "gross_order_value"
+  | "net_order_value";
+
+export type DateField = "order_date" | "delivery_date";
+
+interface MetricBase {
+  label: string;
+  /** One line, in the glossary's wording. */
+  definition: string;
+  /** The date a period filters on (ADR 0002 §5). */
+  dateField: DateField;
+}
+
+/**
+ * Counts and sums are plain numbers; rates and averages keep their numerator and denominator.
+ * A count also names the orders it counts, so an answer can list them.
+ */
+export type MetricDefinition =
+  | (MetricBase & {
+      kind: "count";
+      unit: "orders";
+      matching: (orders: readonly Order[]) => Order[];
+      compute: (orders: readonly Order[]) => number;
+    })
+  | (MetricBase & { kind: "sum"; unit: "units" | "USD"; compute: (orders: readonly Order[]) => number })
+  | (MetricBase & { kind: "rate"; unit: "percent"; compute: (orders: readonly Order[]) => Ratio })
+  | (MetricBase & { kind: "average"; unit: "days"; compute: (orders: readonly Order[]) => Ratio });
+
+/** A count metric over the orders `select` picks. */
+function countOf(
+  base: MetricBase,
+  select: (orders: readonly Order[]) => Order[],
+): Extract<MetricDefinition, { kind: "count" }> {
+  return { ...base, kind: "count", unit: "orders", matching: select, compute: (orders) => select(orders).length };
+}
+
+function deliveredWithStatus(status: Order["status"]): (orders: readonly Order[]) => Order[] {
+  return (orders) => deliveredOrders(orders).filter((order) => order.status === status);
+}
+
+/** The metric whitelist of ADR 0006 §1: one definition each, used by the dashboard and the query tool. */
+export const METRICS: Record<MetricId, MetricDefinition> = {
+  order_count: countOf(
+    {
+      label: "Orders",
+      definition: "Every order in the data, including in-transit and canceled orders.",
+      dateField: "order_date",
+    },
+    (orders) => [...orders],
+  ),
+  delivered_orders: countOf(
+    {
+      label: "Delivered orders",
+      definition: "Orders with a delivery date: status delivered, delayed, or exception.",
+      dateField: "delivery_date",
+    },
+    deliveredOrders,
+  ),
+  on_time_deliveries: countOf(
+    { label: "On-time deliveries", definition: "Delivered orders with status delivered.", dateField: "delivery_date" },
+    deliveredWithStatus("delivered"),
+  ),
+  delayed_orders: countOf(
+    {
+      label: "Delayed orders",
+      definition: "Delivered orders with status delayed. Exception orders are not delayed orders.",
+      dateField: "delivery_date",
+    },
+    deliveredWithStatus("delayed"),
+  ),
+  exception_orders: countOf(
+    {
+      label: "Exception orders",
+      definition: "Delivered orders with status exception: neither on time nor delayed.",
+      dateField: "delivery_date",
+    },
+    deliveredWithStatus("exception"),
+  ),
+  on_time_rate: {
+    label: "On-time delivery rate",
+    definition: "On-time deliveries divided by delivered orders.",
+    dateField: "delivery_date",
+    kind: "rate",
+    unit: "percent",
+    compute: onTimeRate,
+  },
+  delay_rate: {
+    label: "Delay rate",
+    definition: "Delayed orders divided by delivered orders.",
+    dateField: "delivery_date",
+    kind: "rate",
+    unit: "percent",
+    compute: delayRate,
+  },
+  average_delivery_time: {
+    label: "Average delivery time",
+    definition: "Mean of delivery date − order date in days, over delivered orders.",
+    dateField: "delivery_date",
+    kind: "average",
+    unit: "days",
+    compute: averageDeliveryDays,
+  },
+  units: {
+    label: "Units",
+    definition: "Units ordered: the sum of quantity.",
+    dateField: "order_date",
+    kind: "sum",
+    unit: "units",
+    compute: units,
+  },
+  gross_order_value: {
+    label: "Gross order value",
+    definition: "Order value as given, before promo discounts.",
+    dateField: "order_date",
+    kind: "sum",
+    unit: "USD",
+    compute: grossOrderValue,
+  },
+  net_order_value: {
+    label: "Net order value",
+    definition: "Order value after the promo discount: value × (1 − discount %).",
+    dateField: "order_date",
+    kind: "sum",
+    unit: "USD",
+    compute: netOrderValue,
+  },
+};
+
+/** The built-in breakdown of ADR 0006 §3: delivered orders split by outcome, over time. */
+export const DELIVERY_OUTCOMES_DEFINITION = {
+  label: "Delivery outcomes",
+  definition: "Delivered orders split into on time, delayed, and exception.",
+  dateField: "delivery_date",
+} as const satisfies MetricBase;
+
+/** Each KPI card's name and its one-line definition, taken from the metric whitelist. */
+export const KPI_DEFINITIONS: Record<keyof DashboardKpis, { label: string; definition: string }> = {
+  totalOrders: { label: "Total orders", definition: METRICS.order_count.definition },
+  deliveredOrders: labelOf("delivered_orders"),
+  delayedOrders: labelOf("delayed_orders"),
+  onTimeRate: labelOf("on_time_rate"),
+  averageDeliveryDays: labelOf("average_delivery_time"),
+};
+
+function labelOf(id: MetricId): { label: string; definition: string } {
+  const { label, definition } = METRICS[id];
+  return { label, definition };
+}
+
 /** A group with fewer delivered orders than this is a small sample (ADR 0001 §6). */
 export const SMALL_SAMPLE_MIN_DELIVERED = 20;
 
 /** Delayed orders ÷ delivered orders. Exception orders are in the denominator only. */
 export function delayRate(orders: readonly Order[]): Ratio {
   return ratio(deliveryOutcomes(orders).delayed, deliveredOrders(orders).length);
-}
-
-export interface CarrierDelayRate {
-  carrier: string;
-  /** n is the denominator: the carrier's delivered orders. */
-  rate: Ratio;
-  smallSample: boolean;
-}
-
-/** Highest value first; a ratio with no value (zero denominator) last. */
-function compareRatesDescending(a: Ratio, b: Ratio): number {
-  if (a.value === b.value) return 0;
-  if (a.value === null) return 1;
-  if (b.value === null) return -1;
-  return b.value - a.value;
-}
-
-/**
- * Every carrier's delay rate over the orders delivered in the period (dated by delivery_date,
- * ADR 0002 §5), highest first (ties by name), each flagged when it is a small sample. A carrier
- * with no delivery in the period stays in the list, last, with no rate.
- */
-export function delayRateByCarrier(orders: readonly Order[], period: Period): CarrierDelayRate[] {
-  const byCarrier = new Map<string, Order[]>();
-  for (const order of orders) {
-    byCarrier.set(order.carrier, [...(byCarrier.get(order.carrier) ?? []), order]);
-  }
-  return [...byCarrier]
-    .map(([carrier, carrierOrders]) => {
-      const rate = delayRate(carrierOrders.filter((order) => isInPeriod(order.delivery_date, period)));
-      return { carrier, rate, smallSample: rate.denominator < SMALL_SAMPLE_MIN_DELIVERED };
-    })
-    .sort((a, b) => compareRatesDescending(a.rate, b.rate) || a.carrier.localeCompare(b.carrier, "en"));
 }
 
 /** A metric's value in one week or month. */

@@ -1,8 +1,85 @@
 import { describe, expect, it } from "vitest";
 import { getDataset } from "./orders";
-import { anchorDate, buckets, dataPeriod, formatDate } from "./periods";
+import { anchorDate, buckets, dataPeriod, formatDate, formatPeriod, noDataMessage, resolvePeriod } from "./periods";
 
 const YEAR_2025 = { from: "2025-01-01", to: "2025-12-31" };
+
+describe("resolvePeriod against the data, anchored on 31 Dec 2025 (ADR 0002 §3)", () => {
+  it('resolves "last <unit>" to the full unit before the anchor\'s unit', () => {
+    expect(resolvePeriod({ type: "previous", unit: "month" }, YEAR_2025)).toEqual({ from: "2025-11-01", to: "2025-11-30" });
+    expect(resolvePeriod({ type: "previous", unit: "week" }, YEAR_2025)).toEqual({ from: "2025-12-22", to: "2025-12-28" });
+    expect(resolvePeriod({ type: "previous", unit: "quarter" }, YEAR_2025)).toEqual({ from: "2025-07-01", to: "2025-09-30" });
+    expect(resolvePeriod({ type: "previous", unit: "year" }, YEAR_2025)).toEqual({ from: "2024-01-01", to: "2024-12-31" });
+  });
+
+  it('resolves "last N <units>" to N units ending with the anchor\'s unit, and never past the anchor', () => {
+    expect(resolvePeriod({ type: "last", count: 3, unit: "month" }, YEAR_2025)).toEqual({ from: "2025-10-01", to: "2025-12-31" });
+    // The anchor's week runs 29 Dec 2025 to 4 Jan 2026; the data stops on the 31st.
+    expect(resolvePeriod({ type: "last", count: 2, unit: "week" }, YEAR_2025)).toEqual({ from: "2025-12-22", to: "2025-12-31" });
+  });
+
+  it('resolves "this <unit>" to the anchor\'s unit, up to the anchor', () => {
+    expect(resolvePeriod({ type: "this", unit: "month" }, YEAR_2025)).toEqual({ from: "2025-12-01", to: "2025-12-31" });
+    expect(resolvePeriod({ type: "this", unit: "week" }, YEAR_2025)).toEqual({ from: "2025-12-29", to: "2025-12-31" });
+  });
+
+  it('resolves "last N days" to N days ending on the anchor, inclusive', () => {
+    expect(resolvePeriod({ type: "last_days", days: 7 }, YEAR_2025)).toEqual({ from: "2025-12-25", to: "2025-12-31" });
+    expect(resolvePeriod({ type: "last_days", days: 1 }, YEAR_2025)).toEqual({ from: "2025-12-31", to: "2025-12-31" });
+  });
+});
+
+describe("formatPeriod (ADR 0002 §3, §6)", () => {
+  it('writes "1–30 Nov 2025", "1 Oct–31 Dec 2025", and a single day as one date', () => {
+    expect(formatPeriod({ from: "2025-11-01", to: "2025-11-30" })).toBe("1–30 Nov 2025");
+    expect(formatPeriod({ from: "2025-10-01", to: "2025-12-31" })).toBe("1 Oct–31 Dec 2025");
+    expect(formatPeriod({ from: "2025-12-31", to: "2025-12-31" })).toBe("31 Dec 2025");
+  });
+
+  it("writes both years when the period crosses a year", () => {
+    expect(formatPeriod({ from: "2024-12-30", to: "2025-01-05" })).toBe("30 Dec 2024–5 Jan 2025");
+  });
+});
+
+describe("noDataMessage (ADR 0002 §6)", () => {
+  it('says "No data for 1 Jan–31 Dec 2024. The data covers 1 Jan–31 Dec 2025." for a period outside the data', () => {
+    expect(noDataMessage({ from: "2024-01-01", to: "2024-12-31" }, YEAR_2025)).toBe(
+      "No data for 1 Jan–31 Dec 2024. The data covers 1 Jan–31 Dec 2025.",
+    );
+    expect(noDataMessage({ from: "2026-01-01", to: "2026-03-31" }, YEAR_2025)).toBe(
+      "No data for 1 Jan–31 Mar 2026. The data covers 1 Jan–31 Dec 2025.",
+    );
+  });
+
+  it("has nothing to say about a period that overlaps the data, even partly", () => {
+    expect(noDataMessage({ from: "2025-12-15", to: "2026-01-15" }, YEAR_2025)).toBeNull();
+    expect(noDataMessage(YEAR_2025, YEAR_2025)).toBeNull();
+  });
+});
+
+describe("resolvePeriod for named and absolute periods (ADR 0002 §6)", () => {
+  it('resolves a month or quarter without a year to its latest occurrence on or before the anchor: "March" = March 2025, "Q3" = Jul–Sep 2025', () => {
+    expect(resolvePeriod({ type: "month", month: 3 }, YEAR_2025)).toEqual({ from: "2025-03-01", to: "2025-03-31" });
+    expect(resolvePeriod({ type: "month", month: 12 }, YEAR_2025)).toEqual({ from: "2025-12-01", to: "2025-12-31" });
+    expect(resolvePeriod({ type: "quarter", quarter: 3 }, YEAR_2025)).toEqual({ from: "2025-07-01", to: "2025-09-30" });
+  });
+
+  it("goes back a year for a month or quarter that has not come yet in the anchor's year", () => {
+    const toFebruary = { from: "2024-01-01", to: "2025-02-14" };
+    expect(resolvePeriod({ type: "month", month: 3 }, toFebruary)).toEqual({ from: "2024-03-01", to: "2024-03-31" });
+    expect(resolvePeriod({ type: "quarter", quarter: 2 }, toFebruary)).toEqual({ from: "2024-04-01", to: "2024-06-30" });
+  });
+
+  it("keeps a named year, so February 2024 is February 2024 even with no data then", () => {
+    expect(resolvePeriod({ type: "month", month: 2, year: 2024 }, YEAR_2025)).toEqual({ from: "2024-02-01", to: "2024-02-29" });
+    expect(resolvePeriod({ type: "quarter", quarter: 4, year: 2025 }, YEAR_2025)).toEqual({ from: "2025-10-01", to: "2025-12-31" });
+  });
+
+  it("takes an absolute range as written, and everything the data covers for all", () => {
+    expect(resolvePeriod({ type: "range", from: "2025-03-10", to: "2025-04-02" }, YEAR_2025)).toEqual({ from: "2025-03-10", to: "2025-04-02" });
+    expect(resolvePeriod({ type: "all" }, YEAR_2025)).toEqual(YEAR_2025);
+  });
+});
 
 describe("month buckets (ADR 0002 §4)", () => {
   it("splits a period into calendar months, keyed by the 1st and clipped to the period", () => {

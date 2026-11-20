@@ -5,7 +5,7 @@
 **Blocked by:** 03, 04
 _03 Dashboard KPI cards · 04 Dashboard charts_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] A Zod query-spec schema in the tools layer is the whitelist (ADR 0006 §1, §3–5): the 11 metrics with their fixed date fields, at most one group-by, the built-in delivery outcomes over time, filters, sort, limit 1–20. Unknown fields are rejected, never guessed. Tags use `z.enum`, never `z.literal` (ADR 0009).
 - [ ] Symbolic periods are resolved against the anchor date by a pure function (ADR 0002 §1, §3, §6): previous unit, last N units, this unit, last N days, named months and quarters without a year, absolute ranges; a period with no data returns the "No data for … The data covers …" message.
@@ -17,3 +17,7 @@ _03 Dashboard KPI cards · 04 Dashboard charts_
 - [ ] `/api/run` rejects bodies over 16 KB before doing any work.
 - [ ] Golden tests through `/api/run`: "delivered late last month" = 3 (1–30 Nov 2025, by delivery date); "delayed orders by week for the last 3 months" = 10 over 14 weekly buckets with the 7 non-zero values in `docs/data.md`; "highest delay rate by carrier" flags GLS (2/8) and names USPS (23.4%, 11/47).
 - [ ] KPIs come from the definitions module of ticket 03; there is no second definition.
+
+## Comments
+
+- 2026-11-20: POST /api/run validates a spec against the Zod whitelist in src/tools/spec (11 metrics plus the delivery-outcomes breakdown, one group-by, filters, symbolic periods, sort, limit 1-20, z.enum tags, unknown fields rejected) and runs it with runQuery in src/tools/query; no LLM. Periods resolve against the data in src/domain/periods (previous, last N, this, last N days, named month or quarter, range, all) with the No data for ... The data covers ... message. Every metric is defined once in METRICS (src/domain/definitions); the dashboard's KPI wording and its carrier chart now use the same definitions and the same query. Values match case-insensitively, cities also by short name, near misses get did you mean, unknown values are rejected. Verified: Vitest covers each period type and the ADR 0002 examples, the 11 metrics against docs/data.md (400, 370, 304, 55, 11, 304/370, 3.83 days, 1,310 units, USD 13,695.87 and 13,568.01), one test per status-rewrite row (304, 55, 11, 370, 359, 30), the dateField override (Nov 3 vs 4), the three ranking cases, matching orders capped at 50, and through /api/run the R3 goldens (3 for 1-30 Nov 2025; 10 over 14 weeks with the 7 values; GLS 2/8 flagged, USPS 11/47 named), the 16 KB limit and 400s; npm run check passes; the built server answered the same over HTTP. For later tickets: weekday periods (ADR 0002 section 6) are not supported; time rows carry their clipped dates for the partial-week note in ticket 09.
