@@ -11,9 +11,9 @@ export const OUTCOME_SERIES: (ChartSeries & { key: keyof DeliveryOutcomes })[] =
 
 /** The five statuses in fixed order; the three delivered ones match their outcome colors. */
 export const STATUS_SERIES: ChartSeries[] = [
-  { key: "delivered", label: "delivered", color: SERIES_COLORS.blue },
-  { key: "delayed", label: "delayed", color: SERIES_COLORS.orange },
-  { key: "exception", label: "exception", color: SERIES_COLORS.aqua },
-  { key: "in_transit", label: "in transit", color: SERIES_COLORS.yellow },
-  { key: "canceled", label: "canceled", color: SERIES_COLORS.magenta },
+  { key: "delivered", label: "Delivered", color: SERIES_COLORS.blue },
+  { key: "delayed", label: "Delayed", color: SERIES_COLORS.orange },
+  { key: "exception", label: "Exception", color: SERIES_COLORS.aqua },
+  { key: "in_transit", label: "In transit", color: SERIES_COLORS.yellow },
+  { key: "canceled", label: "Canceled", color: SERIES_COLORS.magenta },
 ];

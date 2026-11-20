@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { DELIVERY_OUTCOMES_DEFINITION, isRateOrAverage as isRateOrAverageKind, METRICS, type MetricId } from "@/domain/definitions";
+import {
+  DELIVERY_OUTCOMES_DEFINITION,
+  isRateOrAverage as isRateOrAverageKind,
+  METRICS,
+  type MetricId,
+  ORDER_SHARE_DEFINITION,
+} from "@/domain/definitions";
 import { getDataset, type Order, ORDER_STATUSES } from "@/domain/orders";
 import { EXAMPLE_IDS, UNSUPPORTED_REASON_IDS } from "./examples";
 import { matchValue, unknownValueMessage } from "./values";
@@ -10,7 +16,7 @@ import { matchValue, unknownValueMessage } from "./values";
  * z.enum, never z.literal (ADR 0009).
  */
 
-/** ADR 0006 §1, plus the built-in delivery-outcomes breakdown over time (§3). */
+/** ADR 0006 §1, plus the built-in delivery-outcomes breakdown over time (§3) and the share of orders (§1, amended). */
 export const QUERY_METRICS = [
   "order_count",
   "delivered_orders",
@@ -24,6 +30,7 @@ export const QUERY_METRICS = [
   "gross_order_value",
   "net_order_value",
   "delivery_outcomes",
+  "order_share",
 ] as const;
 
 // Fails to compile if a metric in domain/definitions is missing from the whitelist.
@@ -165,11 +172,11 @@ export const querySpecSchema = z
     path: ["groupBy"],
   })
   // "Delay rate of delayed orders" is 100% by construction: the status is what a rate or average measures.
-  .refine((spec) => spec.filters?.status === undefined || !isRateOrAverage(spec.metric), {
+  .refine((spec) => spec.filters?.status === undefined || !dividesByDelivered(spec.metric), {
     message: "A rate or an average cannot be filtered by status: the status is what it measures. Ask for a count instead.",
     path: ["filters", "status"],
   })
-  .refine((spec) => spec.minDelivered === undefined || isRateOrAverage(spec.metric), {
+  .refine((spec) => spec.minDelivered === undefined || dividesByDelivered(spec.metric), {
     message: "minDelivered applies to rates and averages only.",
     path: ["minDelivered"],
   })
@@ -216,6 +223,7 @@ export const interpretationSchema = z.discriminatedUnion("tool", [querySpecSchem
 export const METRIC_GUIDE: readonly { id: (typeof QUERY_METRICS)[number]; definition: string; dateField: string }[] = [
   ...Object.entries(METRICS).map(([id, metric]) => ({ id: metricId(id), definition: metric.definition, dateField: metric.dateField })),
   { id: "delivery_outcomes", definition: DELIVERY_OUTCOMES_DEFINITION.definition, dateField: DELIVERY_OUTCOMES_DEFINITION.dateField },
+  { id: "order_share", definition: ORDER_SHARE_DEFINITION.definition, dateField: ORDER_SHARE_DEFINITION.dateField },
 ];
 
 function metricId(id: string): (typeof QUERY_METRICS)[number] {
@@ -224,8 +232,10 @@ function metricId(id: string): (typeof QUERY_METRICS)[number] {
   return found;
 }
 
-function isRateOrAverage(metric: (typeof QUERY_METRICS)[number]): boolean {
-  return metric !== "delivery_outcomes" && isRateOrAverageKind(METRICS[metric].kind);
+function dividesByDelivered(metric: (typeof QUERY_METRICS)[number]): boolean {
+  // Neither built-in metric divides by delivered orders, so a status filter is fine and minDelivered means nothing.
+  if (metric === "delivery_outcomes" || metric === "order_share") return false;
+  return isRateOrAverageKind(METRICS[metric].kind);
 }
 
 export function isTimeDimension(

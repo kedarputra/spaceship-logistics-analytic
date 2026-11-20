@@ -181,6 +181,54 @@ describe("every group is ranked (ADR 0001 §6)", () => {
   });
 });
 
+describe("the metric over the whole period travels with a breakdown", () => {
+  it("gives the overall figure, unchanged by a limit: 10 delayed orders in Oct–Dec 2025", () => {
+    const byWeek = { metric: "delayed_orders", groupBy: "week", period: { type: "last", count: 3, unit: "month" } };
+    expect(resultOf(byWeek).overall?.value).toBe(10);
+    expect(resultOf({ ...byWeek, sort: "desc", limit: 3 }).overall?.value).toBe(10);
+  });
+
+  it("gives a rate's overall numerator and denominator: 304 of 370 on time", () => {
+    expect(resultOf({ metric: "on_time_rate", groupBy: "month" }).overall).toMatchObject({ numerator: 304, denominator: 370 });
+  });
+
+  it("has no overall figure for a single value, which is its own", () => {
+    expect(resultOf({ metric: "order_count" }).overall).toBeUndefined();
+  });
+});
+
+describe("share of orders (ADR 0006 §1, amended)", () => {
+  it("gives the orders that match as a share of all orders in the period: 22 promo orders of 400, 5.5%", () => {
+    const result = resultOf({ metric: "order_share", filters: { promo: ["yes"] } });
+    expect(result.metric).toMatchObject({ label: "Share of orders", kind: "rate", unit: "percent" });
+    expect(result.rows[0]).toMatchObject({ numerator: 22, denominator: 400, smallSample: false });
+    expect((result.rows[0]?.value ?? Number.NaN) * 100).toBeCloseTo(5.5, 5);
+    expect(result.matchingOrders?.total).toBe(22);
+  });
+
+  it("is not ranked by the small-sample rule, which counts delivered orders, not all orders", () => {
+    expect(resultOf({ metric: "order_share", groupBy: "carrier" }).ranking).toBeUndefined();
+  });
+
+  it("splits all orders of the period into each group's share", () => {
+    const result = resultOf({ metric: "order_share", groupBy: "carrier" });
+    expect(result.rows[0]).toMatchObject({ label: "FedEx", numerator: 89, denominator: 400 });
+    expect(result.rows.reduce((sum, row) => sum + (row.numerator ?? 0), 0)).toBe(400);
+  });
+});
+
+describe("statuses read as words", () => {
+  it('labels the status breakdown "Delivered", "Delayed", "In transit", "Exception", "Canceled"', () => {
+    expect(resultOf({ metric: "order_count", groupBy: "status" }).rows.map((row) => [row.key, row.label, row.value])).toEqual([
+      ["delivered", "Delivered", 304],
+      ["delayed", "Delayed", 55],
+      ["in_transit", "In transit", 27],
+      ["exception", "Exception", 11],
+      ["canceled", "Canceled", 3],
+    ]);
+  });
+});
+
 describe("a limit never cuts through a tie", () => {
   it("keeps every destination tied for first: Boston, MA and Leeds, UK with 15 orders each", () => {
     const result = resultOf({ metric: "order_count", groupBy: "destination", sort: "desc", limit: 1 });
@@ -221,7 +269,7 @@ describe("the data's coverage travels with the result", () => {
 describe("filters stay what the question asked (ADR 0006 §2)", () => {
   it("keeps the status filter after a rewrite, so grouping by status shows only the statuses asked for", () => {
     const result = resultOf({ metric: "order_count", filters: { status: ["delayed"] }, groupBy: "status" });
-    expect(result.rows.map((row) => [row.label, row.value])).toEqual([["delayed", 55]]);
+    expect(result.rows.map((row) => [row.label, row.value])).toEqual([["Delayed", 55]]);
   });
 });
 

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { Answer } from "@/tools/answer";
 import { EXAMPLE_IDS, UNSUPPORTED_REASONS } from "@/tools/examples";
-import { DIMENSION_VALUES, type Interpretation, interpretationSchema, METRIC_GUIDE } from "@/tools/spec";
+import { DIMENSION_VALUES, type Interpretation, interpretationSchema, isTimeDimension, METRIC_GUIDE } from "@/tools/spec";
+import { DIMENSION_WORDS } from "@/tools/words";
 import type { ChatMessage } from "./client";
 
 /**
@@ -10,7 +11,7 @@ import type { ChatMessage } from "./client";
  * date: periods stay symbolic and code resolves them (ADR 0002 §1). Bump PROMPT_VERSION whenever
  * this file changes, so cached interpretations from the old prompt are not reused.
  */
-export const PROMPT_VERSION = "prompts-2";
+export const PROMPT_VERSION = "prompts-3";
 
 let jsonSchema: unknown;
 
@@ -62,6 +63,10 @@ export const PROMPT_EXAMPLES: readonly { question: string; spec: Interpretation 
     spec: { tool: "query", metric: "average_delivery_time", groupBy: "region", period: { type: "last_days", days: 30 } },
   },
   {
+    question: "What percentage of orders were shipped with FedEx?",
+    spec: { tool: "query", metric: "order_share", filters: { carrier: ["FedEx"] } },
+  },
+  {
     question: "Forecast crayon demand for the next 2 months",
     spec: { tool: "forecast", scope: { type: "category", value: "CRAYON" }, horizon: { count: 2, unit: "month" } },
   },
@@ -103,6 +108,8 @@ Rules for a query:
 - Periods are symbolic; never write today's date or work out dates. "last month" = {"type":"previous","unit":"month"}; "last 3 months" = {"type":"last","count":3,"unit":"month"}; "this year" = {"type":"this","unit":"year"}; "last 30 days" = {"type":"last_days","days":30}; "March" = {"type":"month","month":3}; "Q3" = {"type":"quarter","quarter":3}; dates written in the question = {"type":"range","from":"YYYY-MM-DD","to":"YYYY-MM-DD"}. No period mentioned: leave "period" out.
 - Set "dateField":"order_date" only when the question says the orders were placed or ordered in the period.
 - "highest", "lowest", "top N": sort ("desc" or "asc") and limit.
+- Direction: for delivery time, "slowest", "longest" and "worst" mean the most days ("sort":"desc"); "fastest", "quickest" and "shortest" mean the fewest days ("sort":"asc"). For rates and counts, "highest", "most" and "top" are "desc"; "lowest", "fewest" and "bottom" are "asc".
+- "share", "percentage" or "what part" of orders is order_share, with the filter or groupBy that picks the orders; never an order count. A percentage delivered on time, delayed or with an exception is on_time_rate or delay_rate, never order_share: those divide by delivered orders.
 - Ambiguous words: "best" means the on-time rate, highest first, with "assumption":"best"; "performance" means the on-time rate with "assumption":"performance"; "late" or "delivered late" means delayed_orders with "assumption":"late".
 - "Orders with status X" is order_count with a status filter.
 - Cities may be written by their short name ("Austin").
@@ -159,7 +166,18 @@ const PHRASE_SYSTEM = `You write the opening of an answer about a dataset of log
 - Compute nothing: no sums, differences, averages or percentages that are not already in the facts.
 - When the facts flag a small sample, say so.
 - Name every group tied at the top, and, when the top group is a small sample, also the top group with enough deliveries.
-- Plain text only: no markdown, no lists, no greeting, no quotes around the answer.`;
+- Describe the first group the way the "Order" fact says: with "lowest first" it is the lowest, fewest or fastest, never the highest, most or slowest; with "highest first" the other way round.
+- Copy every name exactly as the facts write it, not as the question spells it.
+- Never call a count a share, a rate or a percentage.
+- Plain text only: no markdown, no lists, no greeting, no quotes around the answer. End with a full stop.`;
+
+/** For a series over time: the overall figure and the extremes, not a list of every bucket (ticket 22). */
+function seriesInstruction(answer: Answer): string[] {
+  const groupBy = answer.spec.groupBy;
+  if (groupBy === undefined || !isTimeDimension(groupBy)) return [];
+  const unit = DIMENSION_WORDS[groupBy].one;
+  return [`This is a series by ${unit}: give the overall figure, the highest and lowest ${unit} as the facts name them, and any small samples; do not list every ${unit}.`];
+}
 
 /** The phrase call (ADR 0009 §4, §10): the question, the spec in words, the definition, the small-sample case, and the facts. */
 export function phraseMessages(question: string, answer: Answer, facts: readonly string[]): ChatMessage[] {
@@ -168,6 +186,7 @@ export function phraseMessages(question: string, answer: Answer, facts: readonly
     `What was computed: ${answer.interpretation}`,
     `Definition: ${answer.metric.definition}`,
     `Small-sample case: ${smallSampleCase(answer)}`,
+    ...seriesInstruction(answer),
     "Facts:",
     ...facts,
   ].join("\n");

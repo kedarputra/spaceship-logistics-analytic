@@ -51,8 +51,8 @@ function responseFormat(mode: ResponseMode): ResponseFormat {
 }
 
 export async function interpret(question: string, client: LlmClient, mode: ResponseMode): Promise<InterpretOutcome> {
-  const ask = (messages: ChatMessage[]) =>
-    client.complete({ messages, temperature: 0, responseFormat: responseFormat(mode), maxTokens: MAX_REPLY_TOKENS });
+  const ask = async (messages: ChatMessage[]): Promise<string> =>
+    (await client.complete({ messages, temperature: 0, responseFormat: responseFormat(mode), maxTokens: MAX_REPLY_TOKENS })).text;
 
   const first = await ask(interpretMessages(question));
   const firstParsed = parseReply(first);

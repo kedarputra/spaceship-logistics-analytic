@@ -274,6 +274,47 @@
           "inventory_plan"
         ]
       }
+    },
+    {
+      "id": "direction-slowest-region",
+      "question": "Which region takes the longest to deliver an order?",
+      "expected": {
+        "tool": "query",
+        "metric": "average_delivery_time",
+        "groupBy": "region",
+        "sort": "desc",
+        "limit": 1
+      }
+    },
+    {
+      "id": "share-of-promo-orders",
+      "question": "What fraction of all orders used a promotion?",
+      "expected": {
+        "tool": "query",
+        "metric": "order_share",
+        "filters": {
+          "promo": [
+            "yes"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rate-per-month",
+      "question": "Show the monthly on-time delivery rate",
+      "expected": {
+        "tool": "query",
+        "metric": "on_time_rate",
+        "groupBy": "month"
+      }
+    },
+    {
+      "id": "percentage-on-time-is-a-rate",
+      "question": "What percentage of orders arrived on time?",
+      "expected": {
+        "tool": "query",
+        "metric": "on_time_rate"
+      }
     }
   ]
 }

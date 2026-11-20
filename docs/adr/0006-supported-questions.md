@@ -30,6 +30,8 @@ Origin and destination values have the form "City, XX" ("Austin, TX"). Within ea
    | gross order value | sum of `order_value_usd` | `order_date` |
    | net order value | sum of `order_value_usd × (1 − promo_discount_pct / 100)` | `order_date` |
 
+   *Amended 20 Nov 2026 (ticket 22):* a twelfth metric, **share of orders** (`order_share`): the orders that match the question's filters (and group) ÷ all orders in the same period, whatever the filters, through `ratio()`, dated by `order_date`. "What share of orders were promo orders?" is 22 of 400, 5.5%; by carrier, the shares add up to all orders. It is shown like a rate, with its numerator and denominator; the small-sample rule does not apply, since its n is all orders, not delivered orders. Before this, such a question was answered with a bare count that the sentence then called a share. A sentence never calls a count a share, rate or percentage.
+
 2. **Status-filter rewrite.** After validation, a pure function rewrites an order count filtered by status into its canonical form, with one test per row. A `dateField: "order_date"` override is carried over.
 
    | Spec from the model | Rewritten to | 2025 total |

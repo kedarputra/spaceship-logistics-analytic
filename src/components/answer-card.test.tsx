@@ -71,7 +71,7 @@ describe("the explanation panel (ADR 0006 §7)", () => {
   it("states the interpretation, the period as asked with its dates and date field, the filters and the definition", () => {
     expect(panelText).toContain(answer.interpretation);
     expect(panelText).toContain("Period last month = 1–30 Nov 2025, filtered by delivery date");
-    expect(panelText).toContain("Filters carrier: UPS; status: delayed");
+    expect(panelText).toContain("Filters carrier: UPS; status: Delayed");
     expect(panelText).toContain("Definition Delivered orders with status delayed. Exception orders are not delayed orders.");
   });
 

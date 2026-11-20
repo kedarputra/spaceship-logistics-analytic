@@ -36,6 +36,7 @@ const FRACTION_HEADERS: Partial<Record<Answer["metric"]["id"], string>> = {
   on_time_rate: "On time / delivered",
   delay_rate: "Delayed / delivered",
   average_delivery_time: "Days / delivered",
+  order_share: "Orders / all orders",
 };
 
 function columnHeader(groupBy: QuerySpec["groupBy"]): string {

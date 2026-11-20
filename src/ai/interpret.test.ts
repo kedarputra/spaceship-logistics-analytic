@@ -13,7 +13,7 @@ function fakeModel(...replies: string[]) {
       requests.push(request);
       const reply = replies.shift();
       if (reply === undefined) throw new Error("The fake model ran out of replies");
-      return reply;
+      return { text: reply, finishReason: "stop" };
     },
   };
   return { client, requests };
@@ -134,6 +134,19 @@ describe("the prompt (ADR 0009 §10)", () => {
     expect(system).not.toContain("Show delayed orders by week for the last 3 months");
     expect(system).not.toContain("Which carrier has the highest delay rate?");
     expect(system).toContain("late_last_month");
+  });
+
+  it("spells out which way delivery-time words point, so 'slowest' is not read as fewest days (ticket 22)", () => {
+    const system = interpretMessages("anything")[0]?.content ?? "";
+    expect(system).toContain('for delivery time, "slowest", "longest" and "worst" mean the most days ("sort":"desc")');
+    expect(system).toContain('"fastest", "quickest" and "shortest" mean the fewest days ("sort":"asc")');
+  });
+
+  it("knows the share of orders, so a share question is not answered with a count", () => {
+    const system = interpretMessages("anything")[0]?.content ?? "";
+    expect(system).toContain('"share", "percentage" or "what part" of orders is order_share');
+    expect(system).toContain("A percentage delivered on time, delayed or with an exception is on_time_rate or delay_rate, never order_share");
+    expect(PROMPT_EXAMPLES.some((example) => example.spec.tool === "query" && example.spec.metric === "order_share")).toBe(true);
   });
 
   it("only shows the model example specs the whitelist accepts", () => {

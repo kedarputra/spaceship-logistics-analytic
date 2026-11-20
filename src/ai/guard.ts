@@ -1,3 +1,5 @@
+import type { Direction } from "@/tools/query";
+
 /**
  * The number guard (ADR 0009 §4). The model may write the sentence, but every number in it must
  * appear in the facts block exactly as formatted there, and numbers must be digits: a number word,
@@ -25,6 +27,31 @@ const NUMBER_WORDS = new RegExp(
   ].join("|"),
   "i",
 );
+
+// Unambiguous superlatives by the direction they point. "most", "least", "minimum" and "maximum" are left out:
+// "most reliable", "least reliable", "at least 20" and "a minimum of" say nothing about the ranking.
+const HIGH_WORDS = /\b(?:highest|largest|biggest|greatest|slowest|longest)\b/i;
+const LOW_WORDS = /\b(?:lowest|fewest|smallest|fastest|quickest|shortest)\b/i;
+/** The words that would describe the leaders of a ranking the wrong way round. */
+const OPPOSITE_WORDS = { lowest: HIGH_WORDS, highest: LOW_WORDS } as const;
+// What a count must not be called (ticket 22: "the share of orders … is 22").
+const RATIO_WORDS = /\b(?:shares?|percent|percentage|proportion|fraction|rate|ratio)\b|%/i;
+
+/**
+ * Wording the number guard cannot see: a superlative pointing against the ranking's direction
+ * (the rows a limit kept are the lowest, the sentence says "slowest"), or a count called a share.
+ */
+export function checkWording(
+  sentence: string,
+  context: { direction: Direction | undefined; countLike: boolean },
+): GuardVerdict {
+  const opposite = context.direction === undefined ? undefined : OPPOSITE_WORDS[context.direction];
+  const contradiction = opposite?.exec(sentence);
+  if (contradiction) return { ok: false, reason: `"${contradiction[0]}" contradicts the ${context.direction} first ranking` };
+  const ratioWord = context.countLike ? RATIO_WORDS.exec(sentence) : null;
+  if (ratioWord) return { ok: false, reason: `a count called "${ratioWord[0]}"` };
+  return { ok: true };
+}
 
 function numbersIn(text: string): string[] {
   return text.match(NUMBER) ?? [];

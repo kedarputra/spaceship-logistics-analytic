@@ -13,6 +13,7 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Exception order** | A delivered order with `status = exception`: something went wrong, but the data does not say it was late. Counted as neither on time nor delayed. |
 | **On-time delivery rate** | On-time deliveries divided by delivered orders. Always shown with numerator and denominator. ADR 0001. |
 | **Delay rate** | Delayed orders divided by delivered orders, per group (for example per carrier). Shown with n. |
+| **Share of orders** | The orders that match a question's filters (and group) divided by all orders in the same period: "22 of 400 orders were promo orders, 5.5%". Not a delivery rate: a percentage delivered on time is the on-time delivery rate. The small-sample rule does not apply. ADR 0006 §1 (amended). |
 | **Delivery time** | `delivery_date − order_date` in whole days, over delivered orders. |
 | **Small sample** | A group with fewer than 20 delivered orders. Rates and averages on it are flagged, and a ranking never names it as the winner on its own. ADR 0001. |
 | **Anchor date** | The latest `order_date` or `delivery_date` in the data (2025-12-31). Relative periods count back from it; the UI shows it as "Data as of". ADR 0002. |

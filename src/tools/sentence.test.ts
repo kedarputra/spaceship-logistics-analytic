@@ -55,16 +55,55 @@ describe("template sentences, one per kind of result (ADR 0009 §4)", () => {
 
   it("gives the highest and lowest point of a rate over time", () => {
     expect(templateSentence(answerFor({ metric: "on_time_rate", groupBy: "month" }))).toMatch(
-      /^On-time delivery rate by month, 1 Jan–31 Dec 2025, by delivery date: highest in .+ \(\d+\.\d%\), lowest in .+ \(\d+\.\d%\)(, among months with at least 20 deliveries)?\.$/,
+      /^On-time delivery rate by month, 1 Jan–31 Dec 2025, by delivery date: .+ overall; highest in .+ \(\d+\.\d%\), lowest in .+ \(\d+\.\d%\)(, among months with at least 20 deliveries)?\.$/,
     );
   });
 
-  it("gives no total when a limit cut the rows, since the rows kept are not the whole", () => {
+  it("gives the period's real total even when a limit cut the rows: 400 orders, 55 delayed in 2025", () => {
     const tie = answerFor({ metric: "order_count", groupBy: "destination", sort: "desc", limit: 1 });
-    expect(factsFor(tie).join("\n")).not.toContain("Total");
+    expect(factsFor(tie)).toContain("Total: 400");
     const topWeeks = answerFor({ metric: "delayed_orders", groupBy: "week", sort: "desc", limit: 3 });
-    expect(templateSentence(topWeeks)).not.toContain("in all");
-    expect(factsFor(topWeeks).join("\n")).not.toContain("Total");
+    expect(templateSentence(topWeeks)).toContain(": 55 in all;");
+    expect(factsFor(topWeeks)).toContain("Total: 55");
+  });
+
+  it("states the order of a ranking, so the first group is described the right way round", () => {
+    expect(factsFor(answerFor({ metric: "average_delivery_time", groupBy: "region", sort: "asc", limit: 1 }))).toContain(
+      "Order: lowest first",
+    );
+    expect(factsFor(answerFor({ metric: "delay_rate", groupBy: "carrier" }))).toContain("Order: highest first");
+    expect(factsFor(answerFor({ metric: "order_count", groupBy: "month" })).some((fact) => fact.startsWith("Order:"))).toBe(false);
+  });
+
+  it("gives a rate over time its overall figure: 82.2% (304 of 370)", () => {
+    const answer = answerFor({ metric: "on_time_rate", groupBy: "month" });
+    expect(factsFor(answer)).toContain("Overall: 82.2% (304 of 370)");
+    expect(templateSentence(answer)).toMatch(/^On-time delivery rate by month, 1 Jan–31 Dec 2025, by delivery date: 82\.2% \(304 of 370\) overall; highest in /);
+  });
+
+  it("puts a series' extremes in the facts, computed by code from the points with at least 20 deliveries", () => {
+    const facts = factsFor(answerFor({ metric: "on_time_rate", groupBy: "month" }));
+    expect(facts).toContain("Highest month with at least 20 deliveries: Apr 2025 (89.3%)");
+    expect(facts).toContain("Lowest month with at least 20 deliveries: May 2025 (72.7%)");
+    expect(factsFor(answerFor({ metric: "order_count", groupBy: "month" }))).toContain("Most: Jan 2025 (75)");
+  });
+
+  it("gives a share no small-sample wording, and no overall share of all orders by all orders", () => {
+    const facts = factsFor(answerFor({ metric: "order_share", groupBy: "carrier" })).join("\n");
+    expect(facts).not.toContain("Small-sample");
+    expect(facts).not.toContain("Overall");
+    expect(facts).not.toContain("Top with at least");
+  });
+
+  it("writes a status filter as the UI does: In transit; promo stays yes", () => {
+    const facts = factsFor(answerFor({ metric: "order_count", filters: { status: ["in_transit"], promo: ["yes"] } })).join("\n");
+    expect(facts).toContain("Filters: status is In transit; promo is yes");
+  });
+
+  it("states a share with its count and the whole: 5.5% (22 of 400)", () => {
+    expect(templateSentence(answerFor({ metric: "order_share", filters: { promo: ["yes"] } }))).toBe(
+      "Share of orders: 5.5% (22 of 400) in 1 Jan–31 Dec 2025, by order date.",
+    );
   });
 
   it("names the extremes of a rate over time among the points with at least 20 deliveries only", () => {
@@ -78,7 +117,7 @@ describe("template sentences, one per kind of result (ADR 0009 §4)", () => {
 
   it("says when no point of a rate over time has enough deliveries", () => {
     expect(templateSentence(answerFor({ metric: "on_time_rate", groupBy: "week", period: { type: "previous", unit: "month" } }))).toMatch(
-      /: no week has at least 20 deliveries, so no week stands out reliably\.$/,
+      / overall; no week has at least 20 deliveries, so no week stands out reliably\.$/,
     );
   });
 

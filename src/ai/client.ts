@@ -45,9 +45,15 @@ export interface CompletionRequest {
   maxTokens?: number;
 }
 
+export interface Completion {
+  text: string;
+  /** "stop" when the model finished; "length" when the token limit cut it off. */
+  finishReason: string | undefined;
+}
+
 export interface LlmClient {
-  /** The assistant message's text. Throws AiError. */
-  complete(request: CompletionRequest): Promise<string>;
+  /** The assistant message. Throws AiError. */
+  complete(request: CompletionRequest): Promise<Completion>;
 }
 
 interface ClientOptions {
@@ -93,13 +99,14 @@ function createSlots(max: number, waitMs: number) {
   return { acquire };
 }
 
-function messageContent(body: unknown): string | undefined {
+function completionOf(body: unknown): Completion | undefined {
   if (typeof body !== "object" || body === null || !("choices" in body) || !Array.isArray(body.choices)) return undefined;
   const [choice]: unknown[] = body.choices;
   if (typeof choice !== "object" || choice === null || !("message" in choice)) return undefined;
   const { message } = choice;
-  if (typeof message !== "object" || message === null || !("content" in message)) return undefined;
-  return typeof message.content === "string" ? message.content : undefined;
+  if (typeof message !== "object" || message === null || !("content" in message) || typeof message.content !== "string") return undefined;
+  const finishReason = "finish_reason" in choice && typeof choice.finish_reason === "string" ? choice.finish_reason : undefined;
+  return { text: message.content, finishReason };
 }
 
 export function createClient(config: LlmConfig, options: ClientOptions = {}): LlmClient {
@@ -107,7 +114,7 @@ export function createClient(config: LlmConfig, options: ClientOptions = {}): Ll
   const log = options.log ?? ((message: string) => console.error(message));
   const slots = createSlots(MAX_IN_FLIGHT, SLOT_WAIT_MS);
 
-  async function send(request: CompletionRequest): Promise<string> {
+  async function send(request: CompletionRequest): Promise<Completion> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
@@ -129,9 +136,9 @@ export function createClient(config: LlmConfig, options: ClientOptions = {}): Ll
         throw new AiError("not-configured", response.status);
       }
       if (!response.ok) throw new AiError("unavailable", response.status);
-      const content = messageContent(await response.json());
-      if (content === undefined) throw new AiError("unavailable");
-      return content;
+      const completion = completionOf(await response.json());
+      if (completion === undefined) throw new AiError("unavailable");
+      return completion;
     } catch (error) {
       // A refused connection, a timeout, or a reply that is not JSON.
       throw error instanceof AiError ? error : new AiError("unavailable");

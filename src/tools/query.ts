@@ -8,6 +8,8 @@ import {
   type MetricDefinition,
   METRICS,
   type MetricId,
+  ORDER_SHARE_DEFINITION,
+  orderShare,
   SMALL_SAMPLE_MIN_DELIVERED,
 } from "@/domain/definitions";
 import type { Dataset, Order } from "@/domain/orders";
@@ -21,6 +23,7 @@ import {
   resolvePeriod,
 } from "@/domain/periods";
 import { CATEGORY_DIMENSIONS, type GroupBy, isTimeDimension, type QueryFilters, type QuerySpec } from "./spec";
+import { valueLabel } from "./words";
 
 /**
  * The query tool: runs a validated spec over the data and returns the numbers with everything an
@@ -34,6 +37,19 @@ export interface MetricInfo {
   definition: string;
   kind: MetricDefinition["kind"];
   unit: MetricDefinition["unit"];
+  /**
+   * Whether ADR 0001 §6 applies: the metric divides by delivered orders, so a group with fewer than
+   * 20 is a small sample and rankings follow the small-sample cases. Not for counts, nor for the
+   * share of orders, whose n is all orders.
+   */
+  smallSampleRule: boolean;
+}
+
+/** Which way a ranking runs: its first row is the highest or the lowest. */
+export type Direction = "highest" | "lowest";
+
+function directionOf(sort: QuerySpec["sort"]): Direction {
+  return sort === "asc" ? "lowest" : "highest";
 }
 
 export interface ResultRow {
@@ -86,8 +102,15 @@ export interface QueryResult {
   coverage: Period & { label: string };
   rewrite?: StatusRewrite;
   rows: ResultRow[];
+  /** For rows ordered by value: whether the first is the highest or the lowest. Absent in calendar order. */
+  order?: Direction;
   /** Rows before the limit. */
   totalRows: number;
+  /**
+   * For a breakdown: the metric over the whole period and filters, from the definitions module,
+   * so a total or an overall rate stays right however many rows a limit keeps.
+   */
+  overall?: RowValues;
   ranking?: Ranking;
   /** For counts: the orders counted, up to 50, and how many there are. */
   matchingOrders?: { total: number; orders: Order[] };
@@ -98,23 +121,30 @@ export interface NoDataResult {
   message: string;
 }
 
-type RowValues = Omit<ResultRow, "key" | "label">;
+/** A metric's values over a group of orders: a row without its key and label. */
+export type RowValues = Omit<ResultRow, "key" | "label">;
 
-/** A metric as the query tool runs it: the definition, its date field, and how to evaluate a group. */
+/** A metric as the query tool runs it: the definition, and how to evaluate a group. */
 interface QueryMetric {
   info: MetricInfo;
-  dateField: DateField;
   evaluate: (orders: readonly Order[]) => RowValues;
   /** For counts: the orders counted. */
   matching?: (orders: readonly Order[]) => Order[];
 }
 
-function queryMetric(id: QuerySpec["metric"]): QueryMetric {
+/** The date a metric's period filters on, unless the spec overrides it (ADR 0002 §5). */
+function defaultDateField(id: QuerySpec["metric"]): DateField {
+  if (id === "delivery_outcomes") return DELIVERY_OUTCOMES_DEFINITION.dateField;
+  if (id === "order_share") return ORDER_SHARE_DEFINITION.dateField;
+  return METRICS[id].dateField;
+}
+
+/** `ordersInPeriod`: every order in the period, whatever the filters, for the share of orders. */
+function queryMetric(id: QuerySpec["metric"], ordersInPeriod: number): QueryMetric {
   if (id === "delivery_outcomes") {
-    const { label, definition, dateField } = DELIVERY_OUTCOMES_DEFINITION;
+    const { label, definition } = DELIVERY_OUTCOMES_DEFINITION;
     return {
-      info: { id, label, definition, kind: "count", unit: "orders" },
-      dateField,
+      info: { id, label, definition, kind: "count", unit: "orders", smallSampleRule: false },
       evaluate: (orders) => {
         const delivered = deliveredOrders(orders).length;
         return { value: delivered, n: delivered, smallSample: false, outcomes: deliveryOutcomes(orders) };
@@ -122,27 +152,43 @@ function queryMetric(id: QuerySpec["metric"]): QueryMetric {
       matching: deliveredOrders,
     };
   }
+  if (id === "order_share") {
+    const { label, definition } = ORDER_SHARE_DEFINITION;
+    return {
+      info: { id, label, definition, kind: "rate", unit: "percent", smallSampleRule: false },
+      // n is all orders in the period: the small-sample rule counts delivered orders, so it does not apply.
+      evaluate: (orders) => {
+        const share = orderShare(orders.length, ordersInPeriod);
+        return { value: share.value, numerator: share.numerator, denominator: share.denominator, n: share.denominator, smallSample: false };
+      },
+      matching: (orders) => [...orders],
+    };
+  }
   const definition = METRICS[id];
-  const info: MetricInfo = { id, label: definition.label, definition: definition.definition, kind: definition.kind, unit: definition.unit };
+  const info: MetricInfo = {
+    id,
+    label: definition.label,
+    definition: definition.definition,
+    kind: definition.kind,
+    unit: definition.unit,
+    smallSampleRule: isRateOrAverage(definition.kind),
+  };
   switch (definition.kind) {
     case "count":
       return {
         info,
-        dateField: definition.dateField,
         evaluate: (orders) => ({ value: definition.compute(orders), n: orders.length, smallSample: false }),
         matching: definition.matching,
       };
     case "sum":
       return {
         info,
-        dateField: definition.dateField,
         evaluate: (orders) => ({ value: definition.compute(orders), n: orders.length, smallSample: false }),
       };
     case "rate":
     case "average":
       return {
         info,
-        dateField: definition.dateField,
         evaluate: (orders) => {
           const { value, numerator, denominator } = definition.compute(orders);
           return { value, numerator, denominator, n: denominator, smallSample: denominator < SMALL_SAMPLE_MIN_DELIVERED };
@@ -180,7 +226,6 @@ function rewriteStatusFilter(spec: QuerySpec): { spec: QuerySpec; rewrite?: Stat
 }
 
 type FilterDimension = keyof QueryFilters;
-type CategoryDimension = (typeof CATEGORY_DIMENSIONS)[number];
 
 /** The value of an order on a dimension, as filters and group-bys name it. */
 function dimensionValue(order: Order, dimension: FilterDimension): string {
@@ -217,11 +262,6 @@ function matchesFilters(order: Order, filters: QueryFilters): boolean {
   });
 }
 
-function categoryLabel(dimension: CategoryDimension, value: string): string {
-  if (dimension !== "promo") return value;
-  return value === "yes" ? "Promo" : "No promo";
-}
-
 interface Scope {
   /** Orders that match the filters, whatever their date: they decide which groups exist. */
   filtered: readonly Order[];
@@ -249,7 +289,7 @@ function groupRows(groupBy: GroupBy | undefined, metric: QueryMetric, scope: Sco
   for (const order of inPeriod) groups.get(dimensionValue(order, groupBy))?.push(order);
   return [...groups].map(([value, items]) => ({
     key: value,
-    label: categoryLabel(groupBy, value),
+    label: valueLabel(groupBy, value),
     ...metric.evaluate(items),
   }));
 }
@@ -304,14 +344,15 @@ function listMatchingOrders(metric: QueryMetric, scope: Scope): QueryResult["mat
 /** Runs a validated query spec over the dataset. */
 export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | NoDataResult {
   const { spec, rewrite, dateField: statusDateField } = rewriteStatusFilter(validSpec);
-  const metric = queryMetric(spec.metric);
-  const dateField = spec.dateField ?? statusDateField ?? metric.dateField;
+  const dateField = spec.dateField ?? statusDateField ?? defaultDateField(spec.metric);
 
   const coverage = dataPeriod(dataset.orders);
   const period = resolvePeriod(spec.period ?? { type: "all" }, coverage);
   const noData = noDataMessage(period, coverage);
   if (noData !== null) return { kind: "no-data", message: noData };
 
+  const ordersInPeriod = dataset.orders.filter((order) => isInPeriod(order[dateField], period)).length;
+  const metric = queryMetric(spec.metric, ordersInPeriod);
   const filtered = dataset.orders.filter((order) => matchesFilters(order, spec.filters ?? {}));
   const scope: Scope = {
     filtered,
@@ -336,9 +377,11 @@ export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | 
     period: { ...period, label: formatPeriod(period) },
     coverage: { ...coverage, label: formatPeriod(coverage) },
     rewrite,
+    order: byValue ? directionOf(spec.sort) : undefined,
     rows: limited,
     totalRows: sorted.length,
-    ranking: isCategory && isRateOrAverage(metric.info.kind) ? rank(sorted) : undefined,
+    overall: spec.groupBy === undefined ? undefined : metric.evaluate(scope.inPeriod),
+    ranking: isCategory && metric.info.smallSampleRule ? rank(sorted) : undefined,
     matchingOrders: listMatchingOrders(metric, scope),
   };
 }

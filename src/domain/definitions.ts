@@ -240,6 +240,21 @@ export const DELIVERY_OUTCOMES_DEFINITION = {
   dateField: "delivery_date",
 } as const satisfies MetricBase;
 
+/**
+ * Orders that match a question's filters (and group) as a share of all orders in the same period,
+ * whatever their filters (ADR 0006 §1, amended): "22 of 400 orders were promo orders, 5.5%".
+ */
+export const ORDER_SHARE_DEFINITION = {
+  label: "Share of orders",
+  definition: "Orders that match the question, as a share of all orders in the same period.",
+  dateField: "order_date",
+} as const satisfies MetricBase;
+
+/** The share of orders: the orders that match ÷ every order in the same period. */
+export function orderShare(matchingOrders: number, ordersInPeriod: number): Ratio {
+  return ratio(matchingOrders, ordersInPeriod);
+}
+
 /** Each KPI card's name and its one-line definition, taken from the metric whitelist. */
 export const KPI_DEFINITIONS: Record<keyof DashboardKpis, { label: string; definition: string }> = {
   totalOrders: { label: "Total orders", definition: METRICS.order_count.definition },

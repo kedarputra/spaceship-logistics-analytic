@@ -69,6 +69,13 @@ describe("query spec: the whitelist (ADR 0006 §1, §3–5)", () => {
     expect(errorsOf({ tool: "query", metric: "delay_rate", groupBy: "week", minDelivered: 20 })).toEqual([message]);
   });
 
+  it("takes a share of orders with any filter, status included, but no minDelivered", () => {
+    expect(errorsOf({ tool: "query", metric: "order_share", filters: { status: ["delayed"] } })).toEqual([]);
+    expect(errorsOf({ tool: "query", metric: "order_share", groupBy: "carrier", minDelivered: 20 })).toEqual([
+      "minDelivered applies to rates and averages only.",
+    ]);
+  });
+
   it('allows only "order_date" as a date-field override', () => {
     expect(errorsOf({ tool: "query", metric: "delayed_orders", dateField: "order_date" })).toEqual([]);
     expect(errorsOf({ tool: "query", metric: "delayed_orders", dateField: "ship_date" })).not.toEqual([]);

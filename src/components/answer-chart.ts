@@ -1,4 +1,3 @@
-import { isRateOrAverage } from "@/domain/definitions";
 import type { Answer } from "@/tools/answer";
 import { MAX_CATEGORY_BARS } from "@/tools/chart";
 import type { ChartProps, ChartRow, ChartSeries } from "./chart";
@@ -13,7 +12,7 @@ export function answerChartProps(answer: Answer): ChartProps | null {
   const { chart, metric, rows } = answer;
   const valueFormat = metric.unit;
   const single: ChartSeries[] = [{ key: "value", label: metric.label, color: SERIES_COLORS.blue, mutedColor: SMALL_SAMPLE_BLUE }];
-  const isRate = isRateOrAverage(metric.kind);
+  const showN = metric.smallSampleRule;
 
   switch (chart.type) {
     case "answer-card":
@@ -31,7 +30,7 @@ export function answerChartProps(answer: Answer): ChartProps | null {
         type: chart.type,
         series: single,
         rows: rows.slice(0, MAX_CATEGORY_BARS).map((row) => ({
-          label: isRate ? `${row.label} (n=${row.n})` : row.label,
+          label: showN ? `${row.label} (n=${row.n})` : row.label,
           values: { value: row.value },
           muted: row.smallSample,
         })),

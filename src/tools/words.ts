@@ -52,15 +52,35 @@ const FILTER_ORDER: readonly FilterDimension[] = [
   "sku",
 ];
 
+/** How a status reads in the UI and in sentences. */
+export const STATUS_LABELS: Record<string, string> = {
+  delivered: "Delivered",
+  delayed: "Delayed",
+  in_transit: "In transit",
+  exception: "Exception",
+  canceled: "Canceled",
+};
+
+/** A value as the UI shows it: statuses and promo read as words, everything else as in the data. */
+export function valueLabel(dimension: FilterDimension, value: string): string {
+  if (dimension === "status") return STATUS_LABELS[value] ?? value;
+  if (dimension === "promo") return value === "yes" ? "Promo" : "No promo";
+  return value;
+}
+
 export function dateFieldWords(field: DateField): string {
   return field === "order_date" ? "order date" : "delivery date";
 }
 
-/** The filters in a fixed order, with their values as they are in the data. */
+/**
+ * The filters in a fixed order, with statuses as the UI shows them ("status is In transit");
+ * promo stays "yes" or "no", which reads better after "promo is" than a group label would.
+ */
 export function filterList(filters: QueryFilters | undefined): { dimension: FilterDimension; values: readonly string[] }[] {
   return FILTER_ORDER.flatMap((dimension) => {
     const values: readonly string[] | undefined = filters?.[dimension];
-    return values === undefined ? [] : [{ dimension, values }];
+    if (values === undefined) return [];
+    return [{ dimension, values: dimension === "status" ? values.map((value) => valueLabel(dimension, value)) : values }];
   });
 }
 

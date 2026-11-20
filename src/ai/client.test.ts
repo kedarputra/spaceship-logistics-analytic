@@ -4,8 +4,8 @@ import { type LlmConfig, readLlmConfig } from "./config";
 
 const CONFIG: LlmConfig = { baseUrl: "http://gateway.test/v1", model: "chat", apiKey: "test-key", responseMode: "json_object" };
 
-function reply(content: string, status = 200): Response {
-  return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status });
+function reply(content: string, status = 200, finishReason = "stop"): Response {
+  return new Response(JSON.stringify({ choices: [{ message: { content }, finish_reason: finishReason }] }), { status });
 }
 
 const REQUEST = { messages: [{ role: "user" as const, content: "hi" }], temperature: 0 };
@@ -58,7 +58,7 @@ describe("the gateway client (ADR 0009 §2)", () => {
     };
     const client = createClient(CONFIG, { fetch });
     const content = await client.complete({ ...REQUEST, responseFormat: { type: "json_object" } });
-    expect(content).toBe('{"tool":"query"}');
+    expect(content).toEqual({ text: '{"tool":"query"}', finishReason: "stop" });
     expect(calls[0]?.url).toBe("http://gateway.test/v1/chat/completions");
     expect(calls[0]?.init?.method).toBe("POST");
     expect(new Headers(calls[0]?.init?.headers).get("authorization")).toBe("Bearer test-key");
@@ -86,6 +86,11 @@ describe("gateway errors (ADR 0009 §9)", () => {
       "unavailable",
     );
     expect(await errorKind(failing(async () => new Response("<html>", { status: 200 })).complete(REQUEST))).toBe("unavailable");
+  });
+
+  it('says when the reply was cut off by the token limit (finish_reason "length")', async () => {
+    const client = createClient(CONFIG, { fetch: async () => reply("On-time rate by month: Jan 2025 85.0%, Feb", 200, "length") });
+    expect(await client.complete(REQUEST)).toEqual({ text: "On-time rate by month: Jan 2025 85.0%, Feb", finishReason: "length" });
   });
 
   it("keeps the HTTP status of a refusal, so the smoke check can tell a rejected format from an outage", async () => {
@@ -141,7 +146,7 @@ describe("timeouts and concurrency (ADR 0009 §2, §5)", () => {
     expect(pending).toHaveLength(3);
     pending[1]?.resolve(reply("two"));
     pending[2]?.resolve(reply("three"));
-    expect(await Promise.all([first, second, third])).toEqual(["one", "two", "three"]);
+    expect((await Promise.all([first, second, third])).map((completion) => completion.text)).toEqual(["one", "two", "three"]);
   });
 
   it('answers "busy" to a call that waits more than 10 seconds for a slot', async () => {

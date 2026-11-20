@@ -36,7 +36,7 @@ async function main(): Promise<number> {
   const client = createClient(result.config);
   console.log(`Gateway ${result.config.baseUrl}, model "${result.config.model}"`);
   try {
-    const reply = await client.complete({
+    const { text: reply } = await client.complete({
       messages: [{ role: "user", content: "In one short JSON object, describe the colour of the sky at noon." }],
       temperature: 0,
       maxTokens: 100,
