@@ -29,15 +29,15 @@ describe("LLM configuration (ADR 0009 §1)", () => {
   it("reads the key from the key file, with the default URL, model and response mode", () => {
     expect(readLlmConfig({ LLM_API_KEY_FILE: "/keys/spaceship" }, files({ "/keys/spaceship": "secret\n" }))).toEqual({
       ok: true,
-      config: { baseUrl: "http://127.0.0.1:4000/v1", model: "chat", apiKey: "secret", responseMode: "json_object" },
+      config: { baseUrl: "http://127.0.0.1:4000/v1", model: "chat", apiKey: "secret", responseMode: "json_schema" },
     });
   });
 
   it("takes the URL, model and response mode from the environment when set", () => {
-    const env = { LLM_BASE_URL: "http://gw:4000/v1/", LLM_MODEL: "gemma12", LLM_API_KEY_FILE: "/k", LLM_RESPONSE_MODE: "json_schema" };
+    const env = { LLM_BASE_URL: "http://gw:4000/v1/", LLM_MODEL: "gemma12", LLM_API_KEY_FILE: "/k", LLM_RESPONSE_MODE: "json_object" };
     expect(readLlmConfig(env, files({ "/k": "secret" }))).toMatchObject({
       ok: true,
-      config: { baseUrl: "http://gw:4000/v1", model: "gemma12", responseMode: "json_schema" },
+      config: { baseUrl: "http://gw:4000/v1", model: "gemma12", responseMode: "json_object" },
     });
   });
 

@@ -9,10 +9,11 @@ import { readFileSync } from "node:fs";
 export type ResponseMode = "json_object" | "json_schema";
 
 /**
- * json_object puts the schema in the prompt and works with any OpenAI-compatible gateway;
- * json_schema is better once `npm run smoke:llm` shows the gateway enforces it.
+ * json_schema has the gateway constrain the reply to the schema. `npm run smoke:llm` showed on
+ * 20 Nov 2026 that the server's gateway enforces it (ticket 11). json_object, with the schema in
+ * the prompt, is the fallback for a gateway that does not.
  */
-export const DEFAULT_RESPONSE_MODE: ResponseMode = "json_object";
+export const DEFAULT_RESPONSE_MODE: ResponseMode = "json_schema";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:4000/v1";
 const DEFAULT_MODEL = "chat";
