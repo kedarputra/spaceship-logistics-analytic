@@ -1,7 +1,7 @@
-import { getDataset } from "@/domain/orders";
+import { checkAiHealth } from "@/ai/model";
+import { handleHealth } from "./handle-health";
 
-/** One request after a deploy confirms the dataset shipped and parsed (ADR 0005). */
-export function GET(): Response {
-  const { orders, anchor } = getDataset();
-  return Response.json({ rows: orders.length, anchor });
+/** GET /api/health, and ?ai=1 for the AI's state (ADR 0005, ADR 0009 §11). */
+export function GET(request: Request): Promise<Response> {
+  return handleHealth(request, { checkAi: checkAiHealth });
 }

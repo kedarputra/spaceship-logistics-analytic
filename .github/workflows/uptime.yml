@@ -1,0 +1,47 @@
+name: Uptime
+
+# The daily outside check of the live app (ADR 0010 §6): the dataset health, the AI health and the
+# dashboard page on https://wms.nalabs.ai. It reads only public URLs and uses only the built-in
+# token, so it needs no secrets. A failure opens an issue assigned to the repository owner (or
+# comments on the one already open), so the owner hears of it whoever last pushed this file.
+# UptimeRobot covers the minutes in between.
+
+on:
+  schedule:
+    # 06:17 UTC, 13:17 WIB: off the hour, when GitHub's scheduler is least crowded.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: health, AI and dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Check https://wms.nalabs.ai
+        shell: bash
+        run: node scripts/check-uptime.mts https://wms.nalabs.ai | tee uptime.txt
+      - name: Tell the owner
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Uptime check failed"
+          body="$(printf 'The daily check of https://wms.nalabs.ai failed: %s\n\n```\n%s\n```' "$RUN_URL" "$(cat uptime.txt 2>/dev/null)")"
+          open=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" --assignee "$OWNER"
+          fi

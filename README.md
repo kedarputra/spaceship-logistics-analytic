@@ -21,10 +21,10 @@ Details in ADR 0010 (hosting) and ADR 0009 (LLM). There is no login.
 | Process | Windows service `spaceship` (WinSW, LocalService), starts at boot, restarts on crash |
 | Deploys | A watchdog checks `main` every 2 minutes, builds each new commit in its own folder (`npm ci`, `npm run check`), switches over, and rolls back if `/api/health` fails |
 | Environment variables | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY_FILE`, and optionally `LLM_RESPONSE_MODE` (see `.env.example`); the key itself lives in a file outside the repo |
-| Rate limit, `/api/ask` | 20 requests per IP per minute, then 429 |
+| Rate limit, `/api/ask` | 20 requests per IP per minute, then 429 ("Too many questions in a minute, try again shortly"); the IP is Cloudflare's `CF-Connecting-IP` |
 | Rate limit, `/api/*` | 120 requests per IP per minute, then 429 |
-| Health check | `GET /api/health` returns `{"rows":400,"anchor":"2025-12-31"}`; `?ai=1` also checks the LLM |
-| Monitoring | UptimeRobot keyword check every 5 minutes with phone alerts; a daily GitHub Actions check |
+| Health check | `GET /api/health` returns `{"rows":400,"anchor":"2025-12-31"}`; `?ai=1` also checks the LLM with a 1-token call, at most once a minute, and answers 503 when it is down |
+| Monitoring | UptimeRobot keyword check every 5 minutes with phone alerts; a daily GitHub Actions check (`.github/workflows/uptime.yml`, also runnable by hand) of the health, the AI and the dashboard page |
 
 How the pieces start after a reboot, and the review-window checklist, are in `docs/runbook.md`.
 

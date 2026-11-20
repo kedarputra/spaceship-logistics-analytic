@@ -88,6 +88,12 @@ describe("gateway errors (ADR 0009 §9)", () => {
     expect(await errorKind(failing(async () => new Response("<html>", { status: 200 })).complete(REQUEST))).toBe("unavailable");
   });
 
+  it("returns the model name the gateway answers with, for the AI health check (ADR 0009 §11)", async () => {
+    const body = { model: "gemma-4-12b-it", choices: [{ message: { content: "OK" }, finish_reason: "length" }] };
+    const client = createClient(CONFIG, { fetch: async () => new Response(JSON.stringify(body)) });
+    expect(await client.complete({ ...REQUEST, maxTokens: 1 })).toEqual({ text: "OK", finishReason: "length", model: "gemma-4-12b-it" });
+  });
+
   it('says when the reply was cut off by the token limit (finish_reason "length")', async () => {
     const client = createClient(CONFIG, { fetch: async () => reply("On-time rate by month: Jan 2025 85.0%, Feb", 200, "length") });
     expect(await client.complete(REQUEST)).toEqual({ text: "On-time rate by month: Jan 2025 85.0%, Feb", finishReason: "length" });

@@ -21,9 +21,12 @@ The brief expects 6 to 10 hours and warns against over-engineering, while R10 as
      ai/          model client (model id from config), prompts, interpret (question → spec), phrase (result → sentence)
      app/         pages and route handlers (POST /api/ask); the dashboard calls domain directly, without the LLM
      components/  KPI cards, charts, explanation panel
+     proxy.ts     Next's request proxy: the rate limits on /api/* (ADR 0010 §5); part of app/
    ```
 
    Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → `domain/`. `domain/` imports nothing else from `src/`; `tools/` imports only `domain/`; `ai/` imports only `tools/` and never reads the CSV or imports `domain/`; nothing outside `app/` imports `app/` or `components/`. A Vitest architecture test scans the import statements in each folder and fails on any other edge, so the rule runs inside `npm test`.
+
+   *Amended 20 Nov 2026 (ticket 15):* Next 16 requires its request proxy at `src/proxy.ts`, beside `app/`. It holds the rate limits on `/api/*` (ADR 0010 §5) and counts as part of `app/` in the architecture test.
 4. **Charts:** Recharts. Code picks the chart type from the spec and the shape of the result (D6); the LLM never writes a chart configuration.
 5. **UI:** plain Tailwind and native elements (`<details>` for the explanation panel, `<table>` for data), with a handful of components written here. No component kit: shadcn/ui in particular copies third-party component source into the repo, which conflicts with "write the code here".
 6. **Checks:** `typecheck` (`tsc --noEmit`), `test` (`vitest run`), `build` (`next build`), and `check`, which runs all three. A GitHub Actions workflow runs `npm ci && npm run check` on push and pull request. Tests never call the LLM, so CI needs no secrets.

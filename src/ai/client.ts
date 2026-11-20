@@ -49,6 +49,8 @@ export interface Completion {
   text: string;
   /** "stop" when the model finished; "length" when the token limit cut it off. */
   finishReason: string | undefined;
+  /** The model the gateway says answered, which can differ from the alias asked for ("chat"). */
+  model?: string;
 }
 
 export interface LlmClient {
@@ -106,7 +108,8 @@ function completionOf(body: unknown): Completion | undefined {
   const { message } = choice;
   if (typeof message !== "object" || message === null || !("content" in message) || typeof message.content !== "string") return undefined;
   const finishReason = "finish_reason" in choice && typeof choice.finish_reason === "string" ? choice.finish_reason : undefined;
-  return { text: message.content, finishReason };
+  const model = "model" in body && typeof body.model === "string" ? body.model : undefined;
+  return { text: message.content, finishReason, model };
 }
 
 export function createClient(config: LlmConfig, options: ClientOptions = {}): LlmClient {

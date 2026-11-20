@@ -12,7 +12,7 @@ import type { ChatMessage } from "./client";
  * date: periods stay symbolic and code resolves them (ADR 0002 §1). Bump PROMPT_VERSION whenever
  * this file changes, so cached interpretations from the old prompt are not reused.
  */
-export const PROMPT_VERSION = "prompts-5";
+export const PROMPT_VERSION = "prompts-6";
 
 let jsonSchema: unknown;
 
@@ -234,6 +234,9 @@ export function forecastPhraseMessages(question: string, answer: ForecastAnswer,
     { role: "user", content },
   ];
 }
+
+/** The AI health check's 1-token call (ADR 0009 §11): any reply means the model answers. */
+export const HEALTH_PING: readonly ChatMessage[] = [{ role: "user", content: "Reply with OK." }];
 
 /** The one retry (ADR 0009 §3): the model's reply, and what the validator found wrong with it. */
 export function retryMessages(question: string, reply: string, problems: readonly string[]): ChatMessage[] {

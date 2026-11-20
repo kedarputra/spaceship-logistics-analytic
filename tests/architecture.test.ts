@@ -33,8 +33,12 @@ function importSpecifiers(source: string): string[] {
   return IMPORT_PATTERNS.flatMap((pattern) => [...source.matchAll(pattern)].map((match) => match[1] ?? ""));
 }
 
+// Next's request proxy must sit beside app/, so src/proxy.ts (and its test) belongs to the app layer.
+const APP_ROOT_FILES = /^proxy(\.test)?(\.ts)?$/;
+
 function layerOf(pathInSrc: string): Layer | undefined {
-  const top = pathInSrc.split("/")[0];
+  const top = pathInSrc.split("/")[0] ?? "";
+  if (APP_ROOT_FILES.test(top)) return "app";
   return LAYERS.find((layer) => layer === top);
 }
 
@@ -122,6 +126,11 @@ describe("dependency rule (ADR 0004)", () => {
       { path: "src/tools/query.ts", source: 'import { readFileSync } from "node:fs";\nimport { getDataset } from "../domain/orders";' },
     ];
     expect(findViolations(files)).toEqual([]);
+  });
+
+  it("treats Next's src/proxy.ts as part of app/: it may import app/, and nothing below may import it", () => {
+    expect(findViolations([{ path: "src/proxy.ts", source: 'import { apiRateLimiter } from "@/app/api/rate-limit";' }])).toEqual([]);
+    expect(findViolations([{ path: "src/tools/query.ts", source: 'import { proxy } from "@/proxy";' }])).toHaveLength(1);
   });
 
   it("flags a file outside the layer folders and an import that leaves src/", () => {
