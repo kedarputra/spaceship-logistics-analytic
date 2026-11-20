@@ -13,6 +13,7 @@ _27 The rail: full height, and collapsible to icons_
   - The rail gains "Raw data" with a table icon, after Forecast. It works in both rail states (ticket 27).
   - The file name in the rail's Data card links to `/data`.
   - ADR 0011 §5 is amended: six routes, and a note that the page reads filters with the query tool's own code.
+  - The README is updated to match. Under Setup, "The dashboard pages" lists Raw data. Under Architecture: a `/data` row in the pages table, "six routes", the CSV route in the endpoints table if there is one, and the ADR 0011 row.
 - [ ] **The table.**
   - **Columns:** every CSV column in file order, with plain headings (Order ID, Client, Order date, Delivery date, Carrier, Origin, Destination, Status, SKU, Category, Quantity, Unit price, Order value, Promo, Discount, Region, Warehouse).
     - Plus a "Delivery days" column from `deliveryDays` in `domain/definitions.ts`, left empty for orders not delivered.

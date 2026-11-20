@@ -13,6 +13,7 @@ There are 12 months of history (Jan–Dec 2025). A backtest fitted each method o
 - Trend methods carry January's drop forward. On the total, the regression slope is −5.5 units/month with January and −0.35 without it.
 - Holt has a starting-value trap: an initial trend taken from Jan→Feb (−147) drives the total's forecast to 0. A grid search for α and β on 9 points overfits (it picked β of 0.7–0.9 on most series).
 - Forecast error is large: the winning method's error as a share of actual demand (WAPE) runs from 16% (total, ATL-DC1) to 296% (AMS-FC1).
+  _Note, 21 Nov 2026: these are the planning backtest's figures. The shipped forecast tool's own figures are 9.4% (ATL-DC1) to 289.5% (LON-FC1 and UK), and 17.1% on the total, with 13 of the 22 scopes rough. The README and the Forecast page use those. The decision below is unchanged._
 - Weekly series are sparse (9–31 of 53 weeks empty per series). The UK region is served only by LON-FC1, so the two series are identical; every other region has 2 warehouses.
 - SKUs: 313 have 1 order, 39 have 2, and 3 have 3 (CRAYON-0008, CRAYON-0017, PENCIL-0213).
 
