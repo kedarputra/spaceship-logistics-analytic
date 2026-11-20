@@ -1,0 +1,47 @@
+<!--
+  WinSW 2.12 service definition for the logistics analytics app (ADR 0010, section 3).
+  install-service.ps1 fills in the {{...}} values and writes the result next to its copy of WinSW.
+  Edit this template, then run install-service.ps1 again: the account, start mode and failure
+  actions only change when the service is installed.
+-->
+<service>
+  <id>spaceship</id>
+  <name>Spaceship logistics analytics</name>
+  <description>Logistics analytics dashboard (Next.js) on 127.0.0.1:4800, published through a Cloudflare Tunnel.</description>
+
+  <!-- node is called directly, never through npm, so nothing depends on PATH. -->
+  <executable>{{NODE}}</executable>
+  <arguments>node_modules\next\dist\bin\next start -H 127.0.0.1 -p 4800</arguments>
+  <!-- The "current" junction; the deploy watchdog points it at the live release folder. -->
+  <workingdirectory>{{CURRENT_DIR}}</workingdirectory>
+  <env name="NODE_ENV" value="production" />
+  <env name="NEXT_TELEMETRY_DISABLED" value="1" />
+  <env name="LLM_BASE_URL" value="{{LLM_BASE_URL}}" />
+  <env name="LLM_MODEL" value="{{LLM_MODEL}}" />
+  <env name="LLM_API_KEY_FILE" value="{{LLM_API_KEY_FILE}}" />
+
+  <!-- Least privilege: reads the releases and the key file, writes only .next\cache and the logs. -->
+  <serviceaccount>
+    <domain>NT AUTHORITY</domain>
+    <user>LocalService</user>
+  </serviceaccount>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart />
+  <!-- The server is shared with desktop use; processes started by the app inherit this class. -->
+  <priority>BelowNormal</priority>
+
+  <!-- Restart after a crash with growing delays; the count resets after an hour without one. -->
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <onfailure action="restart" delay="2 min" />
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+
+  <!-- stdout and stderr roll at 10 MB and keep 8 files each. -->
+  <logpath>{{LOG_DIR}}</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>
