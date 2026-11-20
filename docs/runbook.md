@@ -36,4 +36,52 @@ From submission until Spaceship confirms the review is over. If there is no word
 
 ## Deploys and rollbacks
 
-The watchdog deploys each new commit on `main` and rolls back on its own when the health check fails; a failed commit is recorded in `.buruk` and not retried. The commands for status, a forced restart, and a manual rollback are added by the watchdog ticket.
+The watchdog deploys each new commit on `main` and rolls back on its own when the health check fails; a failed commit is recorded in `.buruk` and not retried.
+
+It is a scheduled task that runs at logon and every 2 minutes, as the server account with limited rights, through a silent launcher so no window flashes on the server's desktop. Each run fetches `main` into a deploy clone with a read-only deploy key. A new commit is built in its own release folder with `npm ci` and `npm run check` at below-normal priority. Then the `current` junction moves to it, the service restarts, and `/api/health` must report `"rows":400` within 90 seconds. The newest 3 releases are kept. When there is nothing new, the run restarts the service if it is stopped or unhealthy.
+
+Install, or update after changing `watchdog.ps1` or `watchdog-silent.vbs` (no admin needed):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File deploy\windows\install-watchdog.ps1
+```
+
+The commands below use the scripts' default locations: deploy root `C:\Work\spaceship-deploy`, data root `C:\ProgramData\spaceship`.
+
+### Status
+
+```powershell
+Get-Service spaceship                                     # Running
+Invoke-RestMethod http://127.0.0.1:4800/api/health        # rows: 400
+(Get-Item C:\Work\spaceship-deploy\current).Target        # live release; folders are named by commit
+Get-Content C:\ProgramData\spaceship\logs\watchdog.log -Tail 20
+Get-ScheduledTaskInfo 'Spaceship Deploy Watchdog'         # last run, its result, next run
+Get-Content C:\Work\spaceship-deploy\.buruk               # commits that failed; never retried
+```
+
+### Forced restart, or deploy now
+
+```powershell
+sc.exe stop spaceship
+(Get-Service spaceship).WaitForStatus('Stopped', '00:00:30')
+sc.exe start spaceship
+
+Start-ScheduledTask 'Spaceship Deploy Watchdog'           # look for a new commit now instead of waiting
+```
+
+### Manual rollback
+
+Only releases still on disk (the newest 3) can be rolled back to. Add the bad commit to `.buruk` first, or the next run deploys it again.
+
+```powershell
+$root = 'C:\Work\spaceship-deploy'
+Get-ChildItem "$root\releases" | Sort-Object CreationTime  # pick the commit to go back to
+Add-Content "$root\.buruk" '<bad commit, 12 characters>'
+cmd /c rmdir "$root\current"
+cmd /c mklink /J "$root\current" "$root\releases\<good commit>"
+sc.exe stop spaceship
+(Get-Service spaceship).WaitForStatus('Stopped', '00:00:30')
+sc.exe start spaceship
+```
+
+To retry a commit that failed for a passing reason, such as a network error during `npm ci`, delete its line from `.buruk`. `Disable-ScheduledTask 'Spaceship Deploy Watchdog'` pauses deploys and the health restarts with them; `Enable-ScheduledTask` resumes both.
