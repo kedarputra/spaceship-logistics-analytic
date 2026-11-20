@@ -4,10 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "./icons";
 
-/** The pages in the rail (ADR 0011 §5). Ticket 25 adds Delivery, Carriers and Forecast. */
+/** The pages in the rail (ADR 0011 §5). */
 const PAGES: readonly { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Overview", icon: "grid" },
   { href: "/ask", label: "Ask the data", icon: "ask" },
+  { href: "/delivery", label: "Delivery", icon: "truck" },
+  { href: "/carriers", label: "Carriers", icon: "bars" },
+  { href: "/forecast", label: "Forecast", icon: "trend" },
 ];
 
 /** The menu, with the current page marked: an amber bar, an amber tint, and aria-current. */

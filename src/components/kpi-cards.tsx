@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { type DashboardKpis, KPI_DEFINITIONS } from "@/domain/definitions";
-import { formatCount, formatDays, formatDecimal, formatFraction, formatPercent } from "@/domain/format";
+import { formatCount, formatFraction, formatPercent } from "@/domain/format";
+import { DaysFigure } from "./figure-card";
 import { Icon, type IconName } from "./icons";
 import { Marked } from "./marked";
 import { OUTCOME_SERIES, type Tone } from "./series";
@@ -62,7 +63,12 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
           icon="clock"
           tone="amber"
           value={formatCount(delayedOrders.count)}
-          detail={`Delay rate ${formatPercent(delayedOrders.delayRate.value)} · ${formatFraction(delayedOrders.delayRate)}`}
+          detail={
+            <>
+              {`Delay rate ${formatPercent(delayedOrders.delayRate.value)} · `}
+              <span className="whitespace-nowrap">{formatFraction(delayedOrders.delayRate)}</span>
+            </>
+          }
         />
         <KpiCard
           {...KPI_DEFINITIONS.onTimeRate}
@@ -84,15 +90,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         <KpiCard
           {...KPI_DEFINITIONS.averageDeliveryDays}
           icon="calendar"
-          value={
-            averageDeliveryDays.value === null ? (
-              formatDays(null)
-            ) : (
-              <>
-                {formatDecimal(averageDeliveryDays.value)} <span className="text-unit text-ink-2">days</span>
-              </>
-            )
-          }
+          value={<DaysFigure days={averageDeliveryDays.value} />}
           detail="Order date to delivery date"
         />
       </ul>

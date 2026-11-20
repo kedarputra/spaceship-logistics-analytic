@@ -33,6 +33,13 @@ describe("colours come from the design tokens (ADR 0011 §1, ticket 24)", () => 
     expect(strays).toEqual([]);
   });
 
+  it("names no type size like a colour: text-axis would draw in the axis colour, not at the axis size (ticket 25)", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const names = (prefix: string) => new Set([...css.matchAll(new RegExp(`--${prefix}-([a-z0-9-]+?)(?:--[a-z-]+)?:`, "g"))].map((match) => match[1]));
+    const colours = names("color");
+    expect([...names("text")].filter((size) => colours.has(size))).toEqual([]);
+  });
+
   it("is checked against something: both homes hold the chart marks", () => {
     for (const home of HEX_HOMES) expect(readFileSync(home, "utf8").toLowerCase()).toContain("#2a8763");
   });

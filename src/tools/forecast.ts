@@ -4,7 +4,7 @@
  * in as numbers; runForecast reads it from the dataset.
  */
 
-import { units, unitsOverTime } from "@/domain/definitions";
+import { mostOrdersOfOneSku, units, unitsOverTime } from "@/domain/definitions";
 import { formatDecimal } from "@/domain/format";
 import type { Dataset, Order } from "@/domain/orders";
 import { dataPeriod, formatMonths, formatPeriod, monthKey, monthsAfter, monthsBetween, type Period } from "@/domain/periods";
@@ -125,8 +125,8 @@ const WEEKS_PER_YEAR = 52;
 /** One-sided 95% service level for the safety stock; two-sided 95% for the chart's range (ADR 0003 §7–8). */
 export const SAFETY_Z = 1.65;
 export const RANGE_Z = 1.96;
-/** Over this share of actual demand in holdout error, a forecast is labelled rough (ADR 0003 §4). */
-const ROUGH_WAPE = 0.5;
+/** Over this share of actual demand in holdout error (WAPE), a forecast is labelled rough (ADR 0003 §4). */
+export const ROUGH_WAPE = 0.5;
 const JANUARY_ENDING = "One year of data cannot show whether January repeats.";
 
 /** ADR 0003 §7: the recommendation is units to plan for, never an order to place. */
@@ -213,6 +213,8 @@ export interface SeriesForecast {
   method: { id: MethodId; label: string; reason: string; rough: boolean };
   /** The RMSE of the method's one-step-ahead errors behind the safety stock and the range. */
   sigma: number;
+  /** The z behind the safety stock, for its 95% service level: safety stock = z × σ × √months. */
+  safetyZ: number;
   /** The first month with a one-step error, after the warm-up: "Apr 2025". */
   sigmaFrom: string;
   recommendation: InventoryRecommendation;
@@ -424,6 +426,7 @@ export function forecastSeries(history: readonly MonthUnits[], horizon: Forecast
       rough: isRough(scores.find((score) => score.method === winner)),
     },
     sigma,
+    safetyZ: SAFETY_Z,
     sigmaFrom: history[WARM_UP_MONTHS]?.label ?? "",
     recommendation: { units: unitsToPlanFor, demand: roundedDemand, safetyStock: unitsToPlanFor - roundedDemand },
     exact: { demand, safetyStock, total },
@@ -433,15 +436,13 @@ export function forecastSeries(history: readonly MonthUnits[], horizon: Forecast
 
 /** A SKU's orders, oldest first, and why it is not forecast, or undefined for a SKU not in the data. Any case matches. */
 function skuHistory(input: string, orders: readonly Order[]): SkuHistory | undefined {
-  const ordersPerSku = new Map<string, number>();
-  for (const order of orders) ordersPerSku.set(order.sku, (ordersPerSku.get(order.sku) ?? 0) + 1);
-  const id = matchValue(input, [...ordersPerSku.keys()], false);
+  const id = matchValue(input, [...new Set(orders.map((order) => order.sku))], false);
   if (id === undefined) return undefined;
   const own = orders
     .filter((order) => order.sku === id)
     .sort((a, b) => a.order_date.localeCompare(b.order_date) || a.order_id.localeCompare(b.order_id));
   const category = own[0]?.product_category ?? "";
-  const most = Math.max(...ordersPerSku.values());
+  const most = mostOrdersOfOneSku(orders);
   return {
     id,
     category,

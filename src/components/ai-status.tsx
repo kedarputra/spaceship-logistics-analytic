@@ -77,8 +77,8 @@ const RAIL_DOTS: Record<AiState, string> = {
   unavailable: "bg-bad-line",
 };
 
-/** The rail's status block: the state, the model when the gateway named it, and what the AI does. */
-export function RailAiStatus({ status }: { status: AiStatus }) {
+/** The rail's status block: the state, the model by its display name (ticket 25), and what the AI does. */
+export function RailAiStatus({ status, modelName }: { status: AiStatus; modelName: string }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="flex items-center gap-2 text-small font-medium text-panel">
@@ -86,8 +86,7 @@ export function RailAiStatus({ status }: { status: AiStatus }) {
         {AI_STATUS_TEXT[status.state]}
       </span>
       <span className="text-note text-rail-muted">
-        {status.model === undefined ? "" : `${status.model} on this server. `}
-        The AI routes and explains; code computes every number.
+        {`${modelName} on this server. The AI routes and explains; code computes every number.`}
       </span>
     </div>
   );
@@ -97,6 +96,6 @@ export function LiveAiStatusPill() {
   return <AiStatusPill status={useAiStatus()} />;
 }
 
-export function LiveRailAiStatus() {
-  return <RailAiStatus status={useAiStatus()} />;
+export function LiveRailAiStatus({ modelName }: { modelName: string }) {
+  return <RailAiStatus status={useAiStatus()} modelName={modelName} />;
 }

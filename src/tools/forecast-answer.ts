@@ -24,7 +24,8 @@ export interface ForecastAnswer extends ForecastResult {
   roughNote?: string;
 }
 
-function winnerScore(result: ForecastResult): Candidate | undefined {
+/** The chosen method's holdout score. */
+export function winnerScore(result: ForecastResult): Candidate | undefined {
   return result.candidates.find((candidate) => candidate.method === result.method.id);
 }
 

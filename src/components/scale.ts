@@ -11,6 +11,17 @@ export function extremeIndexes(values: readonly number[]): Set<number> {
   return new Set(values.flatMap((value, index) => (value === highest || value === lowest ? [index] : [])));
 }
 
+/**
+ * The axis of a rate drawn as a line, which may start above 0 (ADR 0011, ticket 25): from the ten
+ * below the lowest value's ten, to 100%, in steps of 10 points. 72.7% at the lowest → 60% to 100%.
+ */
+export function rateAxis(values: readonly number[]): { min: number; max: number; ticks: number[] } {
+  const lowest = values.length === 0 ? 0 : Math.min(...values);
+  const fromPoints = Math.max(0, Math.floor(lowest * 10) * 10 - 10);
+  const ticks = Array.from({ length: (100 - fromPoints) / 10 + 1 }, (_, index) => (fromPoints + index * 10) / 100);
+  return { min: fromPoints / 100, max: 1, ticks };
+}
+
 const ROUND_STEPS = [1, 2, 2.5, 5, 10];
 
 /** An axis from 0 to `max` rounded up, in about `tickCount` round steps: 75 → 0, 20, 40, 60, 80. */

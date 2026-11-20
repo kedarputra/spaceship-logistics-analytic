@@ -118,7 +118,7 @@ function ValueCard({ answer }: { answer: Answer }) {
       <p className="text-small text-muted">{answer.metric.label}</p>
       <p className="text-plan">
         {formatMetricValue(row?.value ?? null, answer.metric.unit)}
-        {fractionText === undefined ? null : <span className="text-field font-normal tracking-normal text-muted">{` · ${fractionText}`}</span>}
+        {fractionText === undefined ? null : <span className="text-input font-normal tracking-normal text-muted">{` · ${fractionText}`}</span>}
       </p>
     </div>
   );

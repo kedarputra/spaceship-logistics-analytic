@@ -17,6 +17,8 @@ export const DEFAULT_RESPONSE_MODE: ResponseMode = "json_schema";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:4000/v1";
 const DEFAULT_MODEL = "chat";
+/** The model behind the gateway's alias, as the page names it (ADR 0010). */
+const DEFAULT_MODEL_DISPLAY_NAME = "Gemma 4 12B";
 
 export interface LlmConfig {
   baseUrl: string;
@@ -28,6 +30,11 @@ export interface LlmConfig {
 export type LlmConfigResult = { ok: true; config: LlmConfig } | { ok: false; problem: string };
 
 type Environment = Record<string, string | undefined>;
+
+/** The model as the page names it: LLM_MODEL_DISPLAY_NAME, else Gemma 4 12B. Never the gateway's alias, such as "chat". */
+export function modelDisplayName(env: Environment = process.env): string {
+  return env.LLM_MODEL_DISPLAY_NAME?.trim() || DEFAULT_MODEL_DISPLAY_NAME;
+}
 
 /** The model name alone, without reading the key file: part of the question cache's key. */
 export function configuredModel(env: Environment = process.env): string {

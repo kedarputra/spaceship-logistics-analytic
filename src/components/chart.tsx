@@ -2,7 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MetricDefinition } from "@/domain/definitions";
-import { formatCount, formatMetricValue } from "@/domain/format";
+import { formatCount, formatMetricValue, formatPercentPlain } from "@/domain/format";
 import type { ChartType } from "@/tools/chart";
 import { CHART_INK } from "./palette";
 
@@ -42,7 +42,7 @@ const TICK = { fill: CHART_INK.label, fontSize: 12 };
 
 // Axis ticks drop a trailing ".0" ("5%", not "5.0%"); values read as everywhere else in the UI (ADR 0001 §7).
 function tickFormatter(unit: ValueFormat): (value: number) => string {
-  if (unit === "percent") return (value) => `${Number((value * 100).toFixed(1))}%`;
+  if (unit === "percent") return formatPercentPlain;
   if (unit === "days") return (value) => `${Number(value.toFixed(1))}`;
   return formatCount;
 }

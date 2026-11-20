@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ratio } from "./definitions";
-import { formatCount, formatDays, formatFraction, formatMetricValue, formatPercent } from "./format";
+import { formatCount, formatDays, formatDecimal, formatFraction, formatMetricValue, formatOf, formatPercent, formatPercentPlain } from "./format";
 
 // Display precision from ADR 0001 §7: rates and days to 1 decimal; computation keeps full precision.
 describe("display formatting (ADR 0001)", () => {
@@ -12,6 +12,32 @@ describe("display formatting (ADR 0001)", () => {
 
   it("shows a rate's numerator and denominator", () => {
     expect(formatFraction(ratio(304, 370))).toBe("304 / 370");
+  });
+
+  it("rounds an exact half up, however the division lands in floating point: 29 of 400 is 7.25%, shown 7.3% (ticket 25)", () => {
+    expect(formatPercent(ratio(29, 400).value)).toBe("7.3%");
+    expect(formatPercent(ratio(9, 400).value)).toBe("2.3%");
+    expect(formatPercent(ratio(11, 47).value)).toBe("23.4%");
+    expect(formatMetricValue(29 / 400, "percent", 2)).toBe("7.25%");
+    expect(formatDays(1.45)).toBe("1.5 days");
+    // Every formatter rounds the same way, so one figure never reads two ways on a page.
+    expect(formatDecimal(1.45)).toBe("1.5");
+    expect(formatDecimal(2.5, 0)).toBe("3");
+    expect(formatDecimal(1234.565, 2)).toBe("1,234.57");
+    expect(formatDecimal((29 / 400) * 100)).toBe("7.3");
+    expect(formatDecimal(1.005, 2)).toBe("1.01");
+  });
+
+  it("writes a threshold or an axis tick as a percentage without a trailing .0: 0.5 → 50%, 29 of 400 → 7.3%", () => {
+    expect(formatPercentPlain(0.5)).toBe("50%");
+    expect(formatPercentPlain(0.6)).toBe("60%");
+    expect(formatPercentPlain(29 / 400)).toBe("7.3%");
+  });
+
+  it("writes a rate's parts in words, 304 of 370, and units to the whole unit for a plan (ticket 25)", () => {
+    expect(formatOf(ratio(1304, 3700))).toBe("1,304 of 3,700");
+    expect(formatDecimal(176.6, 0)).toBe("177");
+    expect(formatDecimal(13.4, 0)).toBe("13");
   });
 
   it("shows days with 1 decimal", () => {

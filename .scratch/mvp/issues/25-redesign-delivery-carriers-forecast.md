@@ -5,7 +5,7 @@
 **Blocked by:** 24
 _24 Redesign: tokens, the rail, Overview and Ask_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] **Delivery (`/delivery`).**
   - Five KPIs: delivered, on-time rate, delay rate, exceptions with their share of delivered, and average delivery time.
@@ -37,3 +37,7 @@ _24 Redesign: tokens, the rail, Overview and Ask_
   - They use the golden numbers in `docs/design/README.md`: the region and warehouse times, the full carrier table, and the 22 scope forecasts including CRAYON 55, BOOK 53, and UK equal to LON-FC1 at 40.
   - `npm run check` passes.
   - Look at all three pages in headless Edge at 1280 px and at the narrowest width.
+
+## Comments
+
+- 2026-11-20: Done: Delivery, Carriers and Forecast in the ADR 0011 shell, the rail listing all five pages, and the Overview's cards linking to them. Every figure comes from the definitions, the query tool and the forecast tool; new figures (exceptions' share of delivered, orders not delivered, the most orders of one SKU) are in definitions.ts with tests, and the forecast result now carries its z. The Forecast page's scope and horizon are links that keep the choice in the URL; a bad URL falls back to all products over 3 months and says so. Polish: the rail names the model from LLM_MODEL_DISPLAY_NAME (default Gemma 4 12B), the bar labels are ink and bold (the type tokens text-axis and text-field were read as colours; renamed, with a test), and 55 / 370 stays on one line. A formatter fix rounds exact halves up everywhere (29 of 400 reads 7.3%). The two new chips were added to eval/questions.json and still need an npm run eval on the server. Checked in headless Edge at 1280 and 320 px.

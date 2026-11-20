@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiError, createClient, type FetchLike } from "./client";
-import { type LlmConfig, readLlmConfig } from "./config";
+import { type LlmConfig, modelDisplayName, readLlmConfig } from "./config";
 
 const CONFIG: LlmConfig = { baseUrl: "http://gateway.test/v1", model: "chat", apiKey: "test-key", responseMode: "json_object" };
 
@@ -46,6 +46,14 @@ describe("LLM configuration (ADR 0009 §1)", () => {
     expect(readLlmConfig({ LLM_API_KEY_FILE: "/missing" }, files({})).ok).toBe(false);
     expect(readLlmConfig({ LLM_API_KEY_FILE: "/k" }, files({ "/k": "  \n" })).ok).toBe(false);
     expect(readLlmConfig({ LLM_API_KEY_FILE: "/k", LLM_RESPONSE_MODE: "xml" }, files({ "/k": "secret" })).ok).toBe(false);
+  });
+});
+
+describe("the model's name on the page (ticket 25)", () => {
+  it("is Gemma 4 12B unless LLM_MODEL_DISPLAY_NAME says otherwise, never the gateway's alias", () => {
+    expect(modelDisplayName({ LLM_MODEL: "chat" })).toBe("Gemma 4 12B");
+    expect(modelDisplayName({ LLM_MODEL_DISPLAY_NAME: "  Qwen 3 8B " })).toBe("Qwen 3 8B");
+    expect(modelDisplayName({ LLM_MODEL_DISPLAY_NAME: "   " })).toBe("Gemma 4 12B");
   });
 });
 

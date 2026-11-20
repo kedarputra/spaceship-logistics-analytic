@@ -20,7 +20,7 @@ Details in ADR 0010 (hosting) and ADR 0009 (LLM). There is no login.
 | Public URL | `https://wms.nalabs.ai` → Cloudflare Tunnel → `next start` on `127.0.0.1:4800` |
 | Process | Windows service `spaceship` (WinSW, LocalService), starts at boot, restarts on crash |
 | Deploys | A watchdog checks `main` every 2 minutes, builds each new commit in its own folder (`npm ci`, `npm run check`), switches over, and rolls back if `/api/health` fails |
-| Environment variables | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY_FILE`, and optionally `LLM_RESPONSE_MODE` (see `.env.example`); the key itself lives in a file outside the repo |
+| Environment variables | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY_FILE`, and optionally `LLM_RESPONSE_MODE` and `LLM_MODEL_DISPLAY_NAME` (see `.env.example`); the key itself lives in a file outside the repo |
 | Rate limit, `/api/ask` | 20 requests per IP per minute, then 429 ("Too many questions in a minute, try again shortly"); the IP is Cloudflare's `CF-Connecting-IP` |
 | Rate limit, `/api/*` | 120 requests per IP per minute, then 429 |
 | Health check | `GET /api/health` returns `{"rows":400,"anchor":"2025-12-31"}`; `?ai=1` also checks the LLM with a 1-token call, at most once a minute, and answers 503 when it is down |
@@ -40,6 +40,7 @@ Interpretation is measured with `npm run eval`: it sends the committed questions
 
 Last run on the server, 20 Nov 2026:
 - **Result:** 34 of 34 specs match (100%), the same in two runs back to back. No misses. Four of the 34 are the questions the Overview and Ask pages suggest; a test keeps every suggested question in the set.
+- **Since then:** the set holds 36. The two added with the Carriers and Forecast pages (ticket 25), "What share of orders went through FedEx?" and "Forecast demand for SKU CRAYON-0008", have not been through a run yet.
 - **Model:** Gemma 4 12B (instruct, Q5_K_M) behind the gateway's `chat` alias, with structured output in `json_schema` mode.
 - **How to read it:** the list is small. It grew from failures seen with the real model, reworded so it doesn't copy the prompt's own examples. Treat it as a regression check, not a benchmark.
 

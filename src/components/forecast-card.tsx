@@ -1,7 +1,7 @@
 import { formatCount, formatDecimal, formatPercent } from "@/domain/format";
 import { formatDate } from "@/domain/periods";
 import { FORECAST_CHART_REASON } from "@/tools/chart";
-import { NOT_A_REORDER, RANGE_Z, SAFETY_Z, type SkuHistory } from "@/tools/forecast";
+import { NOT_A_REORDER, RANGE_Z, type SkuHistory } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { TraceStage } from "@/tools/trace-stage";
 import { AskedQuestion, ExplanationCard, PanelHeading, SentenceBadge, SpecBlock } from "./answer-parts";
@@ -44,7 +44,7 @@ function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: 
           {`Each method was fitted on the months before ${forecast.holdout} and scored on ${forecast.holdout} by mean absolute error (MAE); a tie goes to the simpler method. The winner was refit on all ${forecast.history.length} months, and forecasts are floored at 0.`}
         </Fact>
         <Fact term="Safety stock">
-          {`σ = ${formatDecimal(forecast.sigma, 2)} units: the root mean square of the method's one-step-ahead errors from ${forecast.sigmaFrom}, each month predicted only from earlier ones. Safety stock = ${SAFETY_Z} × σ × √${horizon.months} = ${formatDecimal(exact.safetyStock, 2)} units, for a 95% service level.`}
+          {`σ = ${formatDecimal(forecast.sigma, 2)} units: the root mean square of the method's one-step-ahead errors from ${forecast.sigmaFrom}, each month predicted only from earlier ones. Safety stock = ${forecast.safetyZ} × σ × √${horizon.months} = ${formatDecimal(exact.safetyStock, 2)} units, for a 95% service level.`}
         </Fact>
         <Fact term="Units to plan for">
           {`${formatDecimal(exact.demand, 2)} + ${formatDecimal(exact.safetyStock, 2)} = ${formatDecimal(exact.total, 2)}, rounded up to ${formatCount(recommendation.units)} units to plan for. ${NOT_A_REORDER}`}
@@ -116,7 +116,7 @@ export function ForecastCard({ question, forecast, cached, trace }: { question?:
           <span className="text-small font-semibold text-ink-2">{`Units to plan for, ${forecast.monthsLabel}`}</span>
           <p className="text-plan">
             {formatCount(recommendation.units)}
-            <span className="text-field font-normal tracking-normal text-muted">
+            <span className="text-input font-normal tracking-normal text-muted">
               {` · ${formatCount(recommendation.demand)} forecast + ${formatCount(recommendation.safetyStock)} safety stock`}
             </span>
           </p>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
 import type { ReactNode } from "react";
+import { modelDisplayName } from "@/ai/config";
 import { AppShell } from "@/components/app-shell";
 import { getDataset } from "@/domain/orders";
 import "./globals.css";
@@ -17,7 +18,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="en" className={figtree.variable}>
       <body>
-        <AppShell dataset={getDataset()}>{children}</AppShell>
+        <AppShell dataset={getDataset()} modelName={modelDisplayName()}>{children}</AppShell>
       </body>
     </html>
   );

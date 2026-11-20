@@ -58,6 +58,7 @@ Every figure in the files was read from the live app on 20 Nov 2026. In the app,
 | Body | 14 / 400 |
 | Caption | 12.5 / 400, muted |
 | Label | 11 / 600, uppercase, 0.06em |
+| Scope figure (Forecast page grid) | 22 / 700 |
 | KPI figure | 30 / 700 |
 | Plan figure | 44–48 / 700 |
 

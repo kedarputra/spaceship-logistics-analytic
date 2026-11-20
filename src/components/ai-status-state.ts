@@ -7,8 +7,6 @@ export type AiState = "checking" | "online" | "busy" | "unavailable";
 
 export interface AiStatus {
   state: AiState;
-  /** The model name the gateway answered with, when it gave one. */
-  model?: string;
 }
 
 export const AI_STATUS_TEXT: Record<AiState, string> = {
@@ -27,6 +25,5 @@ export function aiStatusFrom(httpStatus: number, body: unknown): AiStatus {
   if (httpStatus === 429) return { state: "busy" };
   const ai = isRecord(body) ? body.ai : undefined;
   if (!isRecord(ai) || ai.up !== true) return { state: "unavailable" };
-  if (ai.busy === true) return { state: "busy" };
-  return typeof ai.model === "string" && ai.model !== "" ? { state: "online", model: ai.model } : { state: "online" };
+  return ai.busy === true ? { state: "busy" } : { state: "online" };
 }

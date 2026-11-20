@@ -28,7 +28,8 @@ export interface Ratio {
 }
 
 export interface DashboardKpis {
-  totalOrders: { count: number; inTransit: number; canceled: number };
+  /** Every order; those not delivered are in transit or canceled. */
+  totalOrders: { count: number; inTransit: number; canceled: number; notDelivered: number };
   deliveredOrders: { count: number } & DeliveryOutcomes;
   /** Delayed orders, and their share of delivered orders: delayed ÷ delivered. */
   delayedOrders: { count: number; delayRate: Ratio };
@@ -278,6 +279,18 @@ export function delayRate(orders: readonly Order[]): Ratio {
   return ratio(deliveryOutcomes(orders).delayed, deliveredOrders(orders).length);
 }
 
+/** Exception orders ÷ delivered orders: the share of deliveries something went wrong with, not counted as delayed. */
+export function exceptionRate(orders: readonly Order[]): Ratio {
+  return ratio(deliveryOutcomes(orders).exception, deliveredOrders(orders).length);
+}
+
+/** The most orders any one SKU has; too few for any SKU to be forecast on its own (ADR 0003 §9). 0 for no orders. */
+export function mostOrdersOfOneSku(orders: readonly Order[]): number {
+  const perSku = new Map<string, number>();
+  for (const order of orders) perSku.set(order.sku, (perSku.get(order.sku) ?? 0) + 1);
+  return Math.max(0, ...perSku.values());
+}
+
 /** A metric's value in one week or month. */
 export interface BucketValue<T> {
   bucket: Bucket;
@@ -321,6 +334,7 @@ export function dashboardKpis(orders: readonly Order[]): DashboardKpis {
       count: orders.length,
       inTransit: orders.filter((order) => order.status === "in_transit").length,
       canceled: orders.filter((order) => order.status === "canceled").length,
+      notDelivered: orders.filter((order) => !isDelivered(order)).length,
     },
     deliveredOrders: { count: deliveredOrders(orders).length, ...outcomes },
     delayedOrders: { count: outcomes.delayed, delayRate: delayRate(orders) },

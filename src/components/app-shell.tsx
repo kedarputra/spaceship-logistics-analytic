@@ -11,7 +11,7 @@ import { RailNav } from "./rail-nav";
  * the data and the AI status, then the page. The rail is 232 px wide beside the content, and stacks
  * above it when the two no longer fit side by side.
  */
-export function AppShell({ dataset, children }: { dataset: Dataset; children: ReactNode }) {
+export function AppShell({ dataset, modelName, children }: { dataset: Dataset; modelName: string; children: ReactNode }) {
   const period = dataPeriod(dataset.orders);
   return (
     <>
@@ -39,7 +39,7 @@ export function AppShell({ dataset, children }: { dataset: Dataset; children: Re
             <span className="text-small font-medium text-panel">{DATASET_FILE}</span>
             <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · read-only`}</span>
             <div className="h-px bg-panel/8" />
-            <LiveRailAiStatus />
+            <LiveRailAiStatus modelName={modelName} />
           </div>
         </header>
         <main id="content" className="min-w-0 flex-[999_1_560px] px-4 pt-7 pb-16 sm:px-9">

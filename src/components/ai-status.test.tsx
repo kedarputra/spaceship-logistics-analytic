@@ -6,9 +6,8 @@ import { type AiStatus, aiStatusFrom } from "./ai-status-state";
 const DATA = { rows: 400, anchor: "2025-12-31" };
 
 describe("the AI status from GET /api/health?ai=1 (ADR 0009 §11, ticket 24)", () => {
-  it("is online when the model answered, with the name the gateway gave", () => {
-    expect(aiStatusFrom(200, { ...DATA, ai: { up: true, model: "gemma-4-12b" } })).toEqual({ state: "online", model: "gemma-4-12b" });
-    expect(aiStatusFrom(200, { ...DATA, ai: { up: true } })).toEqual({ state: "online" });
+  it("is online when the model answered", () => {
+    expect(aiStatusFrom(200, { ...DATA, ai: { up: true, model: "chat" } })).toEqual({ state: "online" });
   });
 
   it("is busy when the gateway answered without a free slot, or this visitor hit the rate limit", () => {
@@ -38,12 +37,12 @@ describe("the AI status pill and the rail's status", () => {
     expect(text(renderToStaticMarkup(<AiStatusPill status={status} />))).toBe(words);
   });
 
-  it("names the model in the rail when the gateway gave one, and says what the AI does", () => {
-    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "online", model: "gemma-4-12b" }} />))).toBe(
-      "AI online gemma-4-12b on this server. The AI routes and explains; code computes every number.",
+  it("names the model by its configured display name, not the gateway's alias, and says what the AI does (ticket 25)", () => {
+    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" />))).toBe(
+      "AI online Gemma 4 12B on this server. The AI routes and explains; code computes every number.",
     );
-    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "unavailable" }} />))).toBe(
-      "AI unavailable: the dashboard still works The AI routes and explains; code computes every number.",
+    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "unavailable" }} modelName="Gemma 4 12B" />))).toBe(
+      "AI unavailable: the dashboard still works Gemma 4 12B on this server. The AI routes and explains; code computes every number.",
     );
   });
 });

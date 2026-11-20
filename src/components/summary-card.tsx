@@ -21,7 +21,7 @@ export function SummaryCard({
   children: ReactNode;
 }) {
   return (
-    <section aria-labelledby={id} className="card flex flex-col gap-3.5 px-5 py-[18px]">
+    <section aria-labelledby={id} className="card card-body">
       <div className="flex flex-wrap items-start justify-between gap-2.5">
         <CardTitle id={id} title={title} caption={caption} />
         {badge}

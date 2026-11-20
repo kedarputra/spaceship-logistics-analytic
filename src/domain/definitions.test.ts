@@ -5,7 +5,9 @@ import {
   deliveredOrders,
   deliveryOutcomes,
   deliveryOutcomesOverTime,
+  exceptionRate,
   METRICS,
+  mostOrdersOfOneSku,
   type MetricId,
   onTimeRate,
   orderCountOverTime,
@@ -38,8 +40,8 @@ function order(status: Order["status"], orderDate: string, deliveryDate: string 
 describe("dashboard KPIs on the dataset (ADR 0001, Reading B in docs/data.md)", () => {
   const kpis = dashboardKpis(getDataset().orders);
 
-  it("counts 400 orders, 27 of them in transit and 3 canceled", () => {
-    expect(kpis.totalOrders).toEqual({ count: 400, inTransit: 27, canceled: 3 });
+  it("counts 400 orders, 27 of them in transit and 3 canceled: 30 not delivered", () => {
+    expect(kpis.totalOrders).toEqual({ count: 400, inTransit: 27, canceled: 3, notDelivered: 30 });
   });
 
   it("counts 370 delivered orders: 304 on time, 55 delayed, 11 exception", () => {
@@ -231,11 +233,27 @@ describe("zero denominators", () => {
 
   it("computes the dashboard KPIs for no orders at all", () => {
     expect(dashboardKpis([])).toEqual({
-      totalOrders: { count: 0, inTransit: 0, canceled: 0 },
+      totalOrders: { count: 0, inTransit: 0, canceled: 0, notDelivered: 0 },
       deliveredOrders: { count: 0, onTime: 0, delayed: 0, exception: 0 },
       delayedOrders: { count: 0, delayRate: { numerator: 0, denominator: 0, value: null } },
       onTimeRate: { numerator: 0, denominator: 0, value: null },
       averageDeliveryDays: { numerator: 0, denominator: 0, value: null },
     });
+  });
+});
+
+describe("figures the Delivery and Forecast pages show (ticket 25, docs/design/README.md)", () => {
+  const { orders } = getDataset();
+
+  it("counts exception orders as a share of delivered orders: 11 of 370, 2.97%", () => {
+    const share = exceptionRate(orders);
+    expect([share.numerator, share.denominator]).toEqual([11, 370]);
+    expect((share.value ?? Number.NaN) * 100).toBeCloseTo(2.97, 2);
+    expect(exceptionRate([]).value).toBeNull();
+  });
+
+  it("finds that no SKU has more than 3 orders, the reason no SKU is forecast (ADR 0003 §9)", () => {
+    expect(mostOrdersOfOneSku(orders)).toBe(3);
+    expect(mostOrdersOfOneSku([])).toBe(0);
   });
 });

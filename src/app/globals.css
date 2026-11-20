@@ -61,6 +61,7 @@
   /* Smaller corners: a nested panel, a small button or icon square, and a swatch or meter. */
   --radius-inset: 10px;
   --radius-small: 6px;
+  --radius-tag: 4px;
   --radius-mark: 2px;
 
   --shadow-raised: 0 2px 8px color-mix(in srgb, var(--color-ink) 5%, transparent);
@@ -80,8 +81,8 @@
   --text-sentence: 18px;
   --text-sentence--line-height: 1.5;
   --text-sentence--font-weight: 500;
-  --text-field: 15px;
-  --text-field--line-height: 1.3;
+  --text-input: 15px;
+  --text-input--line-height: 1.3;
   --text-body: 14px;
   --text-body--line-height: 1.45;
   --text-small: 13px;
@@ -94,11 +95,15 @@
   --text-label--line-height: 1.3;
   --text-label--letter-spacing: 0.06em;
   --text-label--font-weight: 600;
-  --text-axis: 11px;
-  --text-axis--line-height: 1.2;
+  --text-tick: 11px;
+  --text-tick--line-height: 1.2;
   --text-unit: 18px;
   --text-unit--line-height: 1.2;
   --text-unit--font-weight: 600;
+  --text-figure: 22px;
+  --text-figure--line-height: 1.15;
+  --text-figure--letter-spacing: -0.01em;
+  --text-figure--font-weight: 700;
   --text-kpi: 30px;
   --text-kpi--line-height: 1.1;
   --text-kpi--letter-spacing: -0.02em;
@@ -117,6 +122,14 @@
   background-color: var(--color-panel);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
+}
+
+/* A card's inside: a column of its parts, padded as the design's cards are. */
+@utility card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
 }
 
 @utility chip {
@@ -175,7 +188,7 @@
   border-radius: var(--radius-control);
   background-color: var(--color-amber);
   color: var(--color-ink);
-  font-size: var(--text-field);
+  font-size: var(--text-input);
   font-weight: 700;
   cursor: pointer;
 
@@ -211,7 +224,7 @@
   border-radius: var(--radius-control);
   background-color: var(--color-panel);
   color: var(--color-ink);
-  font-size: var(--text-field);
+  font-size: var(--text-input);
 }
 
 @layer base {

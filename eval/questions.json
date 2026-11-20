@@ -420,6 +420,30 @@
         "metric": "delay_rate",
         "groupBy": "carrier"
       }
+    },
+    {
+      "id": "suggested-share-fedex",
+      "question": "What share of orders went through FedEx?",
+      "expected": {
+        "tool": "query",
+        "metric": "order_share",
+        "filters": {
+          "carrier": [
+            "FedEx"
+          ]
+        }
+      }
+    },
+    {
+      "id": "suggested-sku-forecast",
+      "question": "Forecast demand for SKU CRAYON-0008",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "sku",
+          "value": "CRAYON-0008"
+        }
+      }
     }
   ]
 }

@@ -5,11 +5,8 @@ import { EXAMPLE_QUESTIONS } from "@/tools/examples";
  * checks each against the model; a test keeps it that way.
  */
 
-/** The question the Overview's forecast card opens on the Ask page; also an Overview chip and an Ask suggestion. */
-export const FORECAST_QUESTION = "Forecast demand for the next 3 months";
-
-/** The question the Overview's carrier card opens on the Ask page. */
-export const CARRIERS_QUESTION = "What is the delay rate by carrier?";
+/** An Overview chip and an Ask suggestion. */
+const FORECAST_QUESTION = "Forecast demand for the next 3 months";
 
 /** The four chips under the Overview's ask box (ticket 24). */
 export const OVERVIEW_QUESTIONS: readonly string[] = [
@@ -18,6 +15,12 @@ export const OVERVIEW_QUESTIONS: readonly string[] = [
   EXAMPLE_QUESTIONS.highest_delay_rate,
   FORECAST_QUESTION,
 ];
+
+/** The Carriers page's chips (ticket 25). */
+export const CARRIERS_PAGE_QUESTIONS: readonly string[] = ["Which carrier is the least reliable?", "What share of orders went through FedEx?"];
+
+/** The Forecast page's SKU chip: a SKU is never forecast, so the answer shows its orders and its category's forecast. */
+export const SKU_QUESTION = "Forecast demand for SKU CRAYON-0008";
 
 /** The Ask page's "Try these", by group. */
 export const SUGGESTED_QUESTIONS: readonly { group: string; questions: readonly string[] }[] = [

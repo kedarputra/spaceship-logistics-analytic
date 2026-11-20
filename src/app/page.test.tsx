@@ -18,6 +18,9 @@ function section(html: string, name: string): string {
   return visibleText(html.slice(start, end));
 }
 
+/** A link to `href` whose text starts with `text`. */
+const linkTo = (href: string, text: string) => new RegExp(`<a[^>]*href="${href}"[^>]*>${text}`);
+
 const html = renderToStaticMarkup(<OverviewPage />);
 const text = visibleText(html);
 
@@ -70,13 +73,18 @@ describe("the Overview page (ticket 24, figures from docs/design/README.md)", ()
     expect(carriers).toContain("Delay rate by carrier Delayed ÷ delivered · by delivery date · top 4 of 9");
     expect(carriers).toContain("GLS n=8 small sample 25.0% USPS n=47 23.4% UPS n=78 21.8% Royal Mail n=25 20.0%");
     expect(carriers).toContain("Among carriers with at least 20 deliveries, USPS is highest at 23.4% (11 of 47).");
-    expect(html).toContain('href="/ask?q=What+is+the+delay+rate+by+carrier%3F"');
+    expect(html).toMatch(linkTo("/carriers", "All 9 carriers"));
   });
 
   it("gives the plan for the next 3 months, its breakdown and the method", () => {
     const forecast = section(html, "forecast-title");
     expect(forecast).toContain("Demand forecast All products · units ordered per month 3-month moving average");
     expect(forecast).toContain("Units to plan for, Jan–Mar 2026 405 285 forecast + 120 safety stock");
+    expect(html).toMatch(linkTo("/forecast", "Forecast details"));
+  });
+
+  it("links the outcomes chart to the Delivery page (ticket 25)", () => {
+    expect(html).toMatch(linkTo("/delivery", "Delivery details"));
   });
 
   it("keeps the forecast line's values in a data table: units ordered, then the forecast with its 95% range", () => {
