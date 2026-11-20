@@ -1,5 +1,7 @@
 import { type ChartType, chooseChart, MAX_CATEGORY_BARS } from "./chart";
-import type { QueryResult } from "./query";
+import { getDataset } from "@/domain/orders";
+import { type NoDataResult, type QueryResult, runQuery } from "./query";
+import { templateSentence } from "./sentence";
 import { ASSUMED_METRIC, type GroupBy, isTimeDimension, type QuerySpec } from "./spec";
 import { DIMENSION_WORDS, dateFieldWords, filterList, MONTH_NAMES } from "./words";
 
@@ -21,7 +23,13 @@ export interface FollowUp {
   spec: QuerySpec;
 }
 
+/** Who wrote an answer's opening sentence. */
+export type SentenceSource = "model" | "template";
+
 export interface Answer extends QueryResult {
+  /** The opening sentence: the model's when it passed the number guard, otherwise the code template. */
+  sentence: string;
+  sentenceSource: SentenceSource;
   interpretation: string;
   /** How an ambiguous word in the question was read, when a default was applied (ADR 0006 §8). */
   assumptionNote?: string;
@@ -112,10 +120,18 @@ export function followUpsFor(result: QueryResult): FollowUp[] {
   return followUps;
 }
 
+/** A validated spec, run over the dataset and presented: what /api/run and /api/ask both answer with. */
+export function answerQuery(spec: QuerySpec): Answer | NoDataResult {
+  const result = runQuery(spec, getDataset());
+  return result.kind === "result" ? presentAnswer(result) : result;
+}
+
 export function presentAnswer(result: QueryResult): Answer {
   const assumption = result.spec.assumption;
   return {
     ...result,
+    sentence: templateSentence(result),
+    sentenceSource: "template",
     interpretation: describeQuery(result),
     assumptionNote: assumption === undefined ? undefined : ASSUMPTION_NOTES[assumption],
     chart: chartFor(result),

@@ -213,7 +213,8 @@ function AnswerCard({ answer, onFollowUp }: { answer: Answer } & Pick<AnswerActi
   const chart = answerChartProps(answer);
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
-      <p className="text-sm text-slate-700">{answer.interpretation}</p>
+      <p className="text-base text-slate-900">{answer.sentence}</p>
+      <p className="mt-1 text-sm text-slate-600">{answer.interpretation}</p>
       {answer.assumptionNote === undefined ? null : <p className="mt-1 text-sm text-slate-600">{answer.assumptionNote}</p>}
       <div className="mt-3">{chart === null ? <ValueCard answer={answer} /> : <Chart {...chart} />}</div>
       {answer.chart.hiddenRows > 0 ? (

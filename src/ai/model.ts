@@ -1,7 +1,9 @@
 import { createInterpretationCache } from "./cache";
 import { AiError, createClient, type LlmClient } from "./client";
 import { configuredModel, type LlmConfig, readLlmConfig } from "./config";
+import type { Answer } from "@/tools/answer";
 import { type InterpretOutcome, interpret } from "./interpret";
+import { type Phrased, phrase } from "./phrase";
 
 /**
  * The app's one connection to the model. The configuration is read on each question, so a key
@@ -29,6 +31,17 @@ function connection(): { config: LlmConfig; client: LlmClient } {
 export function interpretQuestion(question: string): Promise<InterpretOutcome> {
   const { config, client } = connection();
   return interpret(question, client, config.responseMode);
+}
+
+/** The answer's sentence from the model, or its template when the AI is not configured or fails. */
+export function phraseAnswer(question: string, answer: Answer): Promise<Phrased> {
+  let client: LlmClient;
+  try {
+    client = connection().client;
+  } catch {
+    return Promise.resolve({ sentence: answer.sentence, source: answer.sentenceSource, cacheable: false });
+  }
+  return phrase(question, answer, client);
 }
 
 /** The configured model name, part of the cache key. */

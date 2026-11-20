@@ -266,6 +266,21 @@ function sortRows(rows: readonly ResultRow[], direction: "asc" | "desc"): Result
   });
 }
 
+/** The first `limit` rows, and any further rows tied with the last of them: a limit never cuts a tie. */
+function limitKeepingTies(rows: readonly ResultRow[], limit: number): ResultRow[] {
+  const last = rows[limit - 1];
+  if (last === undefined) return [...rows];
+  let end = limit;
+  while (end < rows.length && rows[end]?.value === last.value && last.value !== null) end += 1;
+  return rows.slice(0, end);
+}
+
+/** Ties exist only in an order by value; in calendar order, equal neighbours are no tie. */
+function applyLimit(rows: readonly ResultRow[], limit: number | undefined, byValue: boolean): ResultRow[] {
+  if (limit === undefined) return [...rows];
+  return byValue ? limitKeepingTies(rows, limit) : rows.slice(0, limit);
+}
+
 /** ADR 0001 §6: rank every group, flag small samples, and decide which case the answer is in. */
 function rank(rows: readonly ResultRow[]): Ranking | undefined {
   const [top] = rows;
@@ -308,7 +323,9 @@ export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | 
   const grouped = groupRows(spec.groupBy, metric, scope).filter((row) => minDelivered === undefined || row.n >= minDelivered);
 
   const isCategory = spec.groupBy !== undefined && !isTimeDimension(spec.groupBy);
-  const sorted = isCategory || spec.sort !== undefined ? sortRows(grouped, spec.sort ?? "desc") : grouped;
+  const byValue = isCategory || spec.sort !== undefined;
+  const sorted = byValue ? sortRows(grouped, spec.sort ?? "desc") : grouped;
+  const limited = applyLimit(sorted, spec.limit, byValue);
 
   return {
     kind: "result",
@@ -319,7 +336,7 @@ export function runQuery(validSpec: QuerySpec, dataset: Dataset): QueryResult | 
     period: { ...period, label: formatPeriod(period) },
     coverage: { ...coverage, label: formatPeriod(coverage) },
     rewrite,
-    rows: spec.limit === undefined ? sorted : sorted.slice(0, spec.limit),
+    rows: limited,
     totalRows: sorted.length,
     ranking: isCategory && isRateOrAverage(metric.info.kind) ? rank(sorted) : undefined,
     matchingOrders: listMatchingOrders(metric, scope),

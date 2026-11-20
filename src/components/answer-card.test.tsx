@@ -110,6 +110,14 @@ describe("safety and errors", () => {
     expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
   });
 
+  it("opens the answer with its sentence, rendered as text", () => {
+    const answer = answerFor({ metric: "delayed_orders", period: { type: "previous", unit: "month" } });
+    expect(textOf(render(answer)).trim().startsWith("Delayed orders: 3 in 1–30 Nov 2025, by delivery date.")).toBe(true);
+    const html = render({ ...answer, sentence: '<b onclick="steal()">3</b> orders were late.', sentenceSource: "model" });
+    expect(html).not.toContain("<b onclick");
+    expect(html).toContain("&lt;b onclick=&quot;steal()&quot;&gt;3&lt;/b&gt; orders were late.");
+  });
+
   it("shows the messages the API returned", () => {
     const html = renderToStaticMarkup(
       <AnswerOutcome

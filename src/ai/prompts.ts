@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Answer } from "@/tools/answer";
 import { EXAMPLE_IDS, UNSUPPORTED_REASONS } from "@/tools/examples";
 import { DIMENSION_VALUES, type Interpretation, interpretationSchema, METRIC_GUIDE } from "@/tools/spec";
 import type { ChatMessage } from "./client";
@@ -9,7 +10,7 @@ import type { ChatMessage } from "./client";
  * date: periods stay symbolic and code resolves them (ADR 0002 §1). Bump PROMPT_VERSION whenever
  * this file changes, so cached interpretations from the old prompt are not reused.
  */
-export const PROMPT_VERSION = "interpret-1";
+export const PROMPT_VERSION = "prompts-2";
 
 let jsonSchema: unknown;
 
@@ -135,6 +136,44 @@ export function interpretMessages(question: string): ChatMessage[] {
   return [
     { role: "system", content: systemPrompt() },
     { role: "user", content: question },
+  ];
+}
+
+/** ADR 0001 §6, in words for the phrase call. */
+function smallSampleCase(answer: Answer): string {
+  const { ranking } = answer;
+  if (ranking === undefined) return "No ranking: nothing to flag.";
+  switch (ranking.case) {
+    case "reliable":
+      return `The top group, ${ranking.top.label}, has at least ${ranking.minDelivered} delivered orders, so it can be named as the top.`;
+    case "small-sample-top":
+      return `The top group, ${ranking.top.label}, is a small sample: say so, and also name ${ranking.topReliable?.label ?? "the top group"} as the top among groups with at least ${ranking.minDelivered} delivered orders.`;
+    case "no-reliable-group":
+      return `No group has at least ${ranking.minDelivered} delivered orders: name no winner, say the ranking is not reliable, and mention the top group only as a small sample.`;
+  }
+}
+
+const PHRASE_SYSTEM = `You write the opening of an answer about a dataset of logistics orders: one or two plain sentences that answer the question from the facts you are given.
+- Use only numbers that appear in the facts, written exactly as they appear there: the same digits, decimals, commas and % sign.
+- Write every number as digits. Never write a number as a word, and never say "twice", "half", "double" or the like.
+- Compute nothing: no sums, differences, averages or percentages that are not already in the facts.
+- When the facts flag a small sample, say so.
+- Name every group tied at the top, and, when the top group is a small sample, also the top group with enough deliveries.
+- Plain text only: no markdown, no lists, no greeting, no quotes around the answer.`;
+
+/** The phrase call (ADR 0009 §4, §10): the question, the spec in words, the definition, the small-sample case, and the facts. */
+export function phraseMessages(question: string, answer: Answer, facts: readonly string[]): ChatMessage[] {
+  const content = [
+    `Question: ${question}`,
+    `What was computed: ${answer.interpretation}`,
+    `Definition: ${answer.metric.definition}`,
+    `Small-sample case: ${smallSampleCase(answer)}`,
+    "Facts:",
+    ...facts,
+  ].join("\n");
+  return [
+    { role: "system", content: PHRASE_SYSTEM },
+    { role: "user", content },
   ];
 }
 

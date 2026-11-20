@@ -181,6 +181,27 @@ describe("every group is ranked (ADR 0001 §6)", () => {
   });
 });
 
+describe("a limit never cuts through a tie", () => {
+  it("keeps every destination tied for first: Boston, MA and Leeds, UK with 15 orders each", () => {
+    const result = resultOf({ metric: "order_count", groupBy: "destination", sort: "desc", limit: 1 });
+    expect(result.rows.map((row) => [row.label, row.value])).toEqual([
+      ["Boston, MA", 15],
+      ["Leeds, UK", 15],
+    ]);
+    expect(result.totalRows).toBe(47);
+  });
+
+  it("keeps exactly the limit for time in calendar order, where equal neighbours are no tie", () => {
+    const months = resultOf({ metric: "delayed_orders", groupBy: "month", limit: 7 }).rows;
+    expect(months.map((row) => row.label).slice(-2)).toEqual(["Jun 2025", "Jul 2025"]);
+    expect(months).toHaveLength(7);
+  });
+
+  it("keeps exactly the limit when the next group is not tied", () => {
+    expect(resultOf({ metric: "order_count", groupBy: "carrier", limit: 2 }).rows.map((row) => row.label)).toEqual(["FedEx", "UPS"]);
+  });
+});
+
 describe("only groups with enough deliveries (minDelivered)", () => {
   it("keeps the 7 carriers with at least 20 deliveries, so USPS (11/47) tops a reliable ranking", () => {
     const result = resultOf({ metric: "delay_rate", groupBy: "carrier", minDelivered: 20 });

@@ -2,16 +2,27 @@ import { describe, expect, it } from "vitest";
 import { AiError } from "@/ai/client";
 import { createInterpretationCache } from "@/ai/cache";
 import type { InterpretOutcome } from "@/ai/interpret";
+import type { Phrased } from "@/ai/phrase";
 import type { Interpretation } from "@/tools/spec";
 import { handleAsk } from "./handle-ask";
 
-/** The handler with a fake interpreter that answers every question with `outcome`, counting calls. */
-function setup(outcome: () => Promise<InterpretOutcome>) {
+const MODEL_SENTENCE = "3 orders were delivered late in 1–30 Nov 2025.";
+
+/**
+ * The handler with a fake interpreter that answers every question with `outcome`, and a fake
+ * phrase step that writes MODEL_SENTENCE (or fails), counting calls to both.
+ */
+function setup(outcome: () => Promise<InterpretOutcome>, phrasing: () => Promise<Phrased> = async () => ({ sentence: MODEL_SENTENCE, source: "model", cacheable: true })) {
   let calls = 0;
+  let phraseCalls = 0;
   const deps = {
     interpret: async () => {
       calls += 1;
       return outcome();
+    },
+    phrase: async () => {
+      phraseCalls += 1;
+      return phrasing();
     },
     modelName: () => "fake-model",
     cache: createInterpretationCache(),
@@ -24,7 +35,7 @@ function setup(outcome: () => Promise<InterpretOutcome>) {
     const body: unknown = await response.json();
     return { status: response.status, body };
   };
-  return { ask, calls: () => calls };
+  return { ask, calls: () => calls, phraseCalls: () => phraseCalls };
 }
 
 const interpreted = (interpretation: Interpretation) => async (): Promise<InterpretOutcome> => ({
@@ -70,6 +81,50 @@ describe("POST /api/ask: the answer (R3, R7)", () => {
     expect(again.body).toMatchObject({ kind: "result", cached: true, rows: [{ value: 3 }] });
     expect((await ask("How many orders were delivered late last month…,")).body).toMatchObject({ cached: true });
     expect(calls()).toBe(1);
+  });
+
+  it("opens the answer with the phrased sentence (ADR 0009 §4)", async () => {
+    const { ask } = setup(interpreted(LATE_LAST_MONTH));
+    expect((await ask("How many orders were delivered late last month?")).body).toMatchObject({
+      sentence: MODEL_SENTENCE,
+      sentenceSource: "model",
+    });
+  });
+
+  it("caches the sentence with the spec, so a repeated question makes no second model call of either kind", async () => {
+    const { ask, calls, phraseCalls } = setup(interpreted(LATE_LAST_MONTH));
+    await ask("How many orders were delivered late last month?");
+    expect((await ask("how many orders were delivered late last month")).body).toMatchObject({ cached: true, sentence: MODEL_SENTENCE });
+    expect([calls(), phraseCalls()]).toEqual([1, 1]);
+  });
+
+  it("does not cache a template that stood in for a failed phrase call, so the next ask tries again", async () => {
+    const { ask, phraseCalls } = setup(interpreted(LATE_LAST_MONTH), async () => ({
+      sentence: "Delayed orders: 3 in 1–30 Nov 2025, by delivery date.",
+      source: "template",
+      cacheable: false,
+    }));
+    await ask("How many orders were delivered late last month?");
+    expect((await ask("How many orders were delivered late last month?")).body).toMatchObject({ cached: true });
+    expect(phraseCalls()).toBe(2);
+  });
+
+  it("still answers, with the template sentence, when the phrase step fails", async () => {
+    const { ask } = setup(interpreted(LATE_LAST_MONTH), async () => {
+      throw new Error("phrase call failed");
+    });
+    expect((await ask("How many orders were delivered late last month?")).body).toMatchObject({
+      kind: "result",
+      rows: [{ value: 3 }],
+      sentence: "Delayed orders: 3 in 1–30 Nov 2025, by delivery date.",
+      sentenceSource: "template",
+    });
+  });
+
+  it("makes no phrase call for a question that has no result to phrase", async () => {
+    const { ask, phraseCalls } = setup(interpreted({ tool: "forecast", scope: { type: "total" } }));
+    await ask("How much inventory should I plan?");
+    expect(phraseCalls()).toBe(0);
   });
 
   it('answers a forecast with an honest "not available yet"', async () => {

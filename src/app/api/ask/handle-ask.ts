@@ -2,20 +2,22 @@ import { z } from "zod";
 import { AiError } from "@/ai/client";
 import type { InterpretationCache } from "@/ai/cache";
 import type { InterpretOutcome } from "@/ai/interpret";
-import { getDataset } from "@/domain/orders";
-import { type Answer, presentAnswer } from "@/tools/answer";
+import type { Phrased } from "@/ai/phrase";
+import { type Answer, answerQuery } from "@/tools/answer";
 import { EXAMPLE_QUESTIONS, type ExampleId, MAX_QUESTION_LENGTH, UNSUPPORTED_REASONS } from "@/tools/examples";
-import { type NoDataResult, runQuery } from "@/tools/query";
+import type { NoDataResult } from "@/tools/query";
 import type { Interpretation } from "@/tools/spec";
 import { errorResponse, readJsonBody } from "../body";
 
 /**
  * POST /api/ask {question}: the flow of R7. Question → AI interpretation (cached) → tool → computed
- * result → answer. The model only chooses and fills in the spec; every number comes from the tools.
+ * result → a sentence phrased from the result and checked by the number guard → answer. The model
+ * chooses the spec and words the sentence; every number comes from the tools.
  */
 
 export interface AskDependencies {
   interpret: (question: string) => Promise<InterpretOutcome>;
+  phrase: (question: string, answer: Answer) => Promise<Phrased>;
   modelName: () => string;
   cache: InterpretationCache;
 }
@@ -41,13 +43,11 @@ function exampleQuestions(ids: readonly ExampleId[]): string[] {
   return ids.map((id) => EXAMPLE_QUESTIONS[id]);
 }
 
-/** The answer to an interpretation, computed by the tools. */
+/** The answer to an interpretation, computed by the tools, with the template sentence. */
 function answerFor(interpretation: Interpretation): AskAnswer {
   switch (interpretation.tool) {
-    case "query": {
-      const result = runQuery(interpretation, getDataset());
-      return result.kind === "result" ? presentAnswer(result) : result;
-    }
+    case "query":
+      return answerQuery(interpretation);
     case "forecast":
       return { kind: "unavailable", message: FORECAST_NOT_AVAILABLE };
     case "unsupported":
@@ -56,6 +56,19 @@ function answerFor(interpretation: Interpretation): AskAnswer {
         message: UNSUPPORTED_REASONS[interpretation.reason],
         examples: exampleQuestions(interpretation.examples),
       };
+  }
+}
+
+function withSentence(answer: Answer, phrased: Phrased): Answer {
+  return { ...answer, sentence: phrased.sentence, sentenceSource: phrased.source };
+}
+
+/** The model's sentence, or the template already on the answer if the phrase step fails outright. */
+async function phraseSafely(dependencies: AskDependencies, question: string, answer: Answer): Promise<Phrased> {
+  try {
+    return await dependencies.phrase(question, answer);
+  } catch {
+    return { sentence: answer.sentence, source: answer.sentenceSource, cacheable: false };
   }
 }
 
@@ -68,8 +81,15 @@ export async function handleAsk(request: Request, dependencies: AskDependencies)
 
   const reply = (answer: AskAnswer, cached: boolean) => Response.json({ ...answer, cached });
   const model = dependencies.modelName();
-  const cached = dependencies.cache.get(question, model);
-  if (cached !== undefined) return reply(answerFor(cached), true);
+  const hit = dependencies.cache.get(question, model);
+  if (hit !== undefined) {
+    const answer = answerFor(hit.interpretation);
+    if (answer.kind !== "result") return reply(answer, true);
+    // A question cached without its sentence (the phrase call had failed) is phrased again.
+    const phrased = hit.phrased ?? (await phraseSafely(dependencies, question, answer));
+    if (hit.phrased === undefined && phrased.cacheable) dependencies.cache.set(question, model, { ...hit, phrased });
+    return reply(withSentence(answer, phrased), true);
+  }
 
   let outcome: InterpretOutcome;
   try {
@@ -81,6 +101,14 @@ export async function handleAsk(request: Request, dependencies: AskDependencies)
   if (outcome.kind === "failed") {
     return reply({ kind: "unsupported", message: outcome.message, examples: exampleQuestions(outcome.examples) }, false);
   }
-  dependencies.cache.set(question, model, outcome.interpretation);
-  return reply(answerFor(outcome.interpretation), false);
+
+  const { interpretation } = outcome;
+  const answer = answerFor(interpretation);
+  if (answer.kind !== "result") {
+    dependencies.cache.set(question, model, { interpretation });
+    return reply(answer, false);
+  }
+  const phrased = await phraseSafely(dependencies, question, answer);
+  dependencies.cache.set(question, model, phrased.cacheable ? { interpretation, phrased } : { interpretation });
+  return reply(withSentence(answer, phrased), false);
 }

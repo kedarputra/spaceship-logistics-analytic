@@ -17,7 +17,7 @@ The reviewer agent loads this file. The stack is chosen during planning (see `do
 
 ## AI usage in code
 
-- LLM calls request structured output and are validated before use. Malformed output is retried once, then the user gets an honest error.
+- LLM calls request structured output and are validated before use. Malformed output is retried once, then the user gets an honest error. The one exception is the answer sentence (ADR 0009 §4): plain text, checked by the number guard, and replaced by a code template instead of retried.
 - Prompts and model IDs live in one place. The model is read from configuration, never hard-coded in several files.
 - When a question is ambiguous or out of scope, say so and suggest a supported question instead of improvising an answer.
 
