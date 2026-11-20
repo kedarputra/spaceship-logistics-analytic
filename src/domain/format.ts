@@ -32,6 +32,11 @@ export function formatMetricValue(value: number | null, unit: MetricDefinition["
   }
 }
 
+/** A forecast or an error in units, to 1 decimal on screen and 2 in an explanation: 95 → "95.0", 1234.56 → "1,234.6". */
+export function formatDecimal(value: number, decimals: 1 | 2 = 1): string {
+  return value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
 /** A rate given as a fraction: 0.8216 → "82.2%". */
 export function formatPercent(value: number | null): string {
   return formatMetricValue(value, "percent");

@@ -2,9 +2,11 @@ import { z } from "zod";
 import { AiError } from "@/ai/client";
 import type { InterpretationCache } from "@/ai/cache";
 import type { InterpretOutcome } from "@/ai/interpret";
-import type { Phrased } from "@/ai/phrase";
-import { type Answer, answerQuery } from "@/tools/answer";
+import type { PhraseableAnswer, Phrased } from "@/ai/phrase";
+import { answerQuery } from "@/tools/answer";
 import { EXAMPLE_QUESTIONS, type ExampleId, MAX_QUESTION_LENGTH, UNSUPPORTED_REASONS } from "@/tools/examples";
+import type { ForecastUnavailable } from "@/tools/forecast";
+import { answerForecast } from "@/tools/forecast-answer";
 import type { NoDataResult } from "@/tools/query";
 import type { Interpretation } from "@/tools/spec";
 import { errorResponse, readJsonBody } from "../body";
@@ -17,17 +19,13 @@ import { errorResponse, readJsonBody } from "../body";
 
 export interface AskDependencies {
   interpret: (question: string) => Promise<InterpretOutcome>;
-  phrase: (question: string, answer: Answer) => Promise<Phrased>;
+  phrase: (question: string, answer: PhraseableAnswer) => Promise<Phrased>;
   modelName: () => string;
   cache: InterpretationCache;
 }
 
 /** What /api/ask answers with, besides errors; `cached` says whether the interpretation came from the cache. */
-type AskAnswer =
-  | Answer
-  | NoDataResult
-  | { kind: "unavailable"; message: string }
-  | { kind: "unsupported"; message: string; examples: string[] };
+type AskAnswer = PhraseableAnswer | NoDataResult | ForecastUnavailable | { kind: "unsupported"; message: string; examples: string[] };
 
 const requestSchema = z.strictObject({
   question: z
@@ -36,8 +34,6 @@ const requestSchema = z.strictObject({
     .min(1, "Ask a question first.")
     .max(MAX_QUESTION_LENGTH, `Questions can be up to ${MAX_QUESTION_LENGTH} characters.`),
 });
-
-const FORECAST_NOT_AVAILABLE = "Demand forecasts are not available yet. Questions about past orders work.";
 
 function exampleQuestions(ids: readonly ExampleId[]): string[] {
   return ids.map((id) => EXAMPLE_QUESTIONS[id]);
@@ -49,7 +45,7 @@ function answerFor(interpretation: Interpretation): AskAnswer {
     case "query":
       return answerQuery(interpretation);
     case "forecast":
-      return { kind: "unavailable", message: FORECAST_NOT_AVAILABLE };
+      return answerForecast(interpretation);
     case "unsupported":
       return {
         kind: "unsupported",
@@ -59,12 +55,17 @@ function answerFor(interpretation: Interpretation): AskAnswer {
   }
 }
 
-function withSentence(answer: Answer, phrased: Phrased): Answer {
+/** A query answer or a forecast: what opens with a sentence to phrase. */
+function isPhraseable(answer: AskAnswer): answer is PhraseableAnswer {
+  return answer.kind === "result" || answer.kind === "forecast";
+}
+
+function withSentence<T extends PhraseableAnswer>(answer: T, phrased: Phrased): T {
   return { ...answer, sentence: phrased.sentence, sentenceSource: phrased.source };
 }
 
 /** The model's sentence, or the template already on the answer if the phrase step fails outright. */
-async function phraseSafely(dependencies: AskDependencies, question: string, answer: Answer): Promise<Phrased> {
+async function phraseSafely(dependencies: AskDependencies, question: string, answer: PhraseableAnswer): Promise<Phrased> {
   try {
     return await dependencies.phrase(question, answer);
   } catch {
@@ -84,7 +85,7 @@ export async function handleAsk(request: Request, dependencies: AskDependencies)
   const hit = dependencies.cache.get(question, model);
   if (hit !== undefined) {
     const answer = answerFor(hit.interpretation);
-    if (answer.kind !== "result") return reply(answer, true);
+    if (!isPhraseable(answer)) return reply(answer, true);
     // A question cached without its sentence (the phrase call had failed) is phrased again.
     const phrased = hit.phrased ?? (await phraseSafely(dependencies, question, answer));
     if (hit.phrased === undefined && phrased.cacheable) dependencies.cache.set(question, model, { ...hit, phrased });
@@ -104,7 +105,7 @@ export async function handleAsk(request: Request, dependencies: AskDependencies)
 
   const { interpretation } = outcome;
   const answer = answerFor(interpretation);
-  if (answer.kind !== "result") {
+  if (!isPhraseable(answer)) {
     dependencies.cache.set(question, model, { interpretation });
     return reply(answer, false);
   }

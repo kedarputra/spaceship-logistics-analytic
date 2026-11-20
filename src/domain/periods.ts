@@ -168,6 +168,21 @@ export function buckets(period: Period, unit: BucketUnit): Bucket[] {
   return result;
 }
 
+/** The `count` whole months after the month that starts on `monthKey`, such as the months a forecast covers. */
+export function monthsAfter(monthKey: string, count: number): Bucket[] {
+  if (count < 1) return [];
+  return buckets({ from: addMonths(monthKey, 1), to: unitEnd(addMonths(monthKey, count), "month") }, "month");
+}
+
+/** "Jan–Mar 2026", "Dec 2025–Feb 2026", or "Jan 2026" for one month, from the first days of two months. */
+export function formatMonths(fromKey: string, toKey: string): string {
+  const [, fromMonth, fromYear] = formatDate(fromKey).split(" ");
+  const [, toMonth, toYear] = formatDate(toKey).split(" ");
+  if (fromKey.slice(0, 7) === toKey.slice(0, 7)) return `${toMonth} ${toYear}`;
+  if (fromYear !== toYear) return `${fromMonth} ${fromYear}–${toMonth} ${toYear}`;
+  return `${fromMonth}–${toMonth} ${toYear}`;
+}
+
 /**
  * Sorts items into the buckets of a period by the date `dateOf` picks. Items with no date or a
  * date outside the period are left out; a bucket with no items is kept, empty.

@@ -121,18 +121,41 @@ describe("POST /api/ask: the answer (R3, R7)", () => {
     });
   });
 
+  it("runs a total forecast through the forecast tool and opens it with the phrased sentence (ADR 0003)", async () => {
+    const sentence = "Over Jan–Mar 2026, plan for 405 units: 285 forecast plus 120 safety stock.";
+    const { ask, calls, phraseCalls } = setup(interpreted({ tool: "forecast", scope: { type: "total" } }), async () => ({
+      sentence,
+      source: "model",
+      cacheable: true,
+    }));
+    const { status, body } = await ask("How much inventory should I plan for the next 3 months?");
+    expect(status).toBe(200);
+    expect(body).toMatchObject({
+      kind: "forecast",
+      cached: false,
+      monthsLabel: "Jan–Mar 2026",
+      recommendation: { units: 405, demand: 285, safetyStock: 120 },
+      method: { id: "moving_average" },
+      sentence,
+      sentenceSource: "model",
+    });
+    // Asked again: the spec and the sentence come from the cache, with no model call of either kind.
+    expect((await ask("How much inventory should I plan for the next 3 months?")).body).toMatchObject({ kind: "forecast", cached: true, sentence });
+    expect([calls(), phraseCalls()]).toEqual([1, 1]);
+  });
+
   it("makes no phrase call for a question that has no result to phrase", async () => {
-    const { ask, phraseCalls } = setup(interpreted({ tool: "forecast", scope: { type: "total" } }));
-    await ask("How much inventory should I plan?");
+    const { ask, phraseCalls } = setup(interpreted({ tool: "forecast", scope: { type: "category", value: "CRAYON" } }));
+    await ask("How many crayons should I plan for?");
     expect(phraseCalls()).toBe(0);
   });
 
-  it('answers a forecast with an honest "not available yet"', async () => {
-    const { ask } = setup(interpreted({ tool: "forecast", scope: { type: "total" } }));
-    expect((await ask("How much inventory should I plan?")).body).toEqual({
+  it('answers a category, warehouse, region or SKU forecast with an honest "not available yet"', async () => {
+    const { ask } = setup(interpreted({ tool: "forecast", scope: { type: "warehouse", value: "LON-FC1" } }));
+    expect((await ask("How much stock should LON-FC1 plan for?")).body).toEqual({
       kind: "unavailable",
       cached: false,
-      message: "Demand forecasts are not available yet. Questions about past orders work.",
+      message: expect.stringContaining("not available yet"),
     });
   });
 

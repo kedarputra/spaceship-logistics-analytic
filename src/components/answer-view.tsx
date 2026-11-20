@@ -2,6 +2,7 @@
 
 import { type FormEvent, useRef, useState } from "react";
 import type { Answer, FollowUp } from "@/tools/answer";
+import type { ForecastAnswer } from "@/tools/forecast-answer";
 import { EXAMPLE_QUESTIONS, MAX_QUESTION_LENGTH } from "@/tools/examples";
 import { AnswerOutcome, type AnswerOutcomeState } from "./answer-card";
 
@@ -19,6 +20,12 @@ function isAnswer(body: unknown): body is Answer {
   return isRecord(body) && body.kind === "result" && Array.isArray(body.rows) && Array.isArray(body.followUps);
 }
 
+function isForecast(body: unknown): body is ForecastAnswer {
+  return (
+    isRecord(body) && body.kind === "forecast" && Array.isArray(body.forecastMonths) && Array.isArray(body.candidates) && Array.isArray(body.history)
+  );
+}
+
 function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
@@ -31,6 +38,7 @@ function issueMessages(issues: unknown): string[] {
 /** What /api/run or /api/ask said, as one of the states the answer area shows. */
 function toOutcome(body: unknown): AnswerOutcomeState {
   if (isAnswer(body)) return { kind: "answer", answer: body };
+  if (isForecast(body)) return { kind: "forecast", forecast: body };
   if (!isRecord(body)) return UNREADABLE;
   if (typeof body.error === "string") return { kind: "error", message: body.error, details: issueMessages(body.issues) };
   if (typeof body.message !== "string") return UNREADABLE;

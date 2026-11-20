@@ -72,6 +72,43 @@ describe("POST /api/run: the answer around the numbers (ADR 0006 §6–8)", () =
   });
 });
 
+describe("POST /api/run: forecast specs (ADR 0003)", () => {
+  async function runForecast(spec: Record<string, unknown>): Promise<{ status: number; body: unknown }> {
+    const response = await post(JSON.stringify({ spec: { tool: "forecast", ...spec } }));
+    return { status: response.status, body: await response.json() };
+  }
+
+  it("forecasts total demand for 3 months: 405 units to plan for, opened by the template sentence", async () => {
+    const { status, body } = await runForecast({ scope: { type: "total" } });
+    expect(status).toBe(200);
+    expect(body).toMatchObject({
+      kind: "forecast",
+      monthsLabel: "Jan–Mar 2026",
+      recommendation: { units: 405, demand: 285, safetyStock: 120 },
+      sentence: "Over Jan–Mar 2026, demand is forecast at 285 units; with 120 units of safety stock, that is 405 units to plan for.",
+      sentenceSource: "template",
+    });
+  });
+
+  it("takes a horizon: 4 months plans 518 units", async () => {
+    expect((await runForecast({ scope: { type: "total" }, horizon: { count: 4, unit: "month" } })).body).toMatchObject({
+      recommendation: { units: 518, demand: 380, safetyStock: 138 },
+    });
+  });
+
+  it('answers a category forecast with "not available yet"', async () => {
+    expect((await runForecast({ scope: { type: "category", value: "CRAYON" } })).body).toEqual({
+      kind: "unavailable",
+      message: expect.stringContaining("not available yet"),
+    });
+  });
+
+  it("rejects a forecast spec outside the whitelist", async () => {
+    expect((await runForecast({ scope: { type: "total" }, horizon: { count: 0, unit: "month" } })).status).toBe(400);
+    expect((await runForecast({ scope: { type: "client", value: "CL-1001" } })).status).toBe(400);
+  });
+});
+
 describe("POST /api/run: what it refuses (ADR 0009 §7–8)", () => {
   it("rejects a body over 16 KB from its declared length, before reading it", async () => {
     const response = await post("{}", { "content-length": String(16 * 1024 + 1) });

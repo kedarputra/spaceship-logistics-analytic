@@ -246,5 +246,6 @@ export function isTimeDimension(
 
 export type QuerySpec = z.output<typeof querySpecSchema>;
 export type QueryFilters = z.output<typeof filtersSchema>;
+export type ForecastSpec = z.output<typeof forecastSpecSchema>;
 export type GroupBy = NonNullable<QuerySpec["groupBy"]>;
 export type Interpretation = z.output<typeof interpretationSchema>;

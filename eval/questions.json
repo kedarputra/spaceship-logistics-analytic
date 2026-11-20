@@ -187,6 +187,20 @@
       }
     },
     {
+      "id": "forecast-total-weeks",
+      "question": "How many units should we plan for over the next 6 weeks?",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "total"
+        },
+        "horizon": {
+          "count": 6,
+          "unit": "week"
+        }
+      }
+    },
+    {
       "id": "forecast-warehouse",
       "question": "What demand should warehouse ATL-DC1 expect?",
       "expected": {

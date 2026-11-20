@@ -53,6 +53,15 @@ export function checkWording(
   return { ok: true };
 }
 
+// ADR 0003 §7: a plan is units to plan for, never an order to place; the data has no stock on hand.
+const ORDERING_WORDS = /\b(?:re-?order\w*|restock\w*|replenish\w*|purchas\w*|buy|buying)\b/i;
+
+/** Wording of a forecast sentence the number guard cannot see: the plan read as an order to place. */
+export function checkPlanWording(sentence: string): GuardVerdict {
+  const word = ORDERING_WORDS.exec(sentence);
+  return word === null ? { ok: true } : { ok: false, reason: `"${word[0]}" reads the plan as an order to place` };
+}
+
 function numbersIn(text: string): string[] {
   return text.match(NUMBER) ?? [];
 }

@@ -1,13 +1,15 @@
-import type { ReactNode } from "react";
 import { isRateOrAverage, SMALL_SAMPLE_MIN_DELIVERED } from "@/domain/definitions";
 import { formatCount, formatMetricValue } from "@/domain/format";
 import { formatPeriod } from "@/domain/periods";
 import type { Answer, FollowUp } from "@/tools/answer";
+import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { ResultRow } from "@/tools/query";
 import type { QuerySpec } from "@/tools/spec";
 import { DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "@/tools/words";
 import { answerChartProps } from "./answer-chart";
 import { Chart } from "./chart";
+import { ForecastCard } from "./forecast-card";
+import { Fact, Table, type TextTable } from "./text-table";
 
 /**
  * An answer as the user sees it: the number or chart, the table, the follow-up chips, and the
@@ -18,11 +20,12 @@ export type AnswerOutcomeState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "answer"; answer: Answer }
+  | { kind: "forecast"; forecast: ForecastAnswer }
   | { kind: "no-data"; message: string }
   | { kind: "error"; message: string; details: string[] }
   /** Out of scope, or the model could not produce a valid spec: why, and questions that work. */
   | { kind: "unsupported"; message: string; examples: string[] }
-  /** A tool that does not exist yet, such as the forecast. */
+  /** What a tool does not cover yet, such as a category forecast. */
   | { kind: "unavailable"; message: string };
 
 interface AnswerActions {
@@ -59,11 +62,6 @@ function note(row: ResultRow): string {
   return notes.join("; ");
 }
 
-interface TextTable {
-  headers: string[];
-  rows: string[][];
-}
-
 /** The result as rows of text, leaving out the note column when no row has a note. */
 function resultTable(answer: Answer, decimals: 1 | 2): TextTable {
   const table = resultTableWithNotes(answer, decimals);
@@ -98,33 +96,6 @@ function resultTableWithNotes(answer: Answer, decimals: 1 | 2): TextTable {
   return { headers: [first, metric.label, "Note"], rows: answer.rows.map((row) => [row.label, value(row), note(row)]) };
 }
 
-function Table({ headers, rows }: TextTable) {
-  return (
-    <table className="mt-2 w-full text-left text-sm tabular-nums">
-      <thead>
-        <tr>
-          {headers.map((header, index) => (
-            <th key={`${index}-${header}`} scope="col" className="border-b border-slate-200 py-1 pr-4 font-medium text-slate-600">
-              {header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((cells, rowIndex) => (
-          <tr key={`${rowIndex}-${cells[0]}`}>
-            {cells.map((cell, index) => (
-              <td key={`${index}-${headers[index]}`} className="border-b border-slate-100 py-1 pr-4">
-                {cell}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 /** A single value, shown as the number itself: "82.2% · 304 / 370". */
 function ValueCard({ answer }: { answer: Answer }) {
   const [row] = answer.rows;
@@ -150,15 +121,6 @@ function periodText(answer: Answer): string {
   const asked = periodWords(answer.requestedSpec.period);
   const dates = asked === undefined ? answer.period.label : `${asked} = ${answer.period.label}`;
   return `${dates}, filtered by ${dateFieldWords(answer.dateField)}`;
-}
-
-function Fact({ term, children }: { term: string; children: ReactNode }) {
-  return (
-    <div className="grid gap-1 sm:grid-cols-[8rem_1fr]">
-      <dt className="font-medium text-slate-600">{term}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
 }
 
 /** ADR 0006 §7: everything needed to check the number, collapsed by default. */
@@ -255,6 +217,8 @@ export function AnswerOutcome({ outcome, onFollowUp, onAsk }: { outcome: AnswerO
       return <p className="text-sm text-slate-500">Working on it…</p>;
     case "answer":
       return <AnswerCard answer={outcome.answer} onFollowUp={onFollowUp} />;
+    case "forecast":
+      return <ForecastCard forecast={outcome.forecast} />;
     case "no-data":
     case "unavailable":
       return <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{outcome.message}</p>;

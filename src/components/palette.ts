@@ -15,6 +15,9 @@ export const SERIES_COLORS = {
 /** Blue ramp step 250: the lightest step that still clears 2:1 on white. */
 export const SMALL_SAMPLE_BLUE = "#86b6ef";
 
+/** The series blue at 15% on white, solid so the legend swatch matches: a forecast's 95% range band. */
+export const RANGE_BLUE = "#dfebf9";
+
 export const CHART_INK = {
   grid: "#e1e0d9",
   axis: "#c3c2b7",

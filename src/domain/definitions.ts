@@ -293,6 +293,11 @@ function perBucket<T>(
   return groupByBucket(orders, dateOf, period, unit).map(({ bucket, items }) => ({ bucket, value: measure(items) }));
 }
 
+/** Units ordered per month (or week), dated by order_date: the demand series a forecast reads (ADR 0003 §1). */
+export function unitsOverTime(orders: readonly Order[], period: Period, unit: BucketUnit): BucketValue<number>[] {
+  return perBucket(orders, (order) => order.order_date, period, unit, units);
+}
+
 /** Orders per week or month, dated by order_date (ADR 0002 §5). Every status counts. */
 export function orderCountOverTime(orders: readonly Order[], period: Period, unit: BucketUnit): BucketValue<number>[] {
   return perBucket(orders, (order) => order.order_date, period, unit, (items) => items.length);

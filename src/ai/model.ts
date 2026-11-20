@@ -1,9 +1,8 @@
 import { createInterpretationCache } from "./cache";
 import { AiError, createClient, type LlmClient } from "./client";
 import { configuredModel, type LlmConfig, readLlmConfig } from "./config";
-import type { Answer } from "@/tools/answer";
 import { type InterpretOutcome, interpret } from "./interpret";
-import { type Phrased, phrase } from "./phrase";
+import { type PhraseableAnswer, type Phrased, phrase } from "./phrase";
 
 /**
  * The app's one connection to the model. The configuration is read on each question, so a key
@@ -34,7 +33,7 @@ export function interpretQuestion(question: string): Promise<InterpretOutcome> {
 }
 
 /** The answer's sentence from the model, or its template when the AI is not configured or fails. */
-export function phraseAnswer(question: string, answer: Answer): Promise<Phrased> {
+export function phraseAnswer(question: string, answer: PhraseableAnswer): Promise<Phrased> {
   let client: LlmClient;
   try {
     client = connection().client;

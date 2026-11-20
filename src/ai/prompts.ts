@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Answer } from "@/tools/answer";
 import { EXAMPLE_IDS, UNSUPPORTED_REASONS } from "@/tools/examples";
+import type { ForecastAnswer } from "@/tools/forecast-answer";
 import { DIMENSION_VALUES, type Interpretation, interpretationSchema, isTimeDimension, METRIC_GUIDE } from "@/tools/spec";
 import { DIMENSION_WORDS } from "@/tools/words";
 import type { ChatMessage } from "./client";
@@ -11,7 +12,7 @@ import type { ChatMessage } from "./client";
  * date: periods stay symbolic and code resolves them (ADR 0002 §1). Bump PROMPT_VERSION whenever
  * this file changes, so cached interpretations from the old prompt are not reused.
  */
-export const PROMPT_VERSION = "prompts-3";
+export const PROMPT_VERSION = "prompts-4";
 
 let jsonSchema: unknown;
 
@@ -67,6 +68,10 @@ export const PROMPT_EXAMPLES: readonly { question: string; spec: Interpretation 
     spec: { tool: "query", metric: "order_share", filters: { carrier: ["FedEx"] } },
   },
   {
+    question: "How much inventory should we plan for next quarter?",
+    spec: { tool: "forecast", scope: { type: "total" }, horizon: { count: 3, unit: "month" } },
+  },
+  {
     question: "Forecast crayon demand for the next 2 months",
     spec: { tool: "forecast", scope: { type: "category", value: "CRAYON" }, horizon: { count: 2, unit: "month" } },
   },
@@ -114,6 +119,10 @@ Rules for a query:
 - "Orders with status X" is order_count with a status filter.
 - Cities may be written by their short name ("Austin").
 
+Rules for a forecast:
+- "scope":{"type":"total"} for demand or inventory overall; a category, warehouse, region or SKU only when the question names one.
+- "next 2 months" = {"count":2,"unit":"month"}; "next quarter" = {"count":3,"unit":"month"}; "next 6 weeks" = {"count":6,"unit":"week"}. No horizon mentioned: leave "horizon" out.
+
 Metrics:
 ${metrics}
 
@@ -160,16 +169,28 @@ function smallSampleCase(answer: Answer): string {
   }
 }
 
-const PHRASE_SYSTEM = `You write the opening of an answer about a dataset of logistics orders: one or two plain sentences that answer the question from the facts you are given.
-- Use only numbers that appear in the facts, written exactly as they appear there: the same digits, decimals, commas and % sign.
+// The number rules every sentence follows, checked afterwards by the number guard (ADR 0009 §4).
+const NUMBER_RULES = `- Use only numbers that appear in the facts, written exactly as they appear there: the same digits, decimals, commas and % sign.
 - Write every number as digits. Never write a number as a word, and never say "twice", "half", "double" or the like.
-- Compute nothing: no sums, differences, averages or percentages that are not already in the facts.
+- Compute nothing: no sums, differences, averages or percentages that are not already in the facts.`;
+
+const PLAIN_TEXT_RULE = "- Plain text only: no markdown, no lists, no greeting, no quotes around the answer. End with a full stop.";
+
+const PHRASE_SYSTEM = `You write the opening of an answer about a dataset of logistics orders: one or two plain sentences that answer the question from the facts you are given.
+${NUMBER_RULES}
 - When the facts flag a small sample, say so.
 - Name every group tied at the top, and, when the top group is a small sample, also the top group with enough deliveries.
 - Describe the first group the way the "Order" fact says: with "lowest first" it is the lowest, fewest or fastest, never the highest, most or slowest; with "highest first" the other way round.
 - Copy every name exactly as the facts write it, not as the question spells it.
 - Never call a count a share, a rate or a percentage.
-- Plain text only: no markdown, no lists, no greeting, no quotes around the answer. End with a full stop.`;
+${PLAIN_TEXT_RULE}`;
+
+const FORECAST_PHRASE_SYSTEM = `You write the opening of an answer about a demand forecast for a dataset of logistics orders: one or two plain sentences that answer the question from the facts you are given.
+${NUMBER_RULES}
+- Give the months forecast, the forecast demand, and the units to plan for with the safety stock in them.
+- Call the plan "units to plan for". Never call it an order, a reorder, a purchase or stock to buy: the data has no stock on hand.
+- When the facts say the forecast is rough, say so with the word "rough".
+${PLAIN_TEXT_RULE}`;
 
 /** For a series over time: the overall figure and the extremes, not a list of every bucket (ticket 22). */
 function seriesInstruction(answer: Answer): string[] {
@@ -192,6 +213,15 @@ export function phraseMessages(question: string, answer: Answer, facts: readonly
   ].join("\n");
   return [
     { role: "system", content: PHRASE_SYSTEM },
+    { role: "user", content },
+  ];
+}
+
+/** The phrase call for a forecast: the question, the forecast in words, and its facts. */
+export function forecastPhraseMessages(question: string, answer: ForecastAnswer, facts: readonly string[]): ChatMessage[] {
+  const content = [`Question: ${question}`, `What was computed: ${answer.interpretation}`, "Facts:", ...facts].join("\n");
+  return [
+    { role: "system", content: FORECAST_PHRASE_SYSTEM },
     { role: "user", content },
   ];
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { type Answer, answerQuery } from "@/tools/answer";
+import { answerForecast, type ForecastAnswer, forecastFacts, presentForecast } from "@/tools/forecast-answer";
+import { forecastResultFor, ROUGH_SERIES } from "@/tools/forecast-fixtures";
 import { factsFor, templateSentence, wordingContext } from "@/tools/sentence";
-import { querySpecSchema } from "@/tools/spec";
+import { forecastSpecSchema, querySpecSchema } from "@/tools/spec";
 import { AiError, type CompletionRequest, type LlmClient } from "./client";
-import { checkNumbers, checkWording } from "./guard";
+import { checkNumbers, checkPlanWording, checkWording } from "./guard";
 import { phrase } from "./phrase";
 import { phraseMessages } from "./prompts";
 
@@ -150,6 +152,74 @@ describe("sentences that pass the number guard but are wrong or cut off (ticket 
     expect(await kept(promoOrders, "The share of orders that were promo orders is 22.")).toBe(false);
     expect(await kept(promoOrders, "The promo rate is 22.")).toBe(false);
     expect(await kept(promoOrders, "22 orders were promo orders.")).toBe(true);
+  });
+});
+
+function forecastAnswer(horizon?: Record<string, unknown>): ForecastAnswer {
+  const answer = answerForecast(forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" }, ...(horizon === undefined ? {} : { horizon }) }));
+  if (answer.kind !== "forecast") throw new Error(answer.message);
+  return answer;
+}
+
+/** WAPE 125%: a rough forecast. */
+function roughForecastAnswer(): ForecastAnswer {
+  return presentForecast(forecastResultFor(ROUGH_SERIES));
+}
+
+describe("phrase: a forecast → its opening sentence, with the same guard and fallbacks", () => {
+  const FORECAST_QUESTION = "How much stock should we plan for the next 3 months?";
+  const forecast = forecastAnswer();
+  const keptForecast = async (answer: ForecastAnswer, reply: string) =>
+    (await phrase(FORECAST_QUESTION, answer, fakeModel(reply).client)).source === "model";
+
+  it("asks with the question, the forecast in words and its facts, and says how to word the plan", async () => {
+    const { client, requests } = fakeModel("Over Jan–Mar 2026, demand is forecast at 285 units, so plan for 405 units.");
+    await phrase(FORECAST_QUESTION, forecast, client);
+    expect(requests[0]?.temperature).toBe(0.2);
+    const [system, user] = (requests[0]?.messages ?? []).map((message) => message.content);
+    expect(user).toContain(FORECAST_QUESTION);
+    expect(user).toContain(forecast.interpretation);
+    for (const fact of forecastFacts(forecast)) expect(user).toContain(fact);
+    expect(system).toContain('"units to plan for"');
+    expect(system).toContain("When the facts say the forecast is rough, say so");
+  });
+
+  it("keeps a sentence whose numbers are all in the facts", async () => {
+    const sentence = "Over Jan–Mar 2026, demand is forecast at 285 units, 95.0 a month; with 120 units of safety stock, plan for 405 units.";
+    expect(await phrase(FORECAST_QUESTION, forecast, fakeModel(sentence).client)).toEqual({ sentence, source: "model", cacheable: true });
+  });
+
+  it("falls back to the template for a number the forecast did not produce, or when the call fails", async () => {
+    expect(await phrase(FORECAST_QUESTION, forecast, fakeModel("Plan for 400 units over Jan–Mar 2026.").client)).toEqual({
+      sentence: forecast.sentence,
+      source: "template",
+      cacheable: true,
+    });
+    expect(await phrase(FORECAST_QUESTION, forecast, fakeModel(new AiError("busy")).client)).toEqual({
+      sentence: forecast.sentence,
+      source: "template",
+      cacheable: false,
+    });
+  });
+
+  it("drops a sentence that turns the plan into an order to place (ADR 0003 §7)", async () => {
+    expect(await keptForecast(forecast, "Reorder 405 units for Jan–Mar 2026.")).toBe(false);
+    expect(await keptForecast(forecast, "You should buy 405 units for Jan–Mar 2026.")).toBe(false);
+    expect(await keptForecast(forecast, "There are 405 units to plan for over Jan–Mar 2026.")).toBe(true);
+  });
+
+  it("drops a sentence about a rough forecast that does not say it is rough (ADR 0003 §4)", async () => {
+    const rough = roughForecastAnswer();
+    const plan = `${rough.recommendation.units}`;
+    expect(await keptForecast(rough, `Plan for ${plan} units over ${rough.monthsLabel}.`)).toBe(false);
+    expect(await keptForecast(rough, `Plan for ${plan} units over ${rough.monthsLabel}, but this forecast is rough.`)).toBe(true);
+  });
+
+  it("passes the guard with its own template, for every horizon", () => {
+    for (const answer of [forecast, forecastAnswer({ count: 6, unit: "month" }), forecastAnswer({ count: 6, unit: "week" }), roughForecastAnswer()]) {
+      expect(checkNumbers(answer.sentence, forecastFacts(answer).join("\n"))).toEqual({ ok: true });
+      expect(checkPlanWording(answer.sentence)).toEqual({ ok: true });
+    }
   });
 });
 
