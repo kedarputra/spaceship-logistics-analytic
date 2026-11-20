@@ -1,5 +1,6 @@
 import { formatCount, formatDecimal, formatPercent } from "@/domain/format";
-import { NOT_A_REORDER, RANGE_Z, SAFETY_Z } from "@/tools/forecast";
+import { formatDate } from "@/domain/periods";
+import { NOT_A_REORDER, RANGE_Z, SAFETY_Z, type SkuHistory } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import { ForecastChart, type ForecastChartRow } from "./forecast-chart";
 import { Fact, Table } from "./text-table";
@@ -70,13 +71,31 @@ function ForecastPanel({ forecast }: { forecast: ForecastAnswer }) {
   );
 }
 
+/** A SKU question (ADR 0003 §9): the SKU's own orders and why it is not forecast, ahead of its category's forecast. */
+function SkuOrders({ sku }: { sku: SkuHistory }) {
+  return (
+    <section className="mt-3 rounded-md bg-slate-50 p-3 text-sm">
+      <h3 className="font-medium text-slate-700">{`SKU ${sku.id}`}</h3>
+      <p className="mt-1">{sku.reason}</p>
+      <div className="overflow-x-auto">
+        <Table
+          headers={["Order", "Order date", "Units", "Warehouse"]}
+          rows={sku.orders.map((order) => [order.orderId, formatDate(order.orderDate), formatCount(order.quantity), order.warehouse])}
+        />
+      </div>
+    </section>
+  );
+}
+
 export function ForecastCard({ forecast }: { forecast: ForecastAnswer }) {
   const { recommendation } = forecast;
-  const notes = [...(forecast.januaryCaveat === undefined ? [] : [forecast.januaryCaveat]), ...forecast.horizon.notes];
+  const notes = [forecast.scopeNote, forecast.januaryCaveat, ...forecast.horizon.notes].filter((note) => note !== undefined);
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
+      {forecast.horizon.reachNote === undefined ? null : <p className="mb-2 text-base font-medium text-slate-900">{forecast.horizon.reachNote}</p>}
       <p className="text-base text-slate-900">{forecast.sentence}</p>
       <p className="mt-1 text-sm text-slate-600">{forecast.interpretation}</p>
+      {forecast.sku === undefined ? null : <SkuOrders sku={forecast.sku} />}
       {forecast.roughNote === undefined ? null : (
         <p className="mt-2 text-sm">
           <span className="rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-900">Rough forecast</span>

@@ -43,7 +43,6 @@ function toOutcome(body: unknown): AnswerOutcomeState {
   if (typeof body.error === "string") return { kind: "error", message: body.error, details: issueMessages(body.issues) };
   if (typeof body.message !== "string") return UNREADABLE;
   if (body.kind === "no-data") return { kind: "no-data", message: body.message };
-  if (body.kind === "unavailable") return { kind: "unavailable", message: body.message };
   if (body.kind === "unsupported" && isStringList(body.examples)) return { kind: "unsupported", message: body.message, examples: body.examples };
   return UNREADABLE;
 }

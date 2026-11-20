@@ -144,19 +144,29 @@ describe("POST /api/ask: the answer (R3, R7)", () => {
     expect([calls(), phraseCalls()]).toEqual([1, 1]);
   });
 
-  it("makes no phrase call for a question that has no result to phrase", async () => {
-    const { ask, phraseCalls } = setup(interpreted({ tool: "forecast", scope: { type: "category", value: "CRAYON" } }));
-    await ask("How many crayons should I plan for?");
-    expect(phraseCalls()).toBe(0);
+  it("runs a warehouse forecast, and a SKU question with its category's forecast (ticket 14)", async () => {
+    const { ask } = setup(interpreted({ tool: "forecast", scope: { type: "warehouse", value: "LON-FC1" } }));
+    expect((await ask("How much stock should LON-FC1 plan for?")).body).toMatchObject({
+      kind: "forecast",
+      scopeLabel: "warehouse LON-FC1",
+      recommendation: { units: 40, demand: 9, safetyStock: 31 },
+    });
+    const sku = setup(interpreted({ tool: "forecast", scope: { type: "sku", value: "CRAYON-0008" } }));
+    expect((await sku.ask("How many CRAYON-0008 will we sell?")).body).toMatchObject({
+      kind: "forecast",
+      sku: { id: "CRAYON-0008", category: "CRAYON" },
+      recommendation: { units: 55, demand: 11, safetyStock: 44 },
+    });
   });
 
-  it('answers a category, warehouse, region or SKU forecast with an honest "not available yet"', async () => {
-    const { ask } = setup(interpreted({ tool: "forecast", scope: { type: "warehouse", value: "LON-FC1" } }));
-    expect((await ask("How much stock should LON-FC1 plan for?")).body).toEqual({
-      kind: "unavailable",
+  it("answers an unknown SKU with its message, and makes no phrase call when there is no result to phrase", async () => {
+    const { ask, phraseCalls } = setup(interpreted({ tool: "forecast", scope: { type: "sku", value: "CRAYON-9999" } }));
+    expect((await ask("Forecast SKU CRAYON-9999")).body).toEqual({
+      kind: "no-data",
       cached: false,
-      message: expect.stringContaining("not available yet"),
+      message: "No SKU CRAYON-9999 in the data. SKU IDs are a category and a number, for example CRAYON-0008.",
     });
+    expect(phraseCalls()).toBe(0);
   });
 
   it("answers an unsupported question with why, and 3 supported questions from the fixed list", async () => {

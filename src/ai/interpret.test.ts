@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { UNSUPPORTED_REASONS } from "@/tools/examples";
 import { interpretationSchema } from "@/tools/spec";
 import { AiError, type CompletionRequest, type LlmClient } from "./client";
 import { interpret } from "./interpret";
@@ -147,6 +148,17 @@ describe("the prompt (ADR 0009 §10)", () => {
     expect(system).toContain('"share", "percentage" or "what part" of orders is order_share');
     expect(system).toContain("A percentage delivered on time, delayed or with an exception is on_time_rate or delay_rate, never order_share");
     expect(PROMPT_EXAMPLES.some((example) => example.spec.tool === "query" && example.spec.metric === "order_share")).toBe(true);
+  });
+
+  it("reads named months as a forecast target, and a forecast for two things at once as unsupported (ticket 14)", () => {
+    const system = interpretMessages("anything")[0]?.content ?? "";
+    expect(system).toContain('Months named in the question are a "target", never a horizon: "in 2027" = {"type":"year","year":2027}');
+    expect(system).toContain(
+      'A forecast covers one thing: the total, one category, one warehouse or one region. A question that combines two, such as crayons at LON-FC1, is unsupported with reason "forecast_combination".',
+    );
+    expect(UNSUPPORTED_REASONS.forecast_combination).toBe(
+      "A forecast covers one thing at a time: the total, one category, one warehouse or one region, not a combination such as crayons at one warehouse.",
+    );
   });
 
   it("only shows the model example specs the whitelist accepts", () => {

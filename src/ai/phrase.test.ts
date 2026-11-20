@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { type Answer, answerQuery } from "@/tools/answer";
-import { answerForecast, type ForecastAnswer, forecastFacts, presentForecast } from "@/tools/forecast-answer";
-import { forecastResultFor, ROUGH_SERIES } from "@/tools/forecast-fixtures";
+import { type ForecastAnswer, forecastFacts, presentForecast } from "@/tools/forecast-answer";
+import { forecastAnswerOf, forecastResultFor, ROUGH_SERIES } from "@/tools/forecast-fixtures";
 import { factsFor, templateSentence, wordingContext } from "@/tools/sentence";
-import { forecastSpecSchema, querySpecSchema } from "@/tools/spec";
+import { querySpecSchema } from "@/tools/spec";
 import { AiError, type CompletionRequest, type LlmClient } from "./client";
 import { checkNumbers, checkPlanWording, checkWording } from "./guard";
 import { phrase } from "./phrase";
@@ -156,9 +156,7 @@ describe("sentences that pass the number guard but are wrong or cut off (ticket 
 });
 
 function forecastAnswer(horizon?: Record<string, unknown>): ForecastAnswer {
-  const answer = answerForecast(forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" }, ...(horizon === undefined ? {} : { horizon }) }));
-  if (answer.kind !== "forecast") throw new Error(answer.message);
-  return answer;
+  return forecastAnswerOf({ scope: { type: "total" }, ...(horizon === undefined ? {} : { horizon }) });
 }
 
 /** WAPE 125%: a rough forecast. */
@@ -215,11 +213,52 @@ describe("phrase: a forecast → its opening sentence, with the same guard and f
     expect(await keptForecast(rough, `Plan for ${plan} units over ${rough.monthsLabel}, but this forecast is rough.`)).toBe(true);
   });
 
-  it("passes the guard with its own template, for every horizon", () => {
-    for (const answer of [forecast, forecastAnswer({ count: 6, unit: "month" }), forecastAnswer({ count: 6, unit: "week" }), roughForecastAnswer()]) {
+  it("passes the guard with its own template, for every horizon, scope, SKU and target", () => {
+    const answers = [
+      forecast,
+      forecastAnswer({ count: 6, unit: "month" }),
+      forecastAnswer({ count: 6, unit: "week" }),
+      roughForecastAnswer(),
+      forecastAnswerOf({ scope: { type: "category", value: "CRAYON" } }),
+      forecastAnswerOf({ scope: { type: "region", value: "UK" } }),
+      forecastAnswerOf({ scope: { type: "sku", value: "CRAYON-0008" } }),
+      forecastAnswerOf({ scope: { type: "total" }, target: { type: "year", year: 2027 } }),
+    ];
+    for (const answer of answers) {
       expect(checkNumbers(answer.sentence, forecastFacts(answer).join("\n"))).toEqual({ ok: true });
       expect(checkPlanWording(answer.sentence)).toEqual({ ok: true });
     }
+  });
+});
+
+describe("phrase: a forecast for one scope or a SKU (ticket 14)", () => {
+  const crayon = forecastAnswerOf({ scope: { type: "category", value: "CRAYON" } });
+  const sku = forecastAnswerOf({ scope: { type: "sku", value: "CRAYON-0008" } });
+  const kept = async (answer: ForecastAnswer, reply: string) =>
+    (await phrase("How many crayons should we plan for?", answer, fakeModel(reply).client)).source === "model";
+
+  it("drops a sentence that does not name the category, warehouse or region forecast", async () => {
+    expect(await kept(crayon, "Plan for 55 units over Jan–Mar 2026.")).toBe(false);
+    expect(await kept(crayon, "Plan for 55 units of CRAYON over Jan–Mar 2026.")).toBe(true);
+  });
+
+  it("drops a SKU sentence that names the SKU but not its category, though the SKU's ID contains it", async () => {
+    expect(await kept(sku, "CRAYON-0008 has too few orders to forecast; plan for 55 units over Jan–Mar 2026.")).toBe(false);
+    expect(await kept(sku, "CRAYON-0008 has too few orders to forecast; for its category CRAYON, plan for 55 units over Jan–Mar 2026.")).toBe(true);
+  });
+
+  it("asks for a sentence in the template's shape, a SKU's reason first, and the reach first when the months asked lie beyond it", async () => {
+    const { client, requests } = fakeModel("CRAYON-0008 cannot be forecast; plan for 55 units of CRAYON.");
+    await phrase("How many CRAYON-0008 should we plan for?", sku, client);
+    const system = requests[0]?.messages[0]?.content ?? "";
+    expect(system).toContain(
+      'For example (made-up numbers): "Over Apr–Jun 2026, demand is forecast at 120 units; with 45 units of safety stock, that is 165 units to plan for."',
+    );
+    expect(system).toContain("For a SKU, say first that it cannot be forecast on its own and why, then give its category's forecast, naming both.");
+    // The card shows the reach first, written by code; a model sentence repeating it reads twice (live check).
+    expect(system).toContain(
+      "When the facts open with how far the forecast reaches, the answer already shows that sentence first: do not repeat it; give the forecast for the months it covers.",
+    );
   });
 });
 

@@ -38,6 +38,7 @@ export const UNSUPPORTED_REASON_IDS = [
   "two_breakdowns",
   "numeric_filter",
   "sku_breakdown",
+  "forecast_combination",
   "follow_up",
   "not_about_data",
   "unclear",
@@ -51,6 +52,8 @@ export const UNSUPPORTED_REASONS: Record<UnsupportedReason, string> = {
   two_breakdowns: "Breaking a result down by two things at once isn't supported; ask for one breakdown at a time.",
   numeric_filter: "Filters on numbers, such as orders with more than 5 units, aren't supported.",
   sku_breakdown: "Results can be filtered by one SKU but not broken down by SKU: there are 355 of them.",
+  forecast_combination:
+    "A forecast covers one thing at a time: the total, one category, one warehouse or one region, not a combination such as crayons at one warehouse.",
   follow_up: 'Each question stands on its own, so a follow-up like "and for UPS?" can\'t be answered. Ask the whole question.',
   not_about_data: "That question isn't about this logistics data.",
   unclear: "The question isn't clear enough to answer without guessing.",

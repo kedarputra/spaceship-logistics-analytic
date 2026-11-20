@@ -174,6 +174,17 @@ export function monthsAfter(monthKey: string, count: number): Bucket[] {
   return buckets({ from: addMonths(monthKey, 1), to: unitEnd(addMonths(monthKey, count), "month") }, "month");
 }
 
+/** The first day of a month (1–12) of a year: (2026, 3) → "2026-03-01". */
+export function monthKey(year: number, month: number): string {
+  return addMonths(`${String(year).padStart(4, "0")}-01-01`, month - 1);
+}
+
+/** Whole months from the month starting on one key to the month starting on another: Jan → Mar is 2. */
+export function monthsBetween(fromKey: string, toKey: string): number {
+  const months = (key: string) => Number(key.slice(0, 4)) * 12 + Number(key.slice(5, 7));
+  return months(toKey) - months(fromKey);
+}
+
 /** "Jan–Mar 2026", "Dec 2025–Feb 2026", or "Jan 2026" for one month, from the first days of two months. */
 export function formatMonths(fromKey: string, toKey: string): string {
   const [, fromMonth, fromYear] = formatDate(fromKey).split(" ");

@@ -5,7 +5,7 @@
 **Blocked by:** 13
 _13 Forecast: total demand and inventory plan_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Category, warehouse, and region scopes, one at a time; no combinations; a UK forecast notes that UK is served only by one warehouse.
 - [ ] A forecast whose WAPE is over 50% is labelled "rough"; the reason sentence is stated for that series, never as a global claim.
@@ -14,3 +14,7 @@ _13 Forecast: total demand and inventory plan_
 - [ ] Tests with expected values computed independently from the CSV: the CRAYON and BOOK monthly series in `docs/data.md`, one category's winning method and plan, a SKU with 3 orders (CRAYON-0008), and an unknown SKU.
 - [ ] Found in the live check of ticket 13 with the real model (20 Nov 2026): the model copies the forecast facts' labels word for word. It writes "The months forecast is Jan–Mar 2026 with a forecast demand of 285 units. The units to plan for is 405." The template reads well: "Over Jan–Jun 2026, demand is forecast at 570 units; with 169 units of safety stock, that is 739 units to plan for." Phrase the forecast facts as natural phrases, or give the phrase prompt one example in the template's shape. The new scopes inherit whichever is done here.
 - [ ] Found in the same check: "What will demand look like in 2027?" was read as a 24-month horizon and answered with Jan–Jun 2026; only the note said "instead of 24". When the asked months lie wholly beyond the 6-month reach (anything in 2027 here), the answer says so first: "The forecast reaches Jun 2026 at most; 2027 is beyond it." Only then does it show the furthest months it can.
+
+## Comments
+
+- 2026-11-20: Forecasts for one category, warehouse or region (one at a time; a combination is unsupported with its own reason), with a note that UK is served only by LON-FC1. A SKU question returns, in one call, the SKU's orders, why it is not forecast (no SKU has more than 3 orders) and its category's forecast; an unknown SKU gets 'No SKU … in the data' and the ID format. The forecast spec gains an optional target (year, quarter, month): wholly beyond the 6-month reach the answer opens with 'The forecast reaches Jun 2026 at most; 2027 is beyond it.' Forecast facts are natural phrases and the phrase prompt has an example in the template's shape; a model sentence must name the scope, and for a SKU both the SKU and its category. Verified against values computed independently from the CSV (CRAYON: Holt, σ 15.43, 55 = 11 + 44; BOOK 53 = 36 + 17; UK = LON-FC1, rough; CRAYON-0008's 3 orders), npm run check, and the built app in headless Edge against a local fake gateway.

@@ -25,6 +25,7 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Demand** | Units ordered (`quantity`) per period, by `order_date`. |
 | **Forecast scope** | The series a forecast covers: the total, one product category, one warehouse, or one region. Never a single SKU: a question about one SKU gets its order history and its category's forecast. ADR 0003 §1, §9. |
 | **Forecast horizon** | How many future months are forecast: 1 to 6, and 3 when the question does not say. ADR 0003. |
+| **Forecast target** | The months a question names ("in 2027", "in Q2", "in March"), as opposed to a horizon count. The forecast runs to its end within the 6-month reach, and says first when it lies wholly beyond. ADR 0003 §6. |
 | **Safety stock** | Units added to forecast demand to cover forecast error at a 95% service level. ADR 0003. |
 | **Inventory recommendation** | Units to plan for over the horizon: forecast demand plus safety stock. There is no on-hand stock data, so it is a plan, not a reorder quantity. |
 | **Rough forecast** | A forecast whose holdout error is more than half of actual demand (WAPE over 50%). Shown with that label. ADR 0003. |

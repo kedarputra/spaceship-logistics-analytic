@@ -10,7 +10,7 @@ import {
   predict,
   runForecast,
 } from "./forecast";
-import { months2025, ROUGH_SERIES } from "./forecast-fixtures";
+import { forecastOf, months2025, ROUGH_SERIES } from "./forecast-fixtures";
 import { type ForecastSpec, forecastSpecSchema } from "./spec";
 
 // Units per month, Jan–Dec 2025 (docs/data.md).
@@ -18,10 +18,15 @@ const TOTAL = [233, 86, 148, 56, 115, 64, 126, 103, 94, 79, 113, 93];
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function forecastTotal(horizon?: ForecastSpec["horizon"]): ForecastResult {
-  const spec = forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" }, ...(horizon === undefined ? {} : { horizon }) });
-  const result = runForecast(spec, getDataset());
-  if (result.kind !== "forecast") throw new Error(result.message);
-  return result;
+  return forecastOf({ scope: { type: "total" }, ...(horizon === undefined ? {} : { horizon }) });
+}
+
+function units(result: ForecastResult): number[] {
+  return result.history.map((month) => month.units);
+}
+
+function maes(result: ForecastResult): number[] {
+  return result.candidates.map((candidate) => Number(candidate.mae.toFixed(2)));
 }
 
 const JANUARY_ENDING = "One year of data cannot show whether January repeats.";
@@ -145,16 +150,138 @@ describe("the forecast of total demand (ADR 0003, golden numbers)", () => {
     expect(result.januaryCaveat).toBe(`January 2025's spike is outside the 3-month window, so the forecast does not repeat it. ${JANUARY_ENDING}`);
   });
 
-  it("is not available yet for a category, warehouse, region or SKU", () => {
-    for (const scope of [
-      { type: "category", value: "CRAYON" },
-      { type: "warehouse", value: "LON-FC1" },
-      { type: "region", value: "UK" },
-      { type: "sku", value: "CRAYON-0008" },
-    ]) {
-      const spec = forecastSpecSchema.parse({ tool: "forecast", scope });
-      expect(runForecast(spec, getDataset()).kind).toBe("unavailable");
-    }
+  it('is labelled "all products"', () => {
+    expect(result.scopeLabel).toBe("all products");
+    expect(result.scopeNote).toBeUndefined();
+    expect(result.sku).toBeUndefined();
+  });
+});
+
+// Expected values from an independent script over the CSV (its own parser and formulas); see docs/data.md.
+describe("a forecast for one category, warehouse or region (ADR 0003 §1, ticket 14)", () => {
+  it("reads the CRAYON and BOOK monthly series of docs/data.md", () => {
+    expect(units(forecastOf({ scope: { type: "category", value: "CRAYON" } }))).toEqual([60, 12, 34, 11, 3, 22, 5, 25, 23, 14, 4, 16]);
+    expect(units(forecastOf({ scope: { type: "category", value: "BOOK" } }))).toEqual([3, 7, 6, 1, 9, 3, 10, 16, 4, 16, 16, 4]);
+  });
+
+  it("picks Holt for CRAYON (MAE 10.33, 6.33, 6.64, 5.67), σ 15.43: 55 units to plan for, 11 forecast + 44 safety stock", () => {
+    const crayon = forecastOf({ scope: { type: "category", value: "crayon" } });
+    expect(crayon.scopeLabel).toBe("category CRAYON");
+    expect(maes(crayon)).toEqual([10.33, 6.33, 6.64, 5.67]);
+    expect(crayon.method.id).toBe("holt");
+    expect(crayon.sigma).toBeCloseTo(15.43, 2);
+    expect(crayon.forecastMonths[0]?.units).toBeCloseTo(6.03, 2);
+    expect(crayon.recommendation).toEqual({ units: 55, demand: 11, safetyStock: 44 });
+    expect(crayon.method.reason).toBe(
+      "On this series Holt's linear trend had the lowest error on Oct–Dec 2025: the forecast follows its smoothed level and trend.",
+    );
+  });
+
+  it("picks the moving average for BOOK at 12.0 a month: 53 units to plan for, 36 + 17", () => {
+    const book = forecastOf({ scope: { type: "category", value: "BOOK" } });
+    expect(book.method.id).toBe("moving_average");
+    expect(book.sigma).toBeCloseTo(5.76, 2);
+    expect(book.recommendation).toEqual({ units: 53, demand: 36, safetyStock: 17 });
+  });
+
+  it("labels a forecast rough over 50% WAPE: PENCIL at 96.0% is; BOOK at exactly 50.0% (18 / 36) and CRAYON at 49.997% are not", () => {
+    const pencil = forecastOf({ scope: { type: "category", value: "PENCIL" } });
+    expect(pencil.method.id).toBe("average");
+    expect(pencil.method.rough).toBe(true);
+    expect(forecastOf({ scope: { type: "category", value: "CRAYON" } }).method.rough).toBe(false);
+    expect(forecastOf({ scope: { type: "category", value: "BOOK" } }).method.rough).toBe(false);
+  });
+
+  it("forecasts one warehouse or one region", () => {
+    const lon = forecastOf({ scope: { type: "warehouse", value: "LON-FC1" } });
+    expect(lon.scopeLabel).toBe("warehouse LON-FC1");
+    expect(units(lon)).toEqual([33, 13, 25, 10, 9, 7, 19, 29, 16, 2, 4, 5]);
+    expect(lon.method.id).toBe("holt");
+    expect(lon.method.rough).toBe(true);
+    expect(lon.recommendation).toEqual({ units: 40, demand: 9, safetyStock: 31 });
+    expect(forecastOf({ scope: { type: "region", value: "EU" } }).scopeLabel).toBe("region EU");
+  });
+
+  it("notes that UK is served only by LON-FC1, so the two forecasts are the same", () => {
+    const uk = forecastOf({ scope: { type: "region", value: "UK" } });
+    const lon = forecastOf({ scope: { type: "warehouse", value: "LON-FC1" } });
+    expect(uk.scopeNote).toBe("UK is served only by warehouse LON-FC1, so this forecast is the same as warehouse LON-FC1's.");
+    expect(units(uk)).toEqual(units(lon));
+    expect(uk.recommendation).toEqual(lon.recommendation);
+    expect(lon.scopeNote).toBeUndefined();
+    expect(forecastOf({ scope: { type: "region", value: "EU" } }).scopeNote).toBeUndefined();
+  });
+});
+
+describe("a SKU question (ADR 0003 §9)", () => {
+  it("returns the SKU's orders, why it is not forecast, and its category's forecast, in one result", () => {
+    const sku = forecastOf({ scope: { type: "sku", value: "crayon-0008" } });
+    expect(sku.sku?.id).toBe("CRAYON-0008");
+    expect(sku.sku?.category).toBe("CRAYON");
+    expect(sku.sku?.orders.map(({ orderDate, quantity, warehouse }) => [orderDate, quantity, warehouse])).toEqual([
+      ["2025-01-14", 3, "LON-FC1"],
+      ["2025-01-22", 3, "CHI-DC1"],
+      ["2025-04-18", 1, "CHI-DC1"],
+    ]);
+    expect(sku.sku?.orders.map((order) => order.orderId)).toEqual(["ORD-2026-438332-0059", "ORD-2026-187805-0002", "ORD-2026-946295-0023"]);
+    expect(sku.sku?.units).toBe(7);
+    expect(sku.sku?.reason).toBe(
+      "CRAYON-0008 has 3 orders in the data, too few to forecast on its own: no SKU has more than 3. The forecast is for its category, CRAYON, and is not split by SKU.",
+    );
+    expect(sku.scopeLabel).toBe("category CRAYON");
+    expect(units(sku)).toEqual([60, 12, 34, 11, 3, 22, 5, 25, 23, 14, 4, 16]);
+    expect(sku.recommendation).toEqual({ units: 55, demand: 11, safetyStock: 44 });
+  });
+
+  it('answers an unknown SKU with "No SKU … in the data" and the ID format', () => {
+    const result = runForecast(forecastSpecSchema.parse({ tool: "forecast", scope: { type: "sku", value: "CRAYON-9999" } }), getDataset());
+    expect(result).toEqual({
+      kind: "no-data",
+      message: "No SKU CRAYON-9999 in the data. SKU IDs are a category and a number, for example CRAYON-0008.",
+    });
+  });
+});
+
+describe("a target period: the months asked about (ticket 14)", () => {
+  it("leads with the reach when the months asked for lie wholly beyond it, then shows the furthest months it can", () => {
+    const in2027 = forecastOf({ scope: { type: "total" }, target: { type: "year", year: 2027 } });
+    expect(in2027.horizon.reachNote).toBe("The forecast reaches Jun 2026 at most; 2027 is beyond it.");
+    expect(in2027.monthsLabel).toBe("Jan–Jun 2026");
+    const q3 = forecastOf({ scope: { type: "total" }, target: { type: "quarter", quarter: 3, year: 2026 } });
+    expect(q3.horizon.reachNote).toBe("The forecast reaches Jun 2026 at most; Q3 2026 is beyond it.");
+  });
+
+  it("runs to the end of a target inside the reach, saying why when it starts earlier", () => {
+    const march = forecastOf({ scope: { type: "total" }, target: { type: "month", month: 3 } });
+    expect(march.monthsLabel).toBe("Jan–Mar 2026");
+    expect(march.horizon.reachNote).toBeUndefined();
+    expect(march.horizon.notes).toEqual(["To reach Mar 2026, the forecast covers Jan–Mar 2026."]);
+    const q1 = forecastOf({ scope: { type: "total" }, target: { type: "quarter", quarter: 1, year: 2026 } });
+    expect(q1.monthsLabel).toBe("Jan–Mar 2026");
+    expect(q1.horizon.notes).toEqual([]);
+  });
+
+  it("stops at the reach when the target runs past it", () => {
+    const year2026 = forecastOf({ scope: { type: "total" }, target: { type: "year", year: 2026 } });
+    expect(year2026.monthsLabel).toBe("Jan–Jun 2026");
+    expect(year2026.horizon.reachNote).toBeUndefined();
+    expect(year2026.horizon.notes[0]).toBe("The forecast reaches Jun 2026 at most, so it covers only part of 2026.");
+  });
+
+  it("says a target before the forecast starts is in the past", () => {
+    const result = runForecast(
+      forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" }, target: { type: "month", month: 3, year: 2025 } }),
+      getDataset(),
+    );
+    expect(result).toEqual({
+      kind: "no-data",
+      message: 'Mar 2025 is before the forecast, which starts in Jan 2026. Past demand is a question about orders, such as "Units ordered by month".',
+    });
+  });
+
+  it("is not accepted together with a horizon", () => {
+    const both = { tool: "forecast", scope: { type: "total" }, horizon: { count: 3, unit: "month" }, target: { type: "year", year: 2027 } };
+    expect(forecastSpecSchema.safeParse(both).success).toBe(false);
   });
 });
 

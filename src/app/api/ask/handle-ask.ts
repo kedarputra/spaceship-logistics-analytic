@@ -5,7 +5,6 @@ import type { InterpretOutcome } from "@/ai/interpret";
 import type { PhraseableAnswer, Phrased } from "@/ai/phrase";
 import { answerQuery } from "@/tools/answer";
 import { EXAMPLE_QUESTIONS, type ExampleId, MAX_QUESTION_LENGTH, UNSUPPORTED_REASONS } from "@/tools/examples";
-import type { ForecastUnavailable } from "@/tools/forecast";
 import { answerForecast } from "@/tools/forecast-answer";
 import type { NoDataResult } from "@/tools/query";
 import type { Interpretation } from "@/tools/spec";
@@ -25,7 +24,7 @@ export interface AskDependencies {
 }
 
 /** What /api/ask answers with, besides errors; `cached` says whether the interpretation came from the cache. */
-type AskAnswer = PhraseableAnswer | NoDataResult | ForecastUnavailable | { kind: "unsupported"; message: string; examples: string[] };
+type AskAnswer = PhraseableAnswer | NoDataResult | { kind: "unsupported"; message: string; examples: string[] };
 
 const requestSchema = z.strictObject({
   question: z

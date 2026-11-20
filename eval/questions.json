@@ -201,6 +201,20 @@
       }
     },
     {
+      "id": "forecast-beyond-reach",
+      "question": "What will demand look like in 2027?",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "total"
+        },
+        "target": {
+          "type": "year",
+          "year": 2027
+        }
+      }
+    },
+    {
       "id": "forecast-warehouse",
       "question": "What demand should warehouse ATL-DC1 expect?",
       "expected": {
@@ -234,6 +248,19 @@
           "orders_by_month",
           "on_time_by_region",
           "units_by_category"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-forecast-combination",
+      "question": "How many crayons will warehouse LON-FC1 need next quarter?",
+      "expected": {
+        "tool": "unsupported",
+        "reason": "forecast_combination",
+        "examples": [
+          "inventory_plan",
+          "units_by_category",
+          "orders_by_month"
         ]
       }
     },

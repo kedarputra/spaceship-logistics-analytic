@@ -55,6 +55,11 @@ Use these as test expectations once a definition is chosen.
 | Units per month, BOOK | 3, 7, 6, 1, 9, 3, 10, 16, 4, 16, 16, 4 |
 | Gross order value, all rows | USD 13,695.87 (net after promo: 13,568.01) |
 | Forecast, total units (ADR 0003) | Holdout MAE: average 18.89, 3-month moving average 16.22, regression 35.21, Holt 25.24. Winner: moving average, 95.0/month. σ 41.66. 3 months: plan 405 (285 + 120 safety stock); 4 months: plan 518 (380 + 138) |
+| Forecast, CRAYON units | Holdout MAE: average 10.33, moving average 6.33, regression 6.64, Holt 5.67. Winner: Holt (WAPE 16.9991 / 34 = 49.997%, shown as 50.0%; not rough), first month 6.03. σ 15.43. 3 months: plan 55 (11 + 44 safety stock) |
+| Forecast, BOOK units | Winner: moving average, 12.0/month (WAPE 18 / 36 = 50.0%). σ 5.76. 3 months: plan 53 (36 + 17) |
+| Forecast, UK and LON-FC1 | Identical series (UK is served only by LON-FC1): 33, 13, 25, 10, 9, 7, 19, 29, 16, 2, 4, 5. Winner: Holt, WAPE 289.5% (rough). 3 months: plan 40 (9 + 31) |
+| Rough categories (WAPE over 50%) | BRUSH 73.8%, PAINT 59.2%, PAPER 53.2%, PENCIL 96.0%; BOOK is exactly 50.0% (18 / 36) and CRAYON 49.997%, so neither is rough |
+| SKU CRAYON-0008 | 3 orders: 14 Jan 2025 (3 units, LON-FC1), 22 Jan 2025 (3, CHI-DC1), 18 Apr 2025 (1, CHI-DC1). No SKU has more than 3 orders |
 
 ## Which date field
 

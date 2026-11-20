@@ -1,4 +1,5 @@
 import type { DateField } from "@/domain/definitions";
+import { formatCount } from "@/domain/format";
 import type { GroupBy, QueryFilters, QuerySpec } from "./spec";
 
 /**
@@ -66,6 +67,17 @@ export function valueLabel(dimension: FilterDimension, value: string): string {
   if (dimension === "status") return STATUS_LABELS[value] ?? value;
   if (dimension === "promo") return value === "yes" ? "Promo" : "No promo";
   return value;
+}
+
+/** "1 month", "6 months", "1,310 units": a count and its noun, singular for 1. */
+export function countOf(count: number, noun: string): string {
+  return `${formatCount(count)} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/** "A", "A and B", "A, B and C". */
+export function andList(items: readonly string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
 export function dateFieldWords(field: DateField): string {

@@ -192,19 +192,35 @@ export const querySpecSchema = z
   });
 
 /** A demand forecast (ADR 0003 §1, §6, §9): the total, or one category, warehouse, region, or SKU. */
-export const forecastSpecSchema = z.strictObject({
-  tool: z.enum(["forecast"]),
-  scope: z.discriminatedUnion("type", [
-    z.strictObject({ type: z.enum(["total"]) }),
-    z.strictObject({ type: z.enum(["category"]), value: enumValue("category", DIMENSION_VALUES.category) }),
-    z.strictObject({ type: z.enum(["warehouse"]), value: enumValue("warehouse", DIMENSION_VALUES.warehouse) }),
-    z.strictObject({ type: z.enum(["region"]), value: enumValue("region", DIMENSION_VALUES.region) }),
-    // Checked by the forecast tool, which explains an unknown SKU (ADR 0003 §9).
-    z.strictObject({ type: z.enum(["sku"]), value: z.string().trim().min(1).max(40) }),
-  ]),
-  /** Omitted: 3 months. The forecast tool caps it and turns weeks into months (ADR 0003 §6). */
-  horizon: z.strictObject({ count: z.number().int().min(1).max(52), unit: z.enum(["month", "week"]) }).optional(),
-});
+export const forecastSpecSchema = z
+  .strictObject({
+    tool: z.enum(["forecast"]),
+    scope: z.discriminatedUnion("type", [
+      z.strictObject({ type: z.enum(["total"]) }),
+      z.strictObject({ type: z.enum(["category"]), value: enumValue("category", DIMENSION_VALUES.category) }),
+      z.strictObject({ type: z.enum(["warehouse"]), value: enumValue("warehouse", DIMENSION_VALUES.warehouse) }),
+      z.strictObject({ type: z.enum(["region"]), value: enumValue("region", DIMENSION_VALUES.region) }),
+      // Checked by the forecast tool, which explains an unknown SKU (ADR 0003 §9).
+      z.strictObject({ type: z.enum(["sku"]), value: z.string().trim().min(1).max(40) }),
+    ]),
+    /** Omitted: 3 months. The forecast tool caps it and turns weeks into months (ADR 0003 §6). */
+    horizon: z.strictObject({ count: z.number().int().min(1).max(52), unit: z.enum(["month", "week"]) }).optional(),
+    /**
+     * The months asked about, as the question names them ("in 2027", "in Q2", "in March"). Without a
+     * year, the next one after the data. The forecast tool checks it against its 6-month reach.
+     */
+    target: z
+      .discriminatedUnion("type", [
+        z.strictObject({ type: z.enum(["year"]), year: z.number().int().min(2000).max(2100) }),
+        z.strictObject({ type: z.enum(["quarter"]), quarter: z.number().int().min(1).max(4), year: z.number().int().min(2000).max(2100).optional() }),
+        z.strictObject({ type: z.enum(["month"]), month: z.number().int().min(1).max(12), year: z.number().int().min(2000).max(2100).optional() }),
+      ])
+      .optional(),
+  })
+  .refine((spec) => spec.horizon === undefined || spec.target === undefined, {
+    message: "Give either a horizon (the next N months) or a target (the months asked about), not both.",
+    path: ["target"],
+  });
 
 /** A question outside the whitelist: why, and 3 example questions from the fixed list (ADR 0006 §8). */
 export const unsupportedSchema = z.strictObject({

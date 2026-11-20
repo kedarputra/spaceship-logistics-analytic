@@ -24,9 +24,7 @@ export type AnswerOutcomeState =
   | { kind: "no-data"; message: string }
   | { kind: "error"; message: string; details: string[] }
   /** Out of scope, or the model could not produce a valid spec: why, and questions that work. */
-  | { kind: "unsupported"; message: string; examples: string[] }
-  /** What a tool does not cover yet, such as a category forecast. */
-  | { kind: "unavailable"; message: string };
+  | { kind: "unsupported"; message: string; examples: string[] };
 
 interface AnswerActions {
   /** Runs a chip's spec through /api/run. */
@@ -220,7 +218,6 @@ export function AnswerOutcome({ outcome, onFollowUp, onAsk }: { outcome: AnswerO
     case "forecast":
       return <ForecastCard forecast={outcome.forecast} />;
     case "no-data":
-    case "unavailable":
       return <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{outcome.message}</p>;
     case "unsupported":
       return (

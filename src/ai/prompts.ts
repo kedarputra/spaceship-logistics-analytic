@@ -12,7 +12,7 @@ import type { ChatMessage } from "./client";
  * date: periods stay symbolic and code resolves them (ADR 0002 §1). Bump PROMPT_VERSION whenever
  * this file changes, so cached interpretations from the old prompt are not reused.
  */
-export const PROMPT_VERSION = "prompts-4";
+export const PROMPT_VERSION = "prompts-5";
 
 let jsonSchema: unknown;
 
@@ -72,6 +72,10 @@ export const PROMPT_EXAMPLES: readonly { question: string; spec: Interpretation 
     spec: { tool: "forecast", scope: { type: "total" }, horizon: { count: 3, unit: "month" } },
   },
   {
+    question: "How much stock will we need in 2027?",
+    spec: { tool: "forecast", scope: { type: "total" }, target: { type: "year", year: 2027 } },
+  },
+  {
     question: "Forecast crayon demand for the next 2 months",
     spec: { tool: "forecast", scope: { type: "category", value: "CRAYON" }, horizon: { count: 2, unit: "month" } },
   },
@@ -121,7 +125,9 @@ Rules for a query:
 
 Rules for a forecast:
 - "scope":{"type":"total"} for demand or inventory overall; a category, warehouse, region or SKU only when the question names one.
+- A forecast covers one thing: the total, one category, one warehouse or one region. A question that combines two, such as crayons at LON-FC1, is unsupported with reason "forecast_combination".
 - "next 2 months" = {"count":2,"unit":"month"}; "next quarter" = {"count":3,"unit":"month"}; "next 6 weeks" = {"count":6,"unit":"week"}. No horizon mentioned: leave "horizon" out.
+- Months named in the question are a "target", never a horizon: "in 2027" = {"type":"year","year":2027}; "in Q2" = {"type":"quarter","quarter":2}; "in March 2026" = {"type":"month","month":3,"year":2026}. Leave the year out when the question does. Never give both "horizon" and "target".
 
 Metrics:
 ${metrics}
@@ -187,8 +193,11 @@ ${PLAIN_TEXT_RULE}`;
 
 const FORECAST_PHRASE_SYSTEM = `You write the opening of an answer about a demand forecast for a dataset of logistics orders: one or two plain sentences that answer the question from the facts you are given.
 ${NUMBER_RULES}
-- Give the months forecast, the forecast demand, and the units to plan for with the safety stock in them.
+- Give the months forecast, the forecast demand, and the units to plan for with the safety stock in them, in your own words. For example (made-up numbers): "Over Apr–Jun 2026, demand is forecast at 120 units; with 45 units of safety stock, that is 165 units to plan for."
 - Call the plan "units to plan for". Never call it an order, a reorder, a purchase or stock to buy: the data has no stock on hand.
+- For one category, warehouse or region, name it as the facts write it.
+- For a SKU, say first that it cannot be forecast on its own and why, then give its category's forecast, naming both.
+- When the facts open with how far the forecast reaches, the answer already shows that sentence first: do not repeat it; give the forecast for the months it covers.
 - When the facts say the forecast is rough, say so with the word "rough".
 ${PLAIN_TEXT_RULE}`;
 

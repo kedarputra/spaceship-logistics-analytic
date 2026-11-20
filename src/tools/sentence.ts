@@ -3,7 +3,7 @@ import { formatCount, formatMetricValue } from "@/domain/format";
 import { formatPeriod } from "@/domain/periods";
 import type { Direction, QueryResult, ResultRow, RowValues } from "./query";
 import { type GroupBy, isTimeDimension } from "./spec";
-import { DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "./words";
+import { andList, DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "./words";
 
 /**
  * The answer's opening sentence, written by code (ADR 0009 §4), and the facts block the model's
@@ -34,12 +34,6 @@ function detail(result: QueryResult, row: RowValues, stressSmall = false): strin
     return stressSmall ? `${parts} on only ${formatCount(row.n)} deliveries` : parts;
   }
   return value(result, row);
-}
-
-/** "A", "A and B", "A, B and C". */
-function names(items: readonly string[]): string {
-  if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
 /** "1–30 Nov 2025, by delivery date" */
@@ -135,13 +129,13 @@ function categorySentence(result: QueryResult, groupBy: GroupBy): string {
     const top = tiedFirst(result.rows);
     if (top[0] === undefined) return `No ${DIMENSION_WORDS[groupBy].many} in ${periodPhrase(result)}.`;
     const each = top.length > 1 ? " each" : "";
-    return `${words.leader} ${metric}: ${names(top.map((row) => row.label))}, with ${detail(result, top[0])}${each}.`;
+    return `${words.leader} ${metric}: ${andList(top.map((row) => row.label))}, with ${detail(result, top[0])}${each}.`;
   }
   const { top, topReliable, minDelivered } = ranking;
   const heading = `${capitalized(words.direction)} ${metric}`;
   switch (ranking.case) {
     case "reliable":
-      return `${heading}: ${names(tiedFirst(result.rows).map((row) => `${row.label} ${detail(result, row)}`))}.`;
+      return `${heading}: ${andList(tiedFirst(result.rows).map((row) => `${row.label} ${detail(result, row)}`))}.`;
     case "small-sample-top": {
       const reliable =
         topReliable === undefined
@@ -168,12 +162,12 @@ function timeSentence(result: QueryResult, groupBy: GroupBy): string {
       return `${heading}: ${overallText}no ${unit.one} has at least ${SMALL_SAMPLE_MIN_DELIVERED} deliveries, so no ${unit.one} stands out reliably.`;
     }
     const among = reliableOnly ? `, among ${unit.many} with at least ${SMALL_SAMPLE_MIN_DELIVERED} deliveries` : "";
-    return `${heading}: ${overallText}highest in ${names(highest.map((row) => row.label))} (${value(result, highest[0])}), lowest in ${names(lowest.map((row) => row.label))} (${value(result, lowest[0])})${among}.`;
+    return `${heading}: ${overallText}highest in ${andList(highest.map((row) => row.label))} (${value(result, highest[0])}), lowest in ${andList(lowest.map((row) => row.label))} (${value(result, lowest[0])})${among}.`;
   }
   if (highest[0] === undefined || highest[0].value === 0) return `${heading}: none.`;
   const each = highest.length > 1 ? " each" : "";
   const inAll = overall === undefined ? "" : `${value(result, overall)} in all; `;
-  return `${heading}: ${inAll}the most in ${names(highest.map((row) => row.label))} (${value(result, highest[0])}${each}).`;
+  return `${heading}: ${inAll}the most in ${andList(highest.map((row) => row.label))} (${value(result, highest[0])}${each}).`;
 }
 
 /** The sentence code writes for a result, one template per kind (ADR 0009 §4). */
@@ -227,13 +221,13 @@ function seriesFacts(result: QueryResult, groupBy: GroupBy): string[] {
   if (high === undefined || low === undefined) return [];
   if (!isRatio(result)) {
     const each = highest.length > 1 ? " each" : "";
-    return [`Most: ${names(highest.map((row) => row.label))} (${value(result, high)}${each})`];
+    return [`Most: ${andList(highest.map((row) => row.label))} (${value(result, high)}${each})`];
   }
   const unit = DIMENSION_WORDS[groupBy].one;
   const among = reliableOnly ? ` with at least ${SMALL_SAMPLE_MIN_DELIVERED} deliveries` : "";
   return [
-    `Highest ${unit}${among}: ${names(highest.map((row) => row.label))} (${value(result, high)})`,
-    `Lowest ${unit}${among}: ${names(lowest.map((row) => row.label))} (${value(result, low)})`,
+    `Highest ${unit}${among}: ${andList(highest.map((row) => row.label))} (${value(result, high)})`,
+    `Lowest ${unit}${among}: ${andList(lowest.map((row) => row.label))} (${value(result, low)})`,
   ];
 }
 

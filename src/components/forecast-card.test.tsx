@@ -1,15 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { answerForecast, type ForecastAnswer, presentForecast } from "@/tools/forecast-answer";
-import { forecastResultFor, ROUGH_SERIES } from "@/tools/forecast-fixtures";
-import { forecastSpecSchema } from "@/tools/spec";
+import { type ForecastAnswer, presentForecast } from "@/tools/forecast-answer";
+import { forecastAnswerOf, forecastResultFor, ROUGH_SERIES } from "@/tools/forecast-fixtures";
 import { AnswerOutcome } from "./answer-card";
 import { forecastChartRows } from "./forecast-card";
 
 function forecastFor(horizon?: Record<string, unknown>): ForecastAnswer {
-  const answer = answerForecast(forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" }, ...(horizon === undefined ? {} : { horizon }) }));
-  if (answer.kind !== "forecast") throw new Error(answer.message);
-  return answer;
+  return forecastAnswerOf({ scope: { type: "total" }, ...(horizon === undefined ? {} : { horizon }) });
 }
 
 function render(forecast: ForecastAnswer): string {
@@ -95,6 +92,34 @@ describe("a rough forecast", () => {
     const noDemand = render(presentForecast(forecastResultFor([10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0])));
     expect(visibleOf(noDemand)).toContain("Oct–Dec 2025 had no demand, and the forecast for them was not 0.");
     expect(textOf(noDemand)).not.toContain("over 50%");
+  });
+});
+
+describe("a SKU answer, a scope note and the reach (ticket 14)", () => {
+  it("shows the SKU's orders and why it is not forecast, then its category's forecast", () => {
+    const html = render(forecastAnswerOf({ scope: { type: "sku", value: "CRAYON-0008" } }));
+    const text = visibleOf(html);
+    expect(text).toContain("SKU CRAYON-0008");
+    expect(text).toContain(
+      "CRAYON-0008 has 3 orders in the data, too few to forecast on its own: no SKU has more than 3. The forecast is for its category, CRAYON, and is not split by SKU.",
+    );
+    expect(text).toContain("Order Order date Units Warehouse");
+    expect(text).toContain("ORD-2026-438332-0059 14 Jan 2025 3 LON-FC1");
+    expect(text).toContain("ORD-2026-946295-0023 18 Apr 2025 1 CHI-DC1");
+    expect(text).toContain("Units to plan for, Jan–Mar 2026 55 · 11 forecast + 44 safety stock");
+    // The SKU comes before its category's forecast.
+    expect(text.indexOf("SKU CRAYON-0008")).toBeLessThan(text.indexOf("Units to plan for"));
+  });
+
+  it("notes that UK is served only by LON-FC1", () => {
+    expect(visibleOf(render(forecastAnswerOf({ scope: { type: "region", value: "UK" } })))).toContain(
+      "UK is served only by warehouse LON-FC1, so this forecast is the same as warehouse LON-FC1's.",
+    );
+  });
+
+  it("says first when the months asked about lie beyond the reach", () => {
+    const text = visibleOf(render(forecastAnswerOf({ scope: { type: "total" }, target: { type: "year", year: 2027 } })));
+    expect(text.trimStart().startsWith("The forecast reaches Jun 2026 at most; 2027 is beyond it.")).toBe(true);
   });
 });
 

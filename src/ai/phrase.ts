@@ -79,9 +79,17 @@ export async function phrase(question: string, answer: PhraseableAnswer, client:
   return isAcceptable(sentence, completion, brief) ? { sentence, source: "model", cacheable: true } : template(true);
 }
 
+/**
+ * Every word in the sentence, ignoring case, each on its own: a word found inside a longer required
+ * one does not count, so "CRAYON-0008" alone does not name the category CRAYON.
+ */
 function containsEvery(sentence: string, words: readonly string[]): boolean {
-  const text = sentence.toLowerCase();
-  return words.every((word) => text.includes(word.toLowerCase()));
+  let text = sentence.toLowerCase();
+  for (const word of [...words].sort((a, b) => b.length - a.length).map((each) => each.toLowerCase())) {
+    if (!text.includes(word)) return false;
+    text = text.replaceAll(word, " ");
+  }
+  return true;
 }
 
 /**

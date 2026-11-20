@@ -96,10 +96,25 @@ describe("POST /api/run: forecast specs (ADR 0003)", () => {
     });
   });
 
-  it('answers a category forecast with "not available yet"', async () => {
-    expect((await runForecast({ scope: { type: "category", value: "CRAYON" } })).body).toEqual({
-      kind: "unavailable",
-      message: expect.stringContaining("not available yet"),
+  it("forecasts one category: CRAYON plans 55 units, 11 forecast + 44 safety stock (ticket 14)", async () => {
+    expect((await runForecast({ scope: { type: "category", value: "CRAYON" } })).body).toMatchObject({
+      kind: "forecast",
+      scopeLabel: "category CRAYON",
+      method: { id: "holt" },
+      recommendation: { units: 55, demand: 11, safetyStock: 44 },
+    });
+  });
+
+  it("answers an unknown SKU with its message", async () => {
+    const { status, body } = await runForecast({ scope: { type: "sku", value: "CRAYON-9999" } });
+    expect(status).toBe(200);
+    expect(body).toEqual({ kind: "no-data", message: "No SKU CRAYON-9999 in the data. SKU IDs are a category and a number, for example CRAYON-0008." });
+  });
+
+  it("takes a target: 2027 is beyond the reach, said first", async () => {
+    expect((await runForecast({ scope: { type: "total" }, target: { type: "year", year: 2027 } })).body).toMatchObject({
+      horizon: { reachNote: "The forecast reaches Jun 2026 at most; 2027 is beyond it." },
+      monthsLabel: "Jan–Jun 2026",
     });
   });
 

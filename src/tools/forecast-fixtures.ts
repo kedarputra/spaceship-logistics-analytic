@@ -1,7 +1,26 @@
-import { type ForecastResult, forecastSeries, type MonthUnits } from "./forecast";
+import { getDataset } from "@/domain/orders";
+import { type ForecastResult, forecastSeries, type MonthUnits, runForecast } from "./forecast";
+import { answerForecast, type ForecastAnswer } from "./forecast-answer";
 import { forecastSpecSchema } from "./spec";
 
-/** Test fixtures for forecasts: made-up monthly series, so a test can reach a case the dataset's total never does. */
+/**
+ * Test fixtures for forecasts: specs run over the dataset, and made-up monthly series, so a test can
+ * reach a case the dataset never does.
+ */
+
+/** A forecast spec's fields after "tool", validated and run over the dataset; anything but a forecast throws. */
+export function forecastOf(fields: Record<string, unknown>): ForecastResult {
+  const result = runForecast(forecastSpecSchema.parse({ tool: "forecast", ...fields }), getDataset());
+  if (result.kind !== "forecast") throw new Error(result.message);
+  return result;
+}
+
+/** The same, presented as /api/run answers it. */
+export function forecastAnswerOf(fields: Record<string, unknown>): ForecastAnswer {
+  const answer = answerForecast(forecastSpecSchema.parse({ tool: "forecast", ...fields }));
+  if (answer.kind !== "forecast") throw new Error(answer.message);
+  return answer;
+}
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -22,7 +41,7 @@ export function forecastResultFor(values: readonly number[]): ForecastResult {
   return {
     kind: "forecast",
     spec: forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" } }),
-    scopeLabel: "All products",
+    scopeLabel: "all products",
     period: "1 Jan–31 Dec 2025",
     ...forecastSeries(months2025(values)),
   };
