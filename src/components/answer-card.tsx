@@ -19,10 +19,17 @@ export type AnswerOutcomeState =
   | { kind: "loading" }
   | { kind: "answer"; answer: Answer }
   | { kind: "no-data"; message: string }
-  | { kind: "error"; message: string; details: string[] };
+  | { kind: "error"; message: string; details: string[] }
+  /** Out of scope, or the model could not produce a valid spec: why, and questions that work. */
+  | { kind: "unsupported"; message: string; examples: string[] }
+  /** A tool that does not exist yet, such as the forecast. */
+  | { kind: "unavailable"; message: string };
 
-interface FollowUpHandler {
+interface AnswerActions {
+  /** Runs a chip's spec through /api/run. */
   onFollowUp: (followUp: FollowUp) => void;
+  /** Asks a question in words through /api/ask. */
+  onAsk: (question: string) => void;
 }
 
 const FRACTION_HEADERS: Partial<Record<Answer["metric"]["id"], string>> = {
@@ -202,11 +209,12 @@ function ExplanationPanel({ answer }: { answer: Answer }) {
   );
 }
 
-function AnswerCard({ answer, onFollowUp }: { answer: Answer } & FollowUpHandler) {
+function AnswerCard({ answer, onFollowUp }: { answer: Answer } & Pick<AnswerActions, "onFollowUp">) {
   const chart = answerChartProps(answer);
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
       <p className="text-sm text-slate-700">{answer.interpretation}</p>
+      {answer.assumptionNote === undefined ? null : <p className="mt-1 text-sm text-slate-600">{answer.assumptionNote}</p>}
       <div className="mt-3">{chart === null ? <ValueCard answer={answer} /> : <Chart {...chart} />}</div>
       {answer.chart.hiddenRows > 0 ? (
         <p className="mt-1 text-xs text-slate-500">{`${answer.chart.hiddenRows} more in the table`}</p>
@@ -237,16 +245,35 @@ function AnswerCard({ answer, onFollowUp }: { answer: Answer } & FollowUpHandler
 }
 
 /** Whatever the last question came to: nothing yet, working, an answer, no data, or the API's errors. */
-export function AnswerOutcome({ outcome, onFollowUp }: { outcome: AnswerOutcomeState } & FollowUpHandler) {
+export function AnswerOutcome({ outcome, onFollowUp, onAsk }: { outcome: AnswerOutcomeState } & AnswerActions) {
   switch (outcome.kind) {
     case "idle":
-      return <p className="text-sm text-slate-500">Pick a question to see its answer and how it was computed.</p>;
+      return <p className="text-sm text-slate-500">Ask a question, or pick one, to see its answer and how it was computed.</p>;
     case "loading":
-      return <p className="text-sm text-slate-500">Computing…</p>;
+      return <p className="text-sm text-slate-500">Working on it…</p>;
     case "answer":
       return <AnswerCard answer={outcome.answer} onFollowUp={onFollowUp} />;
     case "no-data":
+    case "unavailable":
       return <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{outcome.message}</p>;
+    case "unsupported":
+      return (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+          <p>{outcome.message}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {outcome.examples.map((question) => (
+              <button
+                key={question}
+                type="button"
+                onClick={() => onAsk(question)}
+                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-blue-900 hover:bg-blue-100"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
     case "error":
       return (
         <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">

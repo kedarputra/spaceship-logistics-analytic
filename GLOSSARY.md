@@ -22,13 +22,15 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Region / warehouse** | Fulfilment region (US-E, US-W, US-C, EU, UK) and the warehouse code that shipped the order. |
 | **SKU / product category** | Product identifier and its category (CRAYON, PAPER, ...). |
 | **Demand** | Units ordered (`quantity`) per period, by `order_date`. |
-| **Forecast scope** | The series a forecast covers: the total, one product category, one warehouse, or one region. Never a single SKU. ADR 0003. |
+| **Forecast scope** | The series a forecast covers: the total, one product category, one warehouse, or one region. Never a single SKU: a question about one SKU gets its order history and its category's forecast. ADR 0003 §1, §9. |
 | **Forecast horizon** | How many future months are forecast: 1 to 6, and 3 when the question does not say. ADR 0003. |
 | **Safety stock** | Units added to forecast demand to cover forecast error at a 95% service level. ADR 0003. |
 | **Inventory recommendation** | Units to plan for over the horizon: forecast demand plus safety stock. There is no on-hand stock data, so it is a plan, not a reorder quantity. |
 | **Rough forecast** | A forecast whose holdout error is more than half of actual demand (WAPE over 50%). Shown with that label. ADR 0003. |
 | **Query spec** | The structured, validated object the AI layer produces from a question: tool, metric, dimensions, filters, time range, chart hint. Code executes it; the LLM never writes SQL or code. |
 | **Tool** | A computation path the AI layer can select: the **query tool** (aggregations and KPIs) or the **forecast tool**. |
+| **Interpretation** | The model's one structured output for a question: a query spec, a forecast spec, or "unsupported" with its reason and 3 example questions picked from a fixed list. Validated before anything runs. ADR 0009 §3. Not to be confused with the *interpretation in words* an answer shows, which code writes from the spec. |
+| **Assumption** | The ambiguous word a question used ("best", "performance", "late") and the documented default it was read with. The answer states it and offers the other readings as chips. ADR 0006 §8. |
 | **Explanation panel** | What every answer shows: filters, metrics and dimensions, the resolved query spec, and the underlying rows or summary. |
 | **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |
 | **Gross / net order value** | `order_value_usd` as given (gross), or after the promo discount (net). |

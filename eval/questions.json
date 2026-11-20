@@ -1,0 +1,279 @@
+{
+  "about": "Questions for checking the interpreter (ADR 0009 §12). Each expected spec is what a correct interpretation looks like. When comparing, sort arrays and fill in defaults; for unsupported questions compare the reason only, since the 3 example ids are the model's pick. Run by hand against the app, or with npm run eval (ticket 18). The questions are deliberately different from the worked examples in src/ai/prompts.ts, so the score is not the model repeating its prompt.",
+  "questions": [
+    {
+      "id": "r3-late-last-month",
+      "question": "How many orders were delivered late last month?",
+      "expected": {
+        "tool": "query",
+        "metric": "delayed_orders",
+        "period": {
+          "type": "previous",
+          "unit": "month"
+        },
+        "assumption": "late"
+      }
+    },
+    {
+      "id": "r3-delayed-by-week",
+      "question": "Show delayed orders by week for the last 3 months",
+      "expected": {
+        "tool": "query",
+        "metric": "delayed_orders",
+        "groupBy": "week",
+        "period": {
+          "type": "last",
+          "count": 3,
+          "unit": "month"
+        }
+      }
+    },
+    {
+      "id": "r3-highest-delay-rate",
+      "question": "Which carrier has the highest delay rate?",
+      "expected": {
+        "tool": "query",
+        "metric": "delay_rate",
+        "groupBy": "carrier",
+        "sort": "desc",
+        "limit": 1
+      }
+    },
+    {
+      "id": "r9-sku-forecast",
+      "question": "Predict demand for SKU CRAYON-0008 for the next 4 months",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "sku",
+          "value": "CRAYON-0008"
+        },
+        "horizon": {
+          "count": 4,
+          "unit": "month"
+        }
+      }
+    },
+    {
+      "id": "r9-inventory",
+      "question": "How much inventory should I plan?",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "total"
+        }
+      }
+    },
+    {
+      "id": "paraphrase-late-october",
+      "question": "How many orders arrived late in October?",
+      "expected": {
+        "tool": "query",
+        "metric": "delayed_orders",
+        "period": {
+          "type": "month",
+          "month": 10
+        },
+        "assumption": "late"
+      }
+    },
+    {
+      "id": "paraphrase-weekly-delays",
+      "question": "Plot weekly delayed deliveries for the last three months",
+      "expected": {
+        "tool": "query",
+        "metric": "delayed_orders",
+        "groupBy": "week",
+        "period": {
+          "type": "last",
+          "count": 3,
+          "unit": "month"
+        }
+      }
+    },
+    {
+      "id": "paraphrase-carrier-delays",
+      "question": "Which shipping company has the worst delay record?",
+      "expected": {
+        "tool": "query",
+        "metric": "delay_rate",
+        "groupBy": "carrier",
+        "sort": "desc",
+        "limit": 1
+      }
+    },
+    {
+      "id": "on-time-rate",
+      "question": "What is our on-time delivery rate?",
+      "expected": {
+        "tool": "query",
+        "metric": "on_time_rate"
+      }
+    },
+    {
+      "id": "status-delivered",
+      "question": "How many orders have status delivered?",
+      "expected": {
+        "tool": "query",
+        "metric": "order_count",
+        "filters": {
+          "status": [
+            "delivered"
+          ]
+        }
+      }
+    },
+    {
+      "id": "short-city-name",
+      "question": "How many orders went to Austin?",
+      "expected": {
+        "tool": "query",
+        "metric": "order_count",
+        "filters": {
+          "destination": [
+            "Austin, TX"
+          ]
+        }
+      }
+    },
+    {
+      "id": "order-date-override",
+      "question": "How many delayed orders were placed last month?",
+      "expected": {
+        "tool": "query",
+        "metric": "delayed_orders",
+        "period": {
+          "type": "previous",
+          "unit": "month"
+        },
+        "dateField": "order_date"
+      }
+    },
+    {
+      "id": "ambiguous-best",
+      "question": "Who is the best carrier?",
+      "expected": {
+        "tool": "query",
+        "metric": "on_time_rate",
+        "groupBy": "carrier",
+        "sort": "desc",
+        "limit": 1,
+        "assumption": "best"
+      }
+    },
+    {
+      "id": "ambiguous-performance",
+      "question": "How is delivery performance by region?",
+      "expected": {
+        "tool": "query",
+        "metric": "on_time_rate",
+        "groupBy": "region",
+        "assumption": "performance"
+      }
+    },
+    {
+      "id": "forecast-category",
+      "question": "What will demand for paint look like over the next 5 months?",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "category",
+          "value": "PAINT"
+        },
+        "horizon": {
+          "count": 5,
+          "unit": "month"
+        }
+      }
+    },
+    {
+      "id": "forecast-warehouse",
+      "question": "What demand should warehouse ATL-DC1 expect?",
+      "expected": {
+        "tool": "forecast",
+        "scope": {
+          "type": "warehouse",
+          "value": "ATL-DC1"
+        }
+      }
+    },
+    {
+      "id": "sku-filter",
+      "question": "How many orders were there for SKU CRAYON-0008?",
+      "expected": {
+        "tool": "query",
+        "metric": "order_count",
+        "filters": {
+          "sku": [
+            "CRAYON-0008"
+          ]
+        }
+      }
+    },
+    {
+      "id": "unsupported-numeric-filter",
+      "question": "Which orders were worth over 100 dollars?",
+      "expected": {
+        "tool": "unsupported",
+        "reason": "numeric_filter",
+        "examples": [
+          "orders_by_month",
+          "on_time_by_region",
+          "units_by_category"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-two-breakdowns",
+      "question": "Delay rate by carrier and by region",
+      "expected": {
+        "tool": "unsupported",
+        "reason": "two_breakdowns",
+        "examples": [
+          "highest_delay_rate",
+          "on_time_by_region",
+          "fastest_carrier"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-sku-breakdown",
+      "question": "Units ordered for every SKU",
+      "expected": {
+        "tool": "unsupported",
+        "reason": "sku_breakdown",
+        "examples": [
+          "units_by_category",
+          "orders_by_month",
+          "inventory_plan"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-follow-up",
+      "question": "And for UPS?",
+      "expected": {
+        "tool": "unsupported",
+        "reason": "follow_up",
+        "examples": [
+          "highest_delay_rate",
+          "fastest_carrier",
+          "late_last_month"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-off-topic",
+      "question": "Who won the football match yesterday?",
+      "expected": {
+        "tool": "unsupported",
+        "reason": "not_about_data",
+        "examples": [
+          "late_last_month",
+          "delayed_by_week",
+          "inventory_plan"
+        ]
+      }
+    }
+  ]
+}

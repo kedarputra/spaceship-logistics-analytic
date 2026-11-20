@@ -12,6 +12,7 @@
     "test": "vitest run",
     "build": "next build",
     "check": "npm run typecheck && npm run test && npm run build",
+    "smoke:llm": "tsx --env-file-if-exists=.env.local scripts/smoke-llm.ts",
     "sandcastle": "tsx .sandcastle/main.mts",
     "sandcastle:cloud": "SANDCASTLE_SANDBOX=none tsx .sandcastle/main.mts",
     "tickets": "node .sandcastle/tracker.mjs status"

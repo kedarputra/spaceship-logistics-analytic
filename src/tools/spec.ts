@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { isRateOrAverage as isRateOrAverageKind, METRICS, type MetricId } from "@/domain/definitions";
+import { DELIVERY_OUTCOMES_DEFINITION, isRateOrAverage as isRateOrAverageKind, METRICS, type MetricId } from "@/domain/definitions";
 import { getDataset, type Order, ORDER_STATUSES } from "@/domain/orders";
+import { EXAMPLE_IDS, UNSUPPORTED_REASON_IDS } from "./examples";
 import { matchValue, unknownValueMessage } from "./values";
 
 /**
@@ -64,13 +65,17 @@ export const DIMENSION_VALUES = {
 
 const MAX_VALUES = 20;
 
-/** A list of values from a small dimension: any case, cities also by short name, then the enum. */
-function enumValues<const T extends readonly [string, ...string[]]>(dimension: string, values: T, cities = false) {
-  const value = z.preprocess(
+/** One value of a small dimension: any case, cities also by short name, then the enum. */
+function enumValue<const T extends readonly [string, ...string[]]>(dimension: string, values: T, cities = false) {
+  return z.preprocess(
     (input) => (typeof input === "string" ? (matchValue(input, values, cities) ?? input) : input),
     z.enum(values, { error: (issue) => unknownValueMessage(dimension, issue.input, values, { cities, listable: true }) }),
   );
-  return z.array(value).min(1).max(MAX_VALUES);
+}
+
+/** A list of values from a small dimension. */
+function enumValues<const T extends readonly [string, ...string[]]>(dimension: string, values: T, cities = false) {
+  return z.array(enumValue(dimension, values, cities)).min(1).max(MAX_VALUES);
 }
 
 const distinctValues = new Map<keyof Order, readonly string[]>();
@@ -113,6 +118,13 @@ export const filtersSchema = z.strictObject({
   sku: dataValues("SKU", "sku").optional(),
 });
 
+/** ADR 0006 §8: the metric each ambiguous word defaults to. */
+export const ASSUMED_METRIC = {
+  best: "on_time_rate",
+  performance: "on_time_rate",
+  late: "delayed_orders",
+} as const satisfies Record<string, MetricId>;
+
 const periodUnit = z.enum(["week", "month", "quarter", "year"]);
 const year = z.number().int().min(2000).max(2100);
 
@@ -145,6 +157,8 @@ export const querySpecSchema = z
     limit: z.number().int().min(1).max(20).optional(),
     /** Keep only groups with at least this many delivered orders ("among carriers with at least 20 deliveries"). */
     minDelivered: z.number().int().min(1).max(100).optional(),
+    /** The ambiguous word the question used, read with its documented default (ADR 0006 §8). */
+    assumption: z.enum(["best", "performance", "late"] satisfies (keyof typeof ASSUMED_METRIC)[]).optional(),
   })
   .refine((spec) => spec.metric !== "delivery_outcomes" || spec.groupBy === "week" || spec.groupBy === "month", {
     message: "Delivery outcomes are broken down by week or month only",
@@ -163,7 +177,52 @@ export const querySpecSchema = z
   .refine((spec) => spec.minDelivered === undefined || (spec.groupBy !== undefined && !isTimeDimension(spec.groupBy)), {
     message: "minDelivered keeps only the groups of a breakdown by category, so it needs one.",
     path: ["minDelivered"],
+  })
+  .superRefine((spec, context) => {
+    if (spec.assumption === undefined || ASSUMED_METRIC[spec.assumption] === spec.metric) return;
+    const metric = ASSUMED_METRIC[spec.assumption] === "on_time_rate" ? "the on-time rate" : "delayed orders";
+    context.addIssue({ code: "custom", message: `The assumption "${spec.assumption}" goes with ${metric} only.`, path: ["assumption"] });
   });
+
+/** A demand forecast (ADR 0003 §1, §6, §9): the total, or one category, warehouse, region, or SKU. */
+export const forecastSpecSchema = z.strictObject({
+  tool: z.enum(["forecast"]),
+  scope: z.discriminatedUnion("type", [
+    z.strictObject({ type: z.enum(["total"]) }),
+    z.strictObject({ type: z.enum(["category"]), value: enumValue("category", DIMENSION_VALUES.category) }),
+    z.strictObject({ type: z.enum(["warehouse"]), value: enumValue("warehouse", DIMENSION_VALUES.warehouse) }),
+    z.strictObject({ type: z.enum(["region"]), value: enumValue("region", DIMENSION_VALUES.region) }),
+    // Checked by the forecast tool, which explains an unknown SKU (ADR 0003 §9).
+    z.strictObject({ type: z.enum(["sku"]), value: z.string().trim().min(1).max(40) }),
+  ]),
+  /** Omitted: 3 months. The forecast tool caps it and turns weeks into months (ADR 0003 §6). */
+  horizon: z.strictObject({ count: z.number().int().min(1).max(52), unit: z.enum(["month", "week"]) }).optional(),
+});
+
+/** A question outside the whitelist: why, and 3 example questions from the fixed list (ADR 0006 §8). */
+export const unsupportedSchema = z.strictObject({
+  tool: z.enum(["unsupported"]),
+  reason: z.enum(UNSUPPORTED_REASON_IDS),
+  examples: z
+    .array(z.enum(EXAMPLE_IDS))
+    .length(3)
+    .refine((ids) => new Set(ids).size === ids.length, { message: "Pick 3 different example questions" }),
+});
+
+/** The one structured output the model returns for a question (ADR 0009 §3). */
+export const interpretationSchema = z.discriminatedUnion("tool", [querySpecSchema, forecastSpecSchema, unsupportedSchema]);
+
+/** Each metric's one-line definition and date field, for the model's prompt (ai/ cannot read domain/). */
+export const METRIC_GUIDE: readonly { id: (typeof QUERY_METRICS)[number]; definition: string; dateField: string }[] = [
+  ...Object.entries(METRICS).map(([id, metric]) => ({ id: metricId(id), definition: metric.definition, dateField: metric.dateField })),
+  { id: "delivery_outcomes", definition: DELIVERY_OUTCOMES_DEFINITION.definition, dateField: DELIVERY_OUTCOMES_DEFINITION.dateField },
+];
+
+function metricId(id: string): (typeof QUERY_METRICS)[number] {
+  const found = QUERY_METRICS.find((metric) => metric === id);
+  if (found === undefined) throw new Error(`Metric ${id} is missing from QUERY_METRICS`);
+  return found;
+}
 
 function isRateOrAverage(metric: (typeof QUERY_METRICS)[number]): boolean {
   return metric !== "delivery_outcomes" && isRateOrAverageKind(METRICS[metric].kind);
@@ -178,3 +237,4 @@ export function isTimeDimension(
 export type QuerySpec = z.output<typeof querySpecSchema>;
 export type QueryFilters = z.output<typeof filtersSchema>;
 export type GroupBy = NonNullable<QuerySpec["groupBy"]>;
+export type Interpretation = z.output<typeof interpretationSchema>;

@@ -1,6 +1,6 @@
 import { type ChartType, chooseChart, MAX_CATEGORY_BARS } from "./chart";
 import type { QueryResult } from "./query";
-import { type GroupBy, isTimeDimension, type QuerySpec } from "./spec";
+import { ASSUMED_METRIC, type GroupBy, isTimeDimension, type QuerySpec } from "./spec";
 import { DIMENSION_WORDS, dateFieldWords, filterList, MONTH_NAMES } from "./words";
 
 /**
@@ -23,9 +23,17 @@ export interface FollowUp {
 
 export interface Answer extends QueryResult {
   interpretation: string;
+  /** How an ambiguous word in the question was read, when a default was applied (ADR 0006 §8). */
+  assumptionNote?: string;
   chart: AnswerChart;
   followUps: FollowUp[];
 }
+
+const ASSUMPTION_NOTES: Record<NonNullable<QuerySpec["assumption"]>, string> = {
+  best: '"Best" is read as the highest on-time delivery rate.',
+  performance: '"Performance" is read as the on-time delivery rate.',
+  late: '"Late" is read as delayed orders; exception orders are counted separately.',
+};
 
 function isCategory(groupBy: GroupBy | undefined): groupBy is GroupBy {
   return groupBy !== undefined && !isTimeDimension(groupBy);
@@ -62,7 +70,7 @@ export function chartFor(result: QueryResult): AnswerChart {
 
 /** The same question for another metric. A category ranking turns around, so "best" stays best; time keeps its order. */
 function withMetric(spec: QuerySpec, metric: QuerySpec["metric"]): QuerySpec {
-  const { sort, ...rest } = spec;
+  const { sort, assumption: _answered, ...rest } = spec;
   if (!isCategory(spec.groupBy)) return sort === undefined ? { ...rest, metric } : { ...rest, metric, sort };
   return { ...rest, metric, sort: sort === "asc" ? "desc" : "asc" };
 }
@@ -88,20 +96,29 @@ export function followUpsFor(result: QueryResult): FollowUp[] {
     });
   }
 
-  // ADR 0006 §8: "best" and "performance" default to the on-time rate; "late" to delayed orders.
-  if (spec.metric === "on_time_rate") {
+  // ADR 0006 §8: when an ambiguous word was read with its default, offer the other readings.
+  const assumed = spec.assumption === undefined ? undefined : ASSUMED_METRIC[spec.assumption];
+  if (assumed === "on_time_rate") {
     followUps.push({ label: "Delay rate instead?", spec: withMetric(spec, "delay_rate") });
     followUps.push({ label: "Average delivery time instead?", spec: withMetric(spec, "average_delivery_time") });
   }
-  if (spec.metric === "delayed_orders") {
+  if (assumed === "delayed_orders") {
+    const { assumption: _answered, ...rest } = spec;
     followUps.push({
       label: "Count exception orders too?",
-      spec: { ...spec, metric: "order_count", filters: { ...spec.filters, status: ["delayed", "exception"] } },
+      spec: { ...rest, metric: "order_count", filters: { ...spec.filters, status: ["delayed", "exception"] } },
     });
   }
   return followUps;
 }
 
 export function presentAnswer(result: QueryResult): Answer {
-  return { ...result, interpretation: describeQuery(result), chart: chartFor(result), followUps: followUpsFor(result) };
+  const assumption = result.spec.assumption;
+  return {
+    ...result,
+    interpretation: describeQuery(result),
+    assumptionNote: assumption === undefined ? undefined : ASSUMPTION_NOTES[assumption],
+    chart: chartFor(result),
+    followUps: followUpsFor(result),
+  };
 }

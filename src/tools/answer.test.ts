@@ -36,6 +36,21 @@ describe("the interpretation, written by code from the spec (ADR 0006 §7)", () 
   });
 });
 
+describe("the default an ambiguous word was read with, stated by code (ADR 0006 §8)", () => {
+  it('says how "best", "performance" and "late" were read, and nothing when no default was applied', () => {
+    expect(answerFor({ metric: "on_time_rate", groupBy: "carrier", assumption: "best" }).assumptionNote).toBe(
+      '"Best" is read as the highest on-time delivery rate.',
+    );
+    expect(answerFor({ metric: "on_time_rate", assumption: "performance" }).assumptionNote).toBe(
+      '"Performance" is read as the on-time delivery rate.',
+    );
+    expect(answerFor({ ...LATE_LAST_MONTH, assumption: "late" }).assumptionNote).toBe(
+      '"Late" is read as delayed orders; exception orders are counted separately.',
+    );
+    expect(answerFor(LATE_LAST_MONTH).assumptionNote).toBeUndefined();
+  });
+});
+
 describe("the chart, chosen by code (ADR 0006 §6)", () => {
   it("shows a single value as an answer card, a count over time as bars, a rate over time as a line", () => {
     expect(answerFor(LATE_LAST_MONTH).chart.type).toBe("answer-card");
@@ -73,21 +88,35 @@ describe("follow-up chips, built by code", () => {
     expect(labels({ metric: "delay_rate", groupBy: "region" }).some((label) => label.includes("≥ 20"))).toBe(false);
   });
 
-  it('offers the alternatives to the ambiguous defaults of ADR 0006 §8: "best" and "performance", and "late"', () => {
-    const onTime = answerFor({ metric: "on_time_rate", groupBy: "carrier" }).followUps;
-    expect(onTime.map((followUp) => followUp.label)).toEqual(["Delay rate instead?", "Average delivery time instead?"]);
-    expect(onTime[0]?.spec).toMatchObject({ metric: "delay_rate", groupBy: "carrier", sort: "asc" });
-    const late = answerFor(LATE_LAST_MONTH).followUps.find((followUp) => followUp.label === "Count exception orders too?");
+  it('offers the alternatives when an ambiguous default was applied (ADR 0006 §8): "best", "performance", "late"', () => {
+    const best = answerFor({ metric: "on_time_rate", groupBy: "carrier", assumption: "best" }).followUps;
+    expect(best.map((followUp) => followUp.label)).toEqual(["Delay rate instead?", "Average delivery time instead?"]);
+    expect(best[0]?.spec).toMatchObject({ metric: "delay_rate", groupBy: "carrier", sort: "asc" });
+    expect(best[0]?.spec.assumption).toBeUndefined();
+    const late = answerFor({ ...LATE_LAST_MONTH, assumption: "late" }).followUps.find(
+      (followUp) => followUp.label === "Count exception orders too?",
+    );
     expect(late?.spec).toMatchObject({ metric: "order_count", filters: { status: ["delayed", "exception"] } });
   });
 
+  it("offers no alternatives when the question named its metric", () => {
+    const labels = (spec: Record<string, unknown>) => answerFor(spec).followUps.map((followUp) => followUp.label);
+    expect(labels({ metric: "on_time_rate", groupBy: "carrier" })).toEqual([]);
+    expect(labels(LATE_LAST_MONTH)).toEqual(["December 2025 instead?"]);
+  });
+
   it("turns a ranking around for another metric, but keeps time in calendar order", () => {
-    const byMonth = answerFor({ metric: "on_time_rate", groupBy: "month" }).followUps;
+    const byMonth = answerFor({ metric: "on_time_rate", groupBy: "month", assumption: "performance" }).followUps;
     expect(byMonth.map((followUp) => followUp.spec.sort)).toEqual([undefined, undefined]);
   });
 
   it("builds only specs the whitelist accepts", () => {
-    const answers = [LATE_LAST_MONTH, DELAYED_BY_WEEK, HIGHEST_DELAY_RATE, { metric: "on_time_rate", groupBy: "carrier" }].map(answerFor);
+    const answers = [
+      { ...LATE_LAST_MONTH, assumption: "late" },
+      { ...DELAYED_BY_WEEK, assumption: "late" },
+      HIGHEST_DELAY_RATE,
+      { metric: "on_time_rate", groupBy: "carrier", assumption: "best" },
+    ].map(answerFor);
     const specs = answers.flatMap((answer) => answer.followUps.map((followUp) => followUp.spec));
     expect(specs.length).toBeGreaterThanOrEqual(6);
     for (const spec of specs) expect(querySpecSchema.safeParse(spec).success).toBe(true);

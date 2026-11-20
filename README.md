@@ -20,7 +20,7 @@ Details in ADR 0010 (hosting) and ADR 0009 (LLM). There is no login.
 | Public URL | `https://wms.nalabs.ai` → Cloudflare Tunnel → `next start` on `127.0.0.1:4800` |
 | Process | Windows service `spaceship` (WinSW, LocalService), starts at boot, restarts on crash |
 | Deploys | A watchdog checks `main` every 2 minutes, builds each new commit in its own folder (`npm ci`, `npm run check`), switches over, and rolls back if `/api/health` fails |
-| Environment variables | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY_FILE` (see `.env.example`); the key itself lives in a file outside the repo |
+| Environment variables | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY_FILE`, and optionally `LLM_RESPONSE_MODE` (see `.env.example`); the key itself lives in a file outside the repo |
 | Rate limit, `/api/ask` | 20 requests per IP per minute, then 429 |
 | Rate limit, `/api/*` | 120 requests per IP per minute, then 429 |
 | Health check | `GET /api/health` returns `{"rows":400,"anchor":"2025-12-31"}`; `?ai=1` also checks the LLM |
@@ -48,4 +48,6 @@ _The KPI definitions and the anchor date used for relative periods (see `docs/da
 
 ## AI usage
 
-_How AI was used to build this project and which model the app calls at runtime (draft in `docs/submission.md`)._
+**At runtime** the app calls Gemma 4 12B-it (Q5_K_M) through our own LLM gateway, on our own GPU, with no third-party AI provider. The model only turns a question into a structured query spec, at temperature 0; the spec is validated against a whitelist and code computes every number shown (ADR 0009).
+
+_How AI was used to build this project (draft in `docs/submission.md`)._

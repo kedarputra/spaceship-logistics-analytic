@@ -14,7 +14,7 @@ function answerFor(spec: Record<string, unknown>): Answer {
 }
 
 function render(answer: Answer): string {
-  return renderToStaticMarkup(<AnswerOutcome outcome={{ kind: "answer", answer }} onFollowUp={() => undefined} />);
+  return renderToStaticMarkup(<AnswerOutcome outcome={{ kind: "answer", answer }} onFollowUp={() => undefined} onAsk={() => undefined} />);
 }
 
 // What a reader sees, markup between text read as one space.
@@ -115,6 +115,7 @@ describe("safety and errors", () => {
       <AnswerOutcome
         outcome={{ kind: "error", message: "The query spec is not valid.", details: ['Unknown carrier "fedx". Did you mean "FedEx"?'] }}
         onFollowUp={() => undefined}
+        onAsk={() => undefined}
       />,
     );
     expect(textOf(html)).toContain("The query spec is not valid. Unknown carrier &quot;fedx&quot;. Did you mean &quot;FedEx&quot;?");
@@ -123,7 +124,7 @@ describe("safety and errors", () => {
 
   it("shows the no-data message", () => {
     const message = "No data for 1 Jan–31 Dec 2024. The data covers 1 Jan–31 Dec 2025.";
-    expect(textOf(renderToStaticMarkup(<AnswerOutcome outcome={{ kind: "no-data", message }} onFollowUp={() => undefined} />))).toContain(
+    expect(textOf(renderToStaticMarkup(<AnswerOutcome outcome={{ kind: "no-data", message }} onFollowUp={() => undefined} onAsk={() => undefined} />))).toContain(
       message,
     );
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { getDataset } from "@/domain/orders";
-import { DIMENSION_VALUES, querySpecSchema } from "./spec";
+import { DIMENSION_VALUES, interpretationSchema, querySpecSchema } from "./spec";
 
 function errorsOf(input: unknown): string[] {
   const result = querySpecSchema.safeParse(input);
@@ -79,6 +80,56 @@ describe("query spec: the whitelist (ADR 0006 §1, §3–5)", () => {
     expect(errorsOf(withPeriod({ type: "range", from: "2025-03-02", to: "2025-03-01" }))).not.toEqual([]);
     expect(errorsOf(withPeriod({ type: "last", count: 0, unit: "month" }))).not.toEqual([]);
     expect(errorsOf(withPeriod({ type: "month", month: 13 }))).not.toEqual([]);
+  });
+});
+
+describe("ambiguous defaults (ADR 0006 §8)", () => {
+  it("records which ambiguous word was read with its default, on the metric that default means", () => {
+    expect(errorsOf({ tool: "query", metric: "on_time_rate", groupBy: "carrier", assumption: "best" })).toEqual([]);
+    expect(errorsOf({ tool: "query", metric: "on_time_rate", assumption: "performance" })).toEqual([]);
+    expect(errorsOf({ tool: "query", metric: "delayed_orders", assumption: "late" })).toEqual([]);
+    expect(errorsOf({ tool: "query", metric: "delay_rate", assumption: "best" })).toEqual([
+      'The assumption "best" goes with the on-time rate only.',
+    ]);
+    expect(errorsOf({ tool: "query", metric: "order_count", assumption: "late" })).toEqual([
+      'The assumption "late" goes with delayed orders only.',
+    ]);
+  });
+});
+
+describe("the interpretation: one structured output for the model (ADR 0009 §3)", () => {
+  const accepts = (input: unknown) => interpretationSchema.safeParse(input).success;
+  const EXAMPLES = ["late_last_month", "delayed_by_week", "highest_delay_rate"];
+
+  it("is a query spec, a forecast spec, or an unsupported question", () => {
+    expect(accepts({ tool: "query", metric: "delayed_orders", period: { type: "previous", unit: "month" } })).toBe(true);
+    expect(accepts({ tool: "forecast", scope: { type: "total" } })).toBe(true);
+    expect(accepts({ tool: "unsupported", reason: "numeric_filter", examples: EXAMPLES })).toBe(true);
+    expect(accepts({ tool: "sql", query: "SELECT 1" })).toBe(false);
+  });
+
+  it("takes a forecast for the total, one category, warehouse or region, or a SKU, with an optional horizon", () => {
+    expect(interpretationSchema.parse({ tool: "forecast", scope: { type: "category", value: "crayon" }, horizon: { count: 4, unit: "month" } })).toEqual({
+      tool: "forecast",
+      scope: { type: "category", value: "CRAYON" },
+      horizon: { count: 4, unit: "month" },
+    });
+    expect(accepts({ tool: "forecast", scope: { type: "warehouse", value: "LON-FC1" } })).toBe(true);
+    expect(accepts({ tool: "forecast", scope: { type: "sku", value: "CRAYON-0008" } })).toBe(true);
+    expect(accepts({ tool: "forecast", scope: { type: "carrier", value: "UPS" } })).toBe(false);
+    expect(accepts({ tool: "forecast", scope: { type: "total" }, horizon: { count: 0, unit: "month" } })).toBe(false);
+  });
+
+  it("names the reason and picks exactly 3 example questions from the fixed list, never writing its own", () => {
+    expect(accepts({ tool: "unsupported", reason: "numeric_filter", examples: EXAMPLES.slice(0, 2) })).toBe(false);
+    expect(accepts({ tool: "unsupported", reason: "numeric_filter", examples: [...EXAMPLES.slice(0, 2), "How tall is UPS?"] })).toBe(false);
+    expect(accepts({ tool: "unsupported", reason: "because I said so", examples: EXAMPLES })).toBe(false);
+  });
+
+  it("tags every variant with z.enum, so its JSON Schema has no const (ADR 0009 §3)", () => {
+    const schema = JSON.stringify(z.toJSONSchema(interpretationSchema));
+    expect(schema).not.toContain('"const"');
+    expect(schema).toContain('"enum":["forecast"]');
   });
 });
 
