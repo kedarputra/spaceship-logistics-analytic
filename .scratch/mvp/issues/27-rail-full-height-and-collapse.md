@@ -7,7 +7,7 @@ Today the shell is a flex row with `min-h-screen` and `items-stretch` (`src/comp
 **Blocked by:** 25
 _25 Redesign: the Delivery, Carriers and Forecast pages_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] **Full height.**
   - Where the rail sits beside the page, it is `sticky` at the top with the window's height (`h-dvh`). The page scrolls; the rail does not.
@@ -37,3 +37,5 @@ _25 Redesign: the Delivery, Carriers and Forecast pages_
     - At 320 px, the layout is as before.
 
 ## Comments
+
+- 2026-11-20: Rail sticky at the window's full height beside the page (h-dvh, scrolls on its own when short), collapsible to 64 px icons with a toggle (aria-expanded, aria-controls, Collapse/Expand menu); names stay as accessible names and show as tooltips on hover and focus; the AI dot's tooltip gives status, model and data file. The choice is a cookie the layout reads, so the first paint has the right width. Checked in headless Edge: /delivery with both Data tables open and scrolled to the bottom keeps the Data card in view; all five pages at 1280 collapsed and expanded; reload keeps the choice with no layout shift; 320 px unchanged.

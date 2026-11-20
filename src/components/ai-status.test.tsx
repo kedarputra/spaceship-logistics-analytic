@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AiStatusPill, RailAiStatus } from "./ai-status";
-import { type AiStatus, aiStatusFrom } from "./ai-status-state";
+import { type AiStatus, aiStatusFrom, railStatusTip } from "./ai-status-state";
 
 const DATA = { rows: 400, anchor: "2025-12-31" };
 
@@ -38,11 +38,22 @@ describe("the AI status pill and the rail's status", () => {
   });
 
   it("names the model by its configured display name, not the gateway's alias, and says what the AI does (ticket 25)", () => {
-    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" />))).toBe(
+    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" />))).toBe(
       "AI online Gemma 4 12B on this server. The AI routes and explains; code computes every number.",
     );
-    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "unavailable" }} modelName="Gemma 4 12B" />))).toBe(
-      "AI unavailable: the dashboard still works Gemma 4 12B on this server. The AI routes and explains; code computes every number.",
+    expect(
+      text(renderToStaticMarkup(<RailAiStatus status={{ state: "unavailable" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" />)),
+    ).toBe("AI unavailable: the dashboard still works Gemma 4 12B on this server. The AI routes and explains; code computes every number.");
+  });
+
+  it("gives the collapsed rail's dot a tooltip with the status, the model and the data file (ticket 27)", () => {
+    expect(railStatusTip({ state: "online" }, "Gemma 4 12B", "mock_logistics_data.csv")).toBe(
+      "AI online · Gemma 4 12B on this server · mock_logistics_data.csv",
     );
+    expect(railStatusTip({ state: "busy" }, "Gemma 4 12B", "mock_logistics_data.csv")).toBe(
+      "AI busy, try again shortly · Gemma 4 12B on this server · mock_logistics_data.csv",
+    );
+    const html = renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" />);
+    expect(html).toContain('data-tip="AI online · Gemma 4 12B on this server · mock_logistics_data.csv"');
   });
 });

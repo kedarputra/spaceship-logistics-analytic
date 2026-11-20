@@ -112,6 +112,25 @@
   --text-plan--line-height: 1.05;
   --text-plan--letter-spacing: -0.03em;
   --text-plan--font-weight: 700;
+
+  /*
+   * From this width of the window the rail sits beside the page (232 + 560 px, where it stacked
+   * before ticket 27); below it, the rail stacks above. The one home of the threshold: the
+   * rail-collapsed variant below builds on it.
+   */
+  --breakpoint-beside: 49.5rem;
+}
+
+/*
+ * The collapsed rail (ticket 27), on the rail and everything in it, and only where the rail sits
+ * beside the page. :is keeps the attribute's weight, so a collapsed style beats the expanded one.
+ */
+@custom-variant rail-collapsed {
+  @variant beside {
+    &:is([data-rail-collapsed], [data-rail-collapsed] *) {
+      @slot;
+    }
+  }
 }
 
 /*

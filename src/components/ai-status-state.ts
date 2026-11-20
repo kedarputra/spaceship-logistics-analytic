@@ -16,6 +16,16 @@ export const AI_STATUS_TEXT: Record<AiState, string> = {
   unavailable: "AI unavailable: the dashboard still works",
 };
 
+/** Where the model runs, as the rail says it. */
+export function modelOnServer(modelName: string): string {
+  return `${modelName} on this server`;
+}
+
+/** What the collapsed rail's status dot says on hover: the state, the model, and the data file (ticket 27). */
+export function railStatusTip(status: AiStatus, modelName: string, dataFile: string): string {
+  return `${AI_STATUS_TEXT[status.state]} · ${modelOnServer(modelName)} · ${dataFile}`;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

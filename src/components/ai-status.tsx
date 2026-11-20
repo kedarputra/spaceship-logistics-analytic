@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { AI_STATUS_TEXT, type AiState, type AiStatus, aiStatusFrom } from "./ai-status-state";
+import { AI_STATUS_TEXT, type AiState, type AiStatus, aiStatusFrom, modelOnServer, railStatusTip } from "./ai-status-state";
 
 /**
  * The AI status pill and the rail's status block (ADR 0011 §5). One poller per page serves every
@@ -77,16 +77,22 @@ const RAIL_DOTS: Record<AiState, string> = {
   unavailable: "bg-bad-line",
 };
 
-/** The rail's status block: the state, the model by its display name (ticket 25), and what the AI does. */
-export function RailAiStatus({ status, modelName }: { status: AiStatus; modelName: string }) {
+/**
+ * The rail's status block: the state, the model by its display name (ticket 25), and what the AI
+ * does. On the collapsed rail only the dot shows, with the rest as its tooltip (ticket 27); the words
+ * stay for screen readers.
+ */
+export function RailAiStatus({ status, modelName, dataFile }: { status: AiStatus; modelName: string; dataFile: string }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="flex items-center gap-2 text-small font-medium text-panel">
-        <span aria-hidden="true" className={`size-2 rounded-full ${RAIL_DOTS[status.state]}`} />
-        {AI_STATUS_TEXT[status.state]}
+        <span aria-hidden="true" data-tip={railStatusTip(status, modelName, dataFile)} className="grid place-items-center rail-collapsed:size-8">
+          <span className={`size-2 rounded-full ${RAIL_DOTS[status.state]}`} />
+        </span>
+        <span className="rail-collapsed:sr-only">{AI_STATUS_TEXT[status.state]}</span>
       </span>
-      <span className="text-note text-rail-muted">
-        {`${modelName} on this server. The AI routes and explains; code computes every number.`}
+      <span className="text-note text-rail-muted rail-collapsed:sr-only">
+        {`${modelOnServer(modelName)}. The AI routes and explains; code computes every number.`}
       </span>
     </div>
   );
@@ -96,6 +102,6 @@ export function LiveAiStatusPill() {
   return <AiStatusPill status={useAiStatus()} />;
 }
 
-export function LiveRailAiStatus({ modelName }: { modelName: string }) {
-  return <RailAiStatus status={useAiStatus()} modelName={modelName} />;
+export function LiveRailAiStatus({ modelName, dataFile }: { modelName: string; dataFile: string }) {
+  return <RailAiStatus status={useAiStatus()} modelName={modelName} dataFile={dataFile} />;
 }

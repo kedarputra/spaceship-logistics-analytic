@@ -4,14 +4,27 @@ import { DATASET_FILE, type Dataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod, formatYears } from "@/domain/periods";
 import { LiveRailAiStatus } from "./ai-status";
 import { Icon } from "./icons";
+import { Rail } from "./rail";
 import { RailNav } from "./rail-nav";
 
 /**
  * The shell of every page (ADR 0011 §5): a skip link, the dark rail with the product name, the menu,
- * the data and the AI status, then the page. The rail is 232 px wide beside the content, and stacks
- * above it when the two no longer fit side by side.
+ * the data and the AI status, then the page. Where the two fit side by side, the rail is 232 px wide,
+ * or 64 px collapsed, and the page takes the rest up to its 1200 px; below that, the rail stacks above
+ * the page (ticket 27).
  */
-export function AppShell({ dataset, modelName, children }: { dataset: Dataset; modelName: string; children: ReactNode }) {
+export function AppShell({
+  dataset,
+  modelName,
+  railCollapsed,
+  children,
+}: {
+  dataset: Dataset;
+  modelName: string;
+  /** The viewer's kept choice, from the rail cookie. */
+  railCollapsed: boolean;
+  children: ReactNode;
+}) {
   const period = dataPeriod(dataset.orders);
   return (
     <>
@@ -21,28 +34,36 @@ export function AppShell({ dataset, modelName, children }: { dataset: Dataset; m
       >
         Skip to content
       </a>
-      <div className="flex min-h-screen flex-wrap items-stretch">
-        <header className="flex max-w-full flex-[1_1_232px] flex-col gap-6 bg-rail px-3 py-5 text-rail-ink">
-          <div className="flex items-center gap-2.5 px-2 py-1">
-            <span className="grid size-[34px] place-items-center rounded-control bg-sage/16 text-sage">
-              <Icon name="box" size={20} />
-            </span>
-            <span className="flex flex-col">
-              <span className="text-card-title text-panel">Logistics Analytics</span>
-              <span className="text-note text-rail-muted">{`Order data, ${formatYears(period)}`}</span>
-            </span>
-          </div>
+      <div className="flex min-h-dvh flex-col beside:flex-row">
+        <Rail
+          initiallyCollapsed={railCollapsed}
+          brand={
+            <div className="flex items-center gap-2.5 px-2 py-1 rail-collapsed:justify-center rail-collapsed:px-0">
+              <span className="grid size-[34px] shrink-0 place-items-center rounded-control bg-sage/16 text-sage">
+                <Icon name="box" size={20} />
+              </span>
+              <span className="flex flex-col whitespace-nowrap rail-collapsed:sr-only">
+                <span className="text-card-title text-panel">Logistics Analytics</span>
+                <span className="text-note text-rail-muted">{`Order data, ${formatYears(period)}`}</span>
+              </span>
+            </div>
+          }
+          dataCard={
+            <div className="flex flex-col gap-2.5 rounded-inset border border-panel/8 bg-panel/4 p-3.5 rail-collapsed:items-center rail-collapsed:border-transparent rail-collapsed:bg-transparent rail-collapsed:p-0">
+              {/* Collapsed, the card shrinks to the AI dot; these words stay for screen readers. */}
+              <div className="flex flex-col gap-2.5 rail-collapsed:sr-only">
+                <span className="text-label text-rail-muted uppercase">Data</span>
+                <span className="text-small font-medium text-panel">{DATASET_FILE}</span>
+                <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · read-only`}</span>
+                <div className="h-px bg-panel/8" />
+              </div>
+              <LiveRailAiStatus modelName={modelName} dataFile={DATASET_FILE} />
+            </div>
+          }
+        >
           <RailNav />
-          <div className="grow" />
-          <div className="flex flex-col gap-2.5 rounded-inset border border-panel/8 bg-panel/4 p-3.5">
-            <span className="text-label text-rail-muted uppercase">Data</span>
-            <span className="text-small font-medium text-panel">{DATASET_FILE}</span>
-            <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · read-only`}</span>
-            <div className="h-px bg-panel/8" />
-            <LiveRailAiStatus modelName={modelName} />
-          </div>
-        </header>
-        <main id="content" className="min-w-0 flex-[999_1_560px] px-4 pt-7 pb-16 sm:px-9">
+        </Rail>
+        <main id="content" className="min-w-0 flex-1 px-4 pt-7 pb-16 sm:px-9">
           <div className="mx-auto flex max-w-[1200px] flex-col gap-5">{children}</div>
         </main>
       </div>
