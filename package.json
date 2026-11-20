@@ -1,0 +1,1 @@
+{"name":"spaceship-logistics-analytics","version":"0.1.0","private":true,"devDependencies":{"@ai-hero/sandcastle":"^0.14.0","tsx":"^4.23.15"},"scripts":{"sandcastle":"tsx .sandcastle/main.mts","sandcastle:cloud":"SANDCASTLE_SANDBOX=none tsx .sandcastle/main.mts","tickets":"node .sandcastle/tracker.mjs status"}}

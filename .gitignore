@@ -1,0 +1,19 @@
+# Dependencies and builds
+node_modules/
+.next/
+dist/
+build/
+coverage/
+.vercel/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Spaceship's original brief: kept locally, restated in docs/requirements.md
+docs/brief/
+
+# OS and editor
+.DS_Store
+Thumbs.db
