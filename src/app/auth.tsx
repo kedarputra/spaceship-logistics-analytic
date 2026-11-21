@@ -8,6 +8,7 @@ import { NOT_CONFIGURED, SIGNED_OUT } from "@/auth/sign-in";
 import type { User } from "@/auth/users";
 import { Forbidden } from "@/components/forbidden";
 import { errorResponse } from "./api/body";
+import { privateNoStore } from "./api/no-store";
 
 /**
  * requireRole in Next's terms (ticket 31, ADR 0012). Every page is exported through `withRole` and
@@ -39,13 +40,17 @@ export function withRole<Props extends object>(action: Action, Page: (props: Pro
   };
 }
 
-/** An API route that needs `action`: 401, 403 or 503 JSON when it may not run, else the handler. */
+/**
+ * An API route that needs `action`: 401, 403 or 503 JSON when it may not run, else the handler. Every
+ * answer, a file download or a refusal, is `private, no-store`, so the CDN in front never serves one
+ * user's response to another (ADR 0012, amended).
+ */
 export function withApiRole(action: Action, handler: (request: Request) => Response | Promise<Response>) {
   return async function routeForRole(request: Request): Promise<Response> {
     const access = requireRole(cookieValue(request.headers.get("cookie"), SESSION_COOKIE), action);
-    if (access.kind === "not-configured") return errorResponse(503, NOT_CONFIGURED);
-    if (access.kind === "signed-out") return errorResponse(401, SIGNED_OUT);
-    if (access.kind === "forbidden") return errorResponse(403, access.message);
-    return handler(request);
+    if (access.kind === "not-configured") return privateNoStore(errorResponse(503, NOT_CONFIGURED));
+    if (access.kind === "signed-out") return privateNoStore(errorResponse(401, SIGNED_OUT));
+    if (access.kind === "forbidden") return privateNoStore(errorResponse(403, access.message));
+    return privateNoStore(await handler(request));
   };
 }

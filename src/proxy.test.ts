@@ -76,6 +76,8 @@ describe("the proxy's sign-in check (ticket 31)", () => {
       const response = visit(path, { ip: "192.0.2.2" });
       expect(response.status).toBe(401);
       expect(await response.json()).toEqual({ error: "You are signed out. Sign in again." });
+      // A refusal depends on who asked, so no shared cache (the tunnel's CDN) may keep it.
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
     }
   });
 
@@ -97,6 +99,7 @@ describe("the proxy's sign-in check (ticket 31)", () => {
     expect(redirectedTo(visit("/forecast", { cookie: accounts.cookie("admin") }))).toBe("/login");
     const api = visit("/api/run", { cookie: accounts.cookie("admin"), ip: "192.0.2.4" });
     expect(api.status).toBe(503);
+    expect(api.headers.get("cache-control")).toBe("private, no-store");
     expect(await api.json()).toEqual({ error: "Sign-in isn't configured on this server." });
     expect(passedOn(visit("/api/health", { ip: "192.0.2.4" }))).toBe(true);
   });

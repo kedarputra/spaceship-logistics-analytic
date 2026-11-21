@@ -135,6 +135,40 @@ describe("every route for every role (ticket 31): allowed, sent to sign in, or r
   });
 });
 
+describe("API responses are never stored by a shared cache (ADR 0012, amended)", () => {
+  /** The route's response as `who`, after the proxy has let it through. */
+  async function answer(path: string, who: Who): Promise<Response> {
+    const api = API[path];
+    if (api === undefined) throw new Error(`No route ${path}`);
+    const headers: Record<string, string> = who === "nobody" ? {} : { cookie: accounts.cookie(who) };
+    return api.route(new NextRequest(`http://localhost${path}`, { method: api.method, headers, body: api.body }));
+  }
+
+  it.each(["/api/orders.csv", "/api/reports/2025-11.pdf", "/api/reports/2025-11.csv", "/api/run"])(
+    "%s answers an analyst with its file or result, private, no-store",
+    async (path) => {
+      const response = await answer(path, "analyst");
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+    },
+  );
+
+  it("keeps the download's own headers beside it", async () => {
+    const response = await answer("/api/reports/2025-11.pdf", "admin");
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toMatch(/^attachment; filename=/);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("marks a 403, a 401 and a 404 the same way", async () => {
+    const forbidden = await answer("/api/orders.csv", "viewer");
+    const signedOut = await answer("/api/reports/2025-11.csv", "nobody");
+    const missing = await reportRoute(new NextRequest("http://localhost/api/reports/2019-01.csv", { headers: { cookie: accounts.cookie("analyst") } }));
+    expect([forbidden.status, signedOut.status, missing.status]).toEqual([403, 401, 404]);
+    for (const response of [forbidden, signedOut, missing]) expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+});
+
 describe("the 403 page", () => {
   it("says what the role can't open, with links to the Overview and to sign in as someone else", async () => {
     const { html } = await openPage("/ask", "viewer");

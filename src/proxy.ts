@@ -5,6 +5,7 @@ import { authSecret } from "./auth/secret";
 import { SESSION_COOKIE, verifySession } from "./auth/session";
 import { NOT_CONFIGURED, SIGNED_OUT } from "./auth/sign-in";
 import { errorResponse } from "./app/api/body";
+import { privateNoStore } from "./app/api/no-store";
 import { apiRateLimiter, ipKey, RATE_LIMIT_MESSAGE } from "./app/api/rate-limit";
 
 /**
@@ -32,9 +33,10 @@ export function proxy(request: NextRequest): Response {
   if (isPublicPath(pathname)) return NextResponse.next();
 
   const secret = authSecret();
-  if (!secret.ok) return api ? errorResponse(503, NOT_CONFIGURED) : NextResponse.redirect(new URL("/login", request.url));
+  // Refusals are per user too, so no shared cache may keep them (ADR 0012, amended).
+  if (!secret.ok) return api ? privateNoStore(errorResponse(503, NOT_CONFIGURED)) : NextResponse.redirect(new URL("/login", request.url));
   if (verifySession(request.cookies.get(SESSION_COOKIE)?.value, secret.key, now)) return NextResponse.next();
-  if (api) return errorResponse(401, SIGNED_OUT);
+  if (api) return privateNoStore(errorResponse(401, SIGNED_OUT));
   // An absolute URL on the request's own host, which Next turns into a relative Location.
   return NextResponse.redirect(new URL(loginPath(`${pathname}${search}`), request.url));
 }
