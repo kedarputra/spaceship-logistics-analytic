@@ -10,7 +10,7 @@ import { answerChartProps } from "./answer-chart";
 function answerFor(spec: Record<string, unknown>): Answer {
   const result = runQuery(querySpecSchema.parse({ tool: "query", ...spec }), getDataset());
   if (result.kind !== "result") throw new Error(result.message);
-  return presentAnswer(result);
+  return presentAnswer(result, getDataset().orders);
 }
 
 function render(answer: Answer): string {
@@ -162,5 +162,24 @@ describe("the answer on the Ask page (ticket 24, docs/design/Ask.dc.html)", () =
     const text = textOf(render(ranking));
     expect(text).toContain("GLS n=8 small sample 25.0% USPS n=47 first with n ≥ 20 23.4%");
     expect(text).toContain("USPS 23.4% 11 / 47 47 First with n ≥ 20");
+  });
+});
+
+// Expected figures: docs/data.md (USPS 11 of 47 delivered; 3 delayed orders delivered in Nov 2025).
+describe("the orders behind an answer (ticket 29)", () => {
+  it("opens the USPS delay rate's 47 delivered orders, those it divides by, in Raw data from How this was computed", () => {
+    expect(panelOf(render(answerFor({ metric: "delay_rate", filters: { carrier: ["USPS"] } })))).toMatch(
+      /<a[^>]*href="\/data\?status=delivered&amp;status=delayed&amp;status=exception&amp;carrier=USPS&amp;date=delivery"[^>]*>Open the 47 delivered orders behind this answer/,
+    );
+  });
+
+  it("opens a period's orders on the answer's date field: 3 delayed orders delivered in Nov 2025", () => {
+    expect(panelOf(render(answerFor({ metric: "delayed_orders", period: { type: "month", month: 11, year: 2025 } })))).toMatch(
+      /<a[^>]*href="\/data\?status=delayed&amp;date=delivery&amp;from=2025-11&amp;to=2025-11"[^>]*>Open the 3 orders behind this answer/,
+    );
+  });
+
+  it("has no link when a part of the spec has no Raw data filter", () => {
+    expect(render(answerFor({ metric: "order_count", filters: { sku: ["CRAYON-0008"] } }))).not.toContain("behind this answer");
   });
 });

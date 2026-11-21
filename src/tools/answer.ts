@@ -1,5 +1,6 @@
 import { type ChartType, chartReason, chooseChart, MAX_CATEGORY_BARS, type ResultShape } from "./chart";
-import { getDataset } from "@/domain/orders";
+import { getDataset, type Order } from "@/domain/orders";
+import { type OrdersBehind, ordersBehind } from "./orders-behind";
 import { type NoDataResult, type QueryResult, runQuery } from "./query";
 import { templateSentence } from "./sentence";
 import { ASSUMED_METRIC, type GroupBy, isCategoryBreakdown, isTimeDimension, type QuerySpec } from "./spec";
@@ -37,6 +38,8 @@ export interface Answer extends QueryResult {
   assumptionNote?: string;
   chart: AnswerChart;
   followUps: FollowUp[];
+  /** The orders behind the answer as a Raw data view, when every part of its spec is a Raw data filter (ticket 29). */
+  ordersBehind?: OrdersBehind;
 }
 
 const ASSUMPTION_NOTES: Record<NonNullable<QuerySpec["assumption"]>, string> = {
@@ -131,11 +134,13 @@ export function followUpsFor(result: QueryResult): FollowUp[] {
 
 /** A validated spec, run over the dataset and presented: what /api/run and /api/ask both answer with. */
 export function answerQuery(spec: QuerySpec): Answer | NoDataResult {
-  const result = runQuery(spec, getDataset());
-  return result.kind === "result" ? presentAnswer(result) : result;
+  const dataset = getDataset();
+  const result = runQuery(spec, dataset);
+  return result.kind === "result" ? presentAnswer(result, dataset.orders) : result;
 }
 
-export function presentAnswer(result: QueryResult): Answer {
+/** A result as an answer; `orders` are those it ran over, for the orders behind it. */
+export function presentAnswer(result: QueryResult, orders: readonly Order[]): Answer {
   return {
     ...result,
     sentence: templateSentence(result),
@@ -144,5 +149,6 @@ export function presentAnswer(result: QueryResult): Answer {
     assumptionNote: assumptionNote(result.spec),
     chart: chartFor(result),
     followUps: followUpsFor(result),
+    ordersBehind: ordersBehind(result, orders),
   };
 }

@@ -4,9 +4,10 @@ import { FORECAST_CHART_REASON } from "@/tools/chart";
 import { NOT_A_REORDER, RANGE_Z, type SkuHistory } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { TraceStage } from "@/tools/trace-stage";
-import { AskedQuestion, ExplanationCard, PanelHeading, SentenceBadge, SpecBlock } from "./answer-parts";
+import { AskedQuestion, ExplanationCard, PanelHeading, PanelLink, SentenceBadge, SpecBlock } from "./answer-parts";
 import { CachedNote } from "./cached-note";
 import { ForecastChart, type ForecastChartRow } from "./forecast-chart";
+import { choiceParams, DEFAULT_MONTHS, forecastHref, HORIZON_MONTHS, type KnownChoice } from "./forecast-scopes";
 import { Fact, Table } from "./text-table";
 import { ChartAndTraceFacts } from "./trace-strip";
 
@@ -33,8 +34,23 @@ export function forecastChartRows(forecast: ForecastAnswer): ForecastChartRow[] 
   return [...history, ...ahead];
 }
 
+/**
+ * The Forecast page's choice that shows this forecast, and the scope's name, "category CRAYON" (ticket
+ * 29): a SKU question's category, whose forecast it shows; its horizon when the page offers it, else the
+ * page's 3 months.
+ */
+function forecastPageChoice(forecast: ForecastAnswer): { choice: KnownChoice; name: string } | undefined {
+  const months = HORIZON_MONTHS.find((offered) => offered === forecast.horizon.months) ?? DEFAULT_MONTHS;
+  const { scope } = forecast.spec;
+  if (scope.type === "total") return { choice: { scope: "total", months }, name: "all products" };
+  const [type, value] = scope.type === "sku" ? (["category", forecast.sku?.category] as const) : ([scope.type, scope.value] as const);
+  if (value === undefined) return undefined;
+  return { choice: { scope: type, value, months }, name: `${type} ${value}` };
+}
+
 function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: TraceStage[] }) {
   const { exact, horizon, method, recommendation } = forecast;
+  const page = forecastPageChoice(forecast);
   return (
     <ExplanationCard title="How this was forecast">
       <dl className="flex flex-col gap-2.5">
@@ -52,6 +68,7 @@ function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: 
         <Fact term="95% range">{`Forecast ± ${RANGE_Z} × σ × √(months ahead), floored at 0.`}</Fact>
         <ChartAndTraceFacts chartReason={FORECAST_CHART_REASON} trace={trace} />
       </dl>
+      {page === undefined ? null : <PanelLink href={forecastHref(choiceParams(page.choice))}>{`Open ${page.name} on the Forecast page`}</PanelLink>}
       <div className="flex flex-col gap-1.5">
         <PanelHeading>Spec, as validated</PanelHeading>
         <SpecBlock spec={forecast.spec} />

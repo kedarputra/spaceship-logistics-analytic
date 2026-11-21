@@ -7,7 +7,7 @@
 **Blocked by:** 28
 _28 Raw data: the orders as a filterable table_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] **The links.** "Delivered" below means status delivered, delayed or exception, the definition behind the 370.
 
@@ -48,3 +48,5 @@ _28 Raw data: the orders as a filterable table_
   - Tab through the Overview in headless Edge: every card is reached once, and its focus ring is visible.
 
 ## Comments
+
+- 2026-11-21: Done. Every card, highlight, bar and row in the ticket's table links to the view that explains it; a test per row follows the link into Raw data and checks the count matches (Overview 400/370/55, Delivery 370/304/55/11/370 slowest first and each place's n, Carriers FedEx 89, DHL 58, USPS 11, each delay bar and table row, Forecast scope cards). Ask: query answers link to the orders they were computed over when every part of the spec is a Raw data filter (USPS delay rate: 47 delivered; delayed in Nov 2025: 3); forecast answers open the Forecast page with their scope. Rules recorded in ADR 0011 section 5. Tabbed through the Overview in headless Edge: each card reached once, 2px amber ring.

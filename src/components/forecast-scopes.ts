@@ -29,13 +29,27 @@ export function defaultValue(scope: Exclude<ScopeType, "total">, values: ScopeVa
   return first;
 }
 
+/** A choice whose scope value is known, as a link names it. */
+export type KnownChoice = { scope: "total"; months: HorizonMonths } | { scope: Exclude<ScopeType, "total">; value: string; months: HorizonMonths };
+
 /** A choice as URL parameters: none for all products over 3 months; the horizon left out at its default. */
-export function selectionParams({ scope, value, months }: ForecastSelection, values: ScopeValues): URLSearchParams {
+export function choiceParams(choice: KnownChoice): URLSearchParams {
   const params = new URLSearchParams();
-  if (scope !== "total") {
-    params.set("scope", scope);
-    params.set("value", value ?? defaultValue(scope, values));
+  if (choice.scope !== "total") {
+    params.set("scope", choice.scope);
+    params.set("value", choice.value);
   }
-  if (months !== DEFAULT_MONTHS) params.set("months", String(months));
+  if (choice.months !== DEFAULT_MONTHS) params.set("months", String(choice.months));
   return params;
+}
+
+/** A selection as URL parameters, a scope without a value taking its first. */
+export function selectionParams({ scope, value, months }: ForecastSelection, values: ScopeValues): URLSearchParams {
+  return choiceParams(scope === "total" ? { scope, months } : { scope, value: value ?? defaultValue(scope, values), months });
+}
+
+/** The Forecast page for a choice's parameters: "/forecast?scope=category&value=CRAYON", or just /forecast for the default. */
+export function forecastHref(params: URLSearchParams): string {
+  const query = params.toString();
+  return query === "" ? "/forecast" : `/forecast?${query}`;
 }

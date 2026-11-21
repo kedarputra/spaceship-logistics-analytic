@@ -3,6 +3,7 @@ import { formatFraction, formatOf, formatPercent, formatPercentPlain } from "@/d
 import type { QueryResult, ResultRow } from "@/tools/query";
 import { andList, dateFieldWords } from "@/tools/words";
 import { ChartCard } from "./chart-card";
+import { ON_TIME_BY_MONTH_ID } from "./delivery-anchors";
 import { Legend } from "./legend";
 import { monthOnly, Plot } from "./month-charts";
 import { rowRatio } from "./row-ratio";
@@ -91,7 +92,7 @@ export function OnTimeLineCard({ result }: { result: QueryResult }) {
   const overall = result.overall?.value ?? null;
   return (
     <ChartCard
-      id="ontime-title"
+      id={ON_TIME_BY_MONTH_ID}
       title="On-time delivery rate per month"
       caption={`On-time ÷ delivered · by ${dateFieldWords(result.dateField)}`}
       legend={

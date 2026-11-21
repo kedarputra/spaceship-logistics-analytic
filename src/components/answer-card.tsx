@@ -7,12 +7,13 @@ import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { ResultRow } from "@/tools/query";
 import type { QuerySpec } from "@/tools/spec";
 import type { TraceStage } from "@/tools/trace-stage";
-import { capitalized, DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "@/tools/words";
+import { capitalized, countOf, DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "@/tools/words";
 import { answerBars, answerChartProps, companionOf } from "./answer-chart";
-import { AskedQuestion, ExplanationCard, PanelHeading, SentenceBadge, SpecBlock } from "./answer-parts";
+import { AskedQuestion, ExplanationCard, PanelHeading, PanelLink, SentenceBadge, SpecBlock } from "./answer-parts";
 import { CachedNote } from "./cached-note";
 import { Chart, type ChartProps } from "./chart";
 import { ForecastCard } from "./forecast-card";
+import { ordersHref } from "./orders-href";
 import { RankedBars } from "./ranked-bars";
 import { toneOf } from "./series";
 import { Fact, Table, type TextTable } from "./text-table";
@@ -136,9 +137,9 @@ function periodText(answer: Answer): string {
   return `${dates}, filtered by ${dateFieldWords(answer.dateField)}`;
 }
 
-/** ADR 0006 §7: everything needed to check the number. */
+/** ADR 0006 §7: everything needed to check the number, and the orders behind it in Raw data (ticket 29). */
 function ExplanationPanel({ answer, trace }: { answer: Answer; trace?: TraceStage[] }) {
-  const { metric, rewrite, ranking, matchingOrders } = answer;
+  const { metric, rewrite, ranking, matchingOrders, ordersBehind } = answer;
   const hidden = matchingOrders === undefined ? 0 : matchingOrders.total - matchingOrders.orders.length;
   return (
     <ExplanationCard title="How this was computed">
@@ -153,6 +154,11 @@ function ExplanationPanel({ answer, trace }: { answer: Answer; trace?: TraceStag
         {rewrite === undefined ? null : <Fact term="Rewritten">{`${rewrite.from} → ${rewrite.to}`}</Fact>}
         <ChartAndTraceFacts chartReason={answer.chart.reason} trace={trace} />
       </dl>
+      {ordersBehind === undefined ? null : (
+        <PanelLink href={ordersHref(ordersBehind.view)}>
+          {`Open the ${countOf(ordersBehind.count, isRateOrAverage(metric.kind) ? "delivered order" : "order")} behind this answer`}
+        </PanelLink>
+      )}
       <div className="flex flex-wrap gap-4">
         <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-1.5">
           <PanelHeading>Spec, as validated</PanelHeading>

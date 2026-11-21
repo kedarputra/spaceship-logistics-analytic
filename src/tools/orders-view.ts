@@ -1,6 +1,7 @@
 import { deliveryDays, isDelivered } from "@/domain/definitions";
 import type { Order } from "@/domain/orders";
 import { isInPeriod, monthsPeriod } from "@/domain/periods";
+import type { ListFilter } from "./list-filters";
 import { matchesFilters } from "./query";
 import type { QueryFilters } from "./spec";
 
@@ -9,10 +10,6 @@ import type { QueryFilters } from "./spec";
  * own code so a view and an answer count the same orders, then a month range, a search and a sort,
  * in pages of 50. Pure: no clock, no network. Reading a view from a URL is components/orders-url.
  */
-
-/** The spec filters the page offers as lists, in the order the page shows them. */
-export const LIST_FILTERS = ["status", "carrier", "region", "warehouse", "category"] as const;
-export type ListFilter = (typeof LIST_FILTERS)[number];
 
 export type DateBasis = "order" | "delivery";
 export type SortDirection = "asc" | "desc";

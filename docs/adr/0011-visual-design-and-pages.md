@@ -32,6 +32,12 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **Narrow screens:** the rail stacks above the content.
 
    *Amended 21 Nov 2026 (ticket 28):* six routes. The sixth, Raw data `/data`, is the file's 400 orders as a read-only table with filters, a sort, pages of 50, a summary of the rows shown and a CSV download (`/api/orders.csv`); the rail's data file name links to it. Its filters are the query spec's (`filtersSchema`, ADR 0006) and pick rows with the query tool's own `matchesFilters`, so a view and an answer with the same filters count the same orders. The summary comes from `dashboardKpis`, as §6 requires. Every view is a URL, such as `/data?status=delayed&carrier=FedEx`.
+
+   *Amended 21 Nov 2026 (ticket 29):* cards, bars and table rows open what explains them.
+   - **Counts** open their orders in Raw data, filtered by the statuses `METRIC_STATUSES` in `definitions.ts` gives each metric, so the view shows the card's number. A rate or an average with no orders of its own opens the page that breaks it down: the Overview's on-time rate and average delivery time open Delivery.
+   - **Rates on the detail pages** follow the ticket's table: a delay rate opens its delayed orders (the numerator), the highest on-time rate its delivered orders.
+   - **An Ask answer** opens every order it was computed over: for a rate or an average, the delivered orders it divides by, and its link says "delivered orders". The link appears only when every part of the spec is a Raw data filter: no origin, destination, client or SKU filter, no limit or minimum of deliveries, and a period of whole months. A forecast answer opens the Forecast page with its scope, a SKU question its category.
+   - **Shape:** a whole card is one link and one tab stop, named by what it opens ("Delayed orders: view the 55 orders"), with a line at its foot that says so. A bar's or row's name is its link and the row its hit target. A card that holds a button is not wrapped in a link.
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 

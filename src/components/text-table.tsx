@@ -17,12 +17,14 @@ interface TableProps {
   sortedBy?: number;
   /** A totals row. */
   footer?: ReactNode[];
+  /** Each row's first cell holds a RowLink that stretches over the row (ticket 29). */
+  linkedRows?: boolean;
 }
 
 const CELL = "px-3 py-2";
 
 /** A bordered table that scrolls sideways on a narrow screen rather than widening the page. */
-export function Table({ headers, rows, rowHeaders = false, numeric = false, sortedBy, footer }: TableProps) {
+export function Table({ headers, rows, rowHeaders = false, numeric = false, sortedBy, footer, linkedRows = false }: TableProps) {
   const align = (column: number) => (numeric && column > 0 ? "text-right whitespace-nowrap" : "text-left");
   const cell = (content: ReactNode, column: number, key: string) =>
     rowHeaders && column === 0 ? (
@@ -54,7 +56,7 @@ export function Table({ headers, rows, rowHeaders = false, numeric = false, sort
         </thead>
         <tbody>
           {rows.map((cells, row) => (
-            <tr key={row} className="border-t border-grid">
+            <tr key={row} className={`border-t border-grid ${linkedRows ? "relative hover:bg-inset" : ""}`}>
               {cells.map((content, column) => cell(content, column, `${column}-${headers[column]}`))}
             </tr>
           ))}

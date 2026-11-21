@@ -1,18 +1,18 @@
 import type { Order } from "@/domain/orders";
 import { buckets, dataPeriod, formatMonths } from "@/domain/periods";
-import { type DateBasis, LIST_FILTERS, type ListFilter, type OrdersView, VIEW_COLUMNS, type ViewColumn } from "@/tools/orders-view";
+import { LIST_FILTERS, type ListFilter } from "@/tools/list-filters";
+import { type DateBasis, type OrdersView, VIEW_COLUMNS, type ViewColumn } from "@/tools/orders-view";
 import { DIMENSION_VALUES, filtersSchema } from "@/tools/spec";
 import { valueLabel } from "@/tools/words";
 import type { FilterList, Option } from "./data-filters";
+import { DATA_PAGE_PATH, hrefOf, ordersHref, viewParams } from "./orders-href";
 
 /**
  * The Raw data page's URL (ticket 28): the view it asks for, read with the query spec's own schema
- * (ADR 0006), and the links to other views: sort, pages, chips, Clear all, the CSV. The orders a view
- * shows are tools/orders-view's to pick.
+ * (ADR 0006), and the links to other views: sort, chips, Clear all, the CSV. A view is written as a
+ * URL by orders-href; the orders it shows are tools/orders-view's to pick.
  */
 
-/** The page, and its CSV. */
-export const DATA_PAGE_PATH = "/data";
 const CSV_PATH = "/api/orders.csv";
 
 const LIST_LABELS: Record<ListFilter, string> = { status: "Status", carrier: "Carrier", region: "Region", warehouse: "Warehouse", category: "Category" };
@@ -159,38 +159,6 @@ export function filterLists(): FilterList[] {
     label: LIST_LABELS[filter],
     options: DIMENSION_VALUES[filter].map((value) => ({ value, label: valueLabel(filter, value) })),
   }));
-}
-
-/**
- * A view as URL parameters, in the form's order: search, the lists, promo, dates, sort, page. Defaults
- * are left out (order date, ascending, page 1), so the plain page is just /data.
- */
-function viewParams(view: OrdersView): URLSearchParams {
-  const params = new URLSearchParams();
-  if (view.search !== "") params.set("q", view.search);
-  for (const filter of LIST_FILTERS) for (const value of view.filters[filter] ?? []) params.append(filter, value);
-  for (const value of view.filters.promo ?? []) params.append("promo", value);
-  if (view.dates.basis === "delivery") params.set("date", "delivery");
-  if (view.dates.range !== undefined) {
-    params.set("from", view.dates.range.from);
-    params.set("to", view.dates.range.to);
-  }
-  if (view.sort !== undefined) {
-    params.set("sort", view.sort.column);
-    if (view.sort.direction === "desc") params.set("dir", "desc");
-  }
-  if (view.page > 1) params.set("page", String(view.page));
-  return params;
-}
-
-function hrefOf(path: string, params: URLSearchParams): string {
-  const query = params.toString();
-  return query === "" ? path : `${path}?${query}`;
-}
-
-/** The page's link to a view. */
-export function ordersHref(view: OrdersView): string {
-  return hrefOf(DATA_PAGE_PATH, viewParams(view));
 }
 
 /** The view's parameters without its page: what the filter form holds. */

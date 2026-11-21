@@ -7,7 +7,7 @@ import { querySpecSchema } from "./spec";
 function answerFor(spec: Record<string, unknown>): Answer {
   const result = runQuery(querySpecSchema.parse({ tool: "query", ...spec }), getDataset());
   if (result.kind !== "result") throw new Error(result.message);
-  return presentAnswer(result);
+  return presentAnswer(result, getDataset().orders);
 }
 
 const LATE_LAST_MONTH = { metric: "delayed_orders", period: { type: "previous", unit: "month" } };

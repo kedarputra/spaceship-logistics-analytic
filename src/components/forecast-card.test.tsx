@@ -137,3 +137,23 @@ describe("the forecast chart's data (ADR 0003 §8)", () => {
     expect(january?.range?.map((value) => Number(value.toFixed(1)))).toEqual([13.4, 176.6]);
   });
 });
+
+describe("the forecast on the Forecast page (ticket 29)", () => {
+  it("links a forecast to the Forecast page with its scope chosen", () => {
+    expect(panelOf(render(forecastAnswerOf({ scope: { type: "category", value: "CRAYON" } })))).toContain("Open category CRAYON on the Forecast page");
+    expect(render(forecastAnswerOf({ scope: { type: "category", value: "CRAYON" } }))).toMatch(
+      /<a[^>]*href="\/forecast\?scope=category&amp;value=CRAYON"[^>]*>Open category CRAYON on the Forecast page/,
+    );
+  });
+
+  it("keeps the horizon when the page offers it, 1, 3 or 6 months, and the page's 3 months otherwise", () => {
+    expect(render(forecastFor({ count: 6, unit: "month" }))).toMatch(/<a[^>]*href="\/forecast\?months=6"[^>]*>Open all products on the Forecast page/);
+    expect(render(forecastFor({ count: 4, unit: "month" }))).toMatch(/<a[^>]*href="\/forecast"[^>]*>Open all products on the Forecast page/);
+  });
+
+  it("opens a SKU question on its category, whose forecast it shows", () => {
+    expect(render(forecastAnswerOf({ scope: { type: "sku", value: "CRAYON-0008" } }))).toMatch(
+      /<a[^>]*href="\/forecast\?scope=category&amp;value=CRAYON"[^>]*>Open category CRAYON on the Forecast page/,
+    );
+  });
+});

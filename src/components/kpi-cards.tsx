@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
-import { type DashboardKpis, KPI_DEFINITIONS } from "@/domain/definitions";
+import { type DashboardKpis, KPI_DEFINITIONS, METRIC_STATUSES } from "@/domain/definitions";
 import { formatCount, formatFraction, formatPercent } from "@/domain/format";
+import { CardBox, type CardLink, ordersLink } from "./card-link";
+import { ON_TIME_BY_MONTH_ID, TIME_BY_PLACE_ID } from "./delivery-anchors";
 import { DaysFigure } from "./figure-card";
 import { Icon, type IconName } from "./icons";
 import { Marked } from "./marked";
@@ -15,25 +17,33 @@ interface KpiCardProps {
   value: ReactNode;
   /** The breakdown or the rate's parts, below the figure. */
   detail: ReactNode;
+  /** What explains the figure (ticket 29): its orders in Raw data, or the page that breaks it down. */
+  link: CardLink;
 }
 
-function KpiCard({ label, definition, icon, tone = "green", value, detail }: KpiCardProps) {
+function KpiCard({ label, definition, icon, tone = "green", value, detail, link }: KpiCardProps) {
   return (
-    <li className="card flex flex-col gap-1.5 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-small font-semibold text-ink-2">{label}</h2>
-        <span className={`grid size-7 place-items-center rounded-small ${tone === "amber" ? "bg-warn-tint text-warn-icon" : "bg-chip text-grey-green"}`}>
-          <Icon name={icon} size={15} strokeWidth={1.9} />
-        </span>
-      </div>
-      <p className="text-kpi">{value}</p>
-      <div className="text-small text-ink-2">{detail}</div>
-      <p className="mt-1.5 border-t border-grid pt-2.5 text-note text-muted">{definition}</p>
+    <li>
+      <CardBox name={label} link={link} className="card flex flex-col gap-1.5 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-small font-semibold text-ink-2">{label}</h2>
+          <span className={`grid size-7 place-items-center rounded-small ${tone === "amber" ? "bg-warn-tint text-warn-icon" : "bg-chip text-grey-green"}`}>
+            <Icon name={icon} size={15} strokeWidth={1.9} />
+          </span>
+        </div>
+        <p className="text-kpi">{value}</p>
+        <div className="text-small text-ink-2">{detail}</div>
+        <p className="mt-1.5 border-t border-grid pt-2.5 text-note text-muted">{definition}</p>
+      </CardBox>
     </li>
   );
 }
 
-/** The five KPI cards of R1 (ADR 0011 §6). Shows the computed KPIs; computes nothing itself. */
+/**
+ * The five KPI cards of R1 (ADR 0011 §6). Shows the computed KPIs; computes nothing itself. A count
+ * opens its orders in Raw data; a rate or an average, which has no orders of its own to show, opens
+ * the Delivery page where it is broken down (ticket 29).
+ */
 export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
   const { totalOrders, deliveredOrders, delayedOrders, onTimeRate, averageDeliveryDays } = kpis;
   const onTimeShare = onTimeRate.value === null ? 0 : onTimeRate.value * 100;
@@ -43,12 +53,14 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         <KpiCard
           {...KPI_DEFINITIONS.totalOrders}
           icon="box"
+          link={ordersLink(totalOrders.count, "orders", {})}
           value={formatCount(totalOrders.count)}
           detail={`${formatCount(totalOrders.inTransit)} in transit · ${formatCount(totalOrders.canceled)} canceled`}
         />
         <KpiCard
           {...KPI_DEFINITIONS.deliveredOrders}
           icon="truck"
+          link={ordersLink(deliveredOrders.count, "orders", { status: METRIC_STATUSES.delivered_orders })}
           value={formatCount(deliveredOrders.count)}
           detail={
             <span className="flex flex-wrap gap-x-2.5 gap-y-1">
@@ -62,6 +74,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
           {...KPI_DEFINITIONS.delayedOrders}
           icon="clock"
           tone="amber"
+          link={ordersLink(delayedOrders.count, "orders", { status: METRIC_STATUSES.delayed_orders })}
           value={formatCount(delayedOrders.count)}
           detail={
             <>
@@ -73,6 +86,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         <KpiCard
           {...KPI_DEFINITIONS.onTimeRate}
           icon="target"
+          link={{ href: `/delivery#${ON_TIME_BY_MONTH_ID}`, text: "View the rate by month" }}
           value={formatPercent(onTimeRate.value)}
           detail={
             <span className="flex items-center gap-2.5">
@@ -90,6 +104,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         <KpiCard
           {...KPI_DEFINITIONS.averageDeliveryDays}
           icon="calendar"
+          link={{ href: `/delivery#${TIME_BY_PLACE_ID}`, text: "View the times by region and warehouse" }}
           value={<DaysFigure days={averageDeliveryDays.value} />}
           detail="Order date to delivery date"
         />

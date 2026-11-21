@@ -6,6 +6,9 @@ import {
   deliveryOutcomes,
   deliveryOutcomesOverTime,
   exceptionRate,
+  isRateOrAverage,
+  type MetricDefinition,
+  METRIC_STATUSES,
   METRICS,
   mostOrdersOfOneSku,
   type MetricId,
@@ -255,5 +258,46 @@ describe("figures the Delivery and Forecast pages show (ticket 25, docs/design/R
   it("finds that no SKU has more than 3 orders, the reason no SKU is forecast (ADR 0003 §9)", () => {
     expect(mostOrdersOfOneSku(orders)).toBe(3);
     expect(mostOrdersOfOneSku([])).toBe(0);
+  });
+});
+
+describe("the statuses each metric is computed over (ticket 29, golden numbers in docs/data.md)", () => {
+  const { orders } = getDataset();
+  const ids = (picked: readonly Order[]) => picked.map((picked) => picked.order_id);
+  const withStatus = (statuses: readonly Order["status"][] | undefined) => orders.filter((order) => statuses === undefined || statuses.includes(order.status));
+
+  /** The orders a metric is computed over: what a count counts, a rate's or an average's delivered orders, or every order. */
+  function computedOver(metric: MetricDefinition): readonly Order[] {
+    if (metric.kind === "count") return metric.matching(orders);
+    if (isRateOrAverage(metric.kind)) return deliveredOrders(orders);
+    return orders;
+  }
+
+  it("names the 370 delivered orders, those with a delivery date, by their statuses: delivered, delayed, exception", () => {
+    expect(ids(withStatus(METRIC_STATUSES.delivered_orders))).toEqual(ids(deliveredOrders(orders)));
+    expect(withStatus(METRIC_STATUSES.delivered_orders)).toHaveLength(370);
+  });
+
+  it("picks exactly the orders each metric is computed over: 400, 370, 304, 55 or 11", () => {
+    const expected: [MetricId, number][] = [
+      ["order_count", 400],
+      ["delivered_orders", 370],
+      ["on_time_deliveries", 304],
+      ["delayed_orders", 55],
+      ["exception_orders", 11],
+      ["on_time_rate", 370],
+      ["delay_rate", 370],
+      ["average_delivery_time", 370],
+      ["units", 400],
+      ["gross_order_value", 400],
+      ["net_order_value", 400],
+    ];
+    expect(expected.map(([id]) => id).sort()).toEqual(Object.keys(METRICS).sort());
+    for (const [id, count] of expected) {
+      expect(ids(withStatus(METRIC_STATUSES[id])), id).toEqual(ids(computedOver(METRICS[id])));
+      expect(withStatus(METRIC_STATUSES[id]), id).toHaveLength(count);
+    }
+    expect(ids(withStatus(METRIC_STATUSES.delivery_outcomes))).toEqual(ids(deliveredOrders(orders)));
+    expect(withStatus(METRIC_STATUSES.order_share)).toHaveLength(400);
   });
 });

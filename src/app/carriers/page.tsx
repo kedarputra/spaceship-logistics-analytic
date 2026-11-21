@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { askHref } from "@/components/ask-box";
+import { type CardLink, ordersLink, RowLink } from "@/components/card-link";
+import { carrierDelayedOrders } from "@/components/carrier-card";
 import { ChartCard } from "@/components/chart-card";
 import { CardTitle } from "@/components/card-title";
 import { FigureCard } from "@/components/figure-card";
+import { filteredOrdersHref } from "@/components/orders-href";
 import { PageHeader } from "@/components/page-header";
 import { RankedBars } from "@/components/ranked-bars";
 import { reliableLeader } from "@/components/ranking";
@@ -10,7 +13,7 @@ import { rowRatio } from "@/components/row-ratio";
 import { CARRIERS_PAGE_QUESTIONS } from "@/components/suggested-questions";
 import { Tag } from "@/components/tag";
 import { Table } from "@/components/text-table";
-import { dashboardKpis } from "@/domain/definitions";
+import { dashboardKpis, METRIC_STATUSES } from "@/domain/definitions";
 import { formatCount, formatDays, formatMetricValue, formatOf, formatPercent, formatPercentPlain } from "@/domain/format";
 import { getDataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod } from "@/domain/periods";
@@ -30,9 +33,25 @@ function overallOf(result: QueryResult): string {
   return formatMetricValue(result.overall?.value ?? null, result.metric.unit);
 }
 
+/** A carrier's orders in Raw data, as many as the order count says it has (ticket 29). */
+function carrierOrders(counts: QueryResult, key: string): CardLink {
+  const row = counts.rows.find((count) => count.key === key);
+  if (row === undefined) throw new Error(`No order count for carrier ${key}`);
+  return ordersLink(row.value ?? 0, "orders", { carrier: [key] });
+}
+
+/** The carriers with the most orders, in Raw data: "View the 89 FedEx orders", or tied carriers together. */
+function mostOrdersLink(tied: readonly ResultRow[]): CardLink {
+  const filters = { carrier: tied.map(({ key }) => key) };
+  const [only] = tied;
+  if (only !== undefined && tied.length === 1) return ordersLink(only.value ?? 0, `${only.label} orders`, filters);
+  return { href: filteredOrdersHref(filters), text: `View the ${andList(tied.map(({ label }) => label))} orders` };
+}
+
 /**
  * Carriers (ADR 0011 §5, ticket 25). The carriers' figures come from the query tool, the same one the
- * answers use; the header's totals from the KPI definitions.
+ * answers use; the header's totals from the KPI definitions. Highlights, bars and rows open the orders
+ * behind them in Raw data (ticket 29).
  */
 export default function CarriersPage() {
   const { orders } = getDataset();
@@ -75,6 +94,7 @@ export default function CarriersPage() {
           {most === undefined ? null : (
             <FigureCard
               label="Most orders"
+              link={mostOrdersLink(mostTied)}
               value={andList(mostTied.map(({ label }) => label))}
               detail={`${valueOf(counts, most.key)} orders${mostTied.length > 1 ? " each" : ""}, ${valueOf(shares, most.key)} of all${next === undefined ? "" : ` · ${next.label} next with ${valueOf(counts, next.key)}`}`}
             />
@@ -82,6 +102,7 @@ export default function CarriersPage() {
           {onTimeLeader === undefined ? null : (
             <FigureCard
               label={`Highest on-time rate, n ≥ ${minDelivered}`}
+              link={ordersLink(onTimeLeader.n, `delivered ${onTimeLeader.label} orders`, { status: METRIC_STATUSES.on_time_rate, carrier: [onTimeLeader.key] })}
               value={onTimeLeader.label}
               detail={`${formatPercent(onTimeLeader.value)} · ${formatOf(rowRatio(onTimeLeader))} delivered on time`}
             />
@@ -89,6 +110,7 @@ export default function CarriersPage() {
           {delayLeader.leader === undefined ? null : (
             <FigureCard
               label={`Highest delay rate, n ≥ ${minDelivered}`}
+              link={carrierDelayedOrders(delayLeader.leader, `delayed ${delayLeader.leader.label} orders`)}
               value={delayLeader.leader.label}
               detail={`${formatPercent(delayLeader.leader.value)} · ${formatOf(rowRatio(delayLeader.leader))} delayed${
                 slowest?.key === delayLeader.leader.key ? ` · also the slowest with at least ${minDelivered}, ${formatDays(slowest.value)}` : ""
@@ -107,7 +129,14 @@ export default function CarriersPage() {
             <RankedBars
               tone="amber"
               formatTick={formatPercentPlain}
-              bars={delay.rows.map((row) => ({ label: row.label, n: row.n, value: row.value, valueText: formatPercent(row.value), smallSample: row.smallSample }))}
+              bars={delay.rows.map((row) => ({
+                label: row.label,
+                n: row.n,
+                value: row.value,
+                valueText: formatPercent(row.value),
+                smallSample: row.smallSample,
+                link: carrierDelayedOrders(row),
+              }))}
             />
           </div>
           <aside className="flex min-w-0 flex-[1_1_220px] flex-col gap-2 rounded-inset border border-grid bg-inset p-3.5 text-small text-ink-2">
@@ -128,9 +157,10 @@ export default function CarriersPage() {
           rowHeaders
           numeric
           sortedBy={1 + columns.findIndex(({ result }) => result === delay)}
+          linkedRows
           rows={delay.rows.map((row) => [
             <>
-              {row.label}
+              <RowLink name={row.label} link={carrierOrders(counts, row.key)} />
               {row.smallSample ? (
                 <span className="ml-1.5">
                   <Tag tone="warn">small sample</Tag>

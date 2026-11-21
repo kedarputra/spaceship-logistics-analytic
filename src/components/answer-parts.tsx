@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type { SentenceSource } from "@/tools/answer";
 import { Icon } from "./icons";
@@ -49,5 +50,15 @@ export function PanelHeading({ children }: { children: ReactNode }) {
 export function SpecBlock({ spec }: { spec: unknown }) {
   return (
     <pre className="overflow-x-auto rounded-control bg-rail px-3.5 py-3 font-mono text-caption leading-relaxed text-rail-ink">{JSON.stringify(spec, null, 2)}</pre>
+  );
+}
+
+/** A link out of an explanation panel to where the answer's data is shown in full (ticket 29). */
+export function PanelLink({ href, children }: { href: string; children: string }) {
+  return (
+    <Link href={href} className="inline-flex min-h-[34px] items-center gap-1.5 self-start font-semibold no-underline">
+      {children}
+      <Icon name="chevron" size={14} strokeWidth={2} />
+    </Link>
   );
 }

@@ -1,3 +1,4 @@
+import { type CardLink, RowLink } from "./card-link";
 import { niceScale } from "./scale";
 import type { Tone } from "./series";
 import { Tag } from "./tag";
@@ -14,6 +15,8 @@ export interface RankedBar {
   tag?: string;
   /** A line under the name, such as "n=71 · 81.7% on time". */
   detail?: string;
+  /** The orders behind the bar (ticket 29): the name links, and the whole row is its hit target. */
+  link?: CardLink;
 }
 
 /** The marks of each tone as classes; palette.ts holds the same colours for Recharts. */
@@ -36,10 +39,10 @@ export function RankedBars({ bars, tone, formatTick }: { bars: readonly RankedBa
     <div className="flex flex-col gap-1.5">
       <ol className="flex flex-col gap-2.5">
         {bars.map((bar) => (
-          <li key={bar.label} className="flex items-center gap-3">
+          <li key={bar.label} className={`flex items-center gap-3 ${bar.link === undefined ? "" : "relative"}`}>
             <span className={`flex flex-col text-small ${NAME_COLUMN}`}>
               <span className="flex flex-wrap items-center gap-x-1.5">
-                <span className="font-semibold">{bar.label}</span>
+                {bar.link === undefined ? <span className="font-semibold">{bar.label}</span> : <RowLink name={bar.label} link={bar.link} />}
                 {bar.n === undefined ? null : <span className="text-muted">{`n=${bar.n}`}</span>}
                 {bar.smallSample ? <Tag tone="warn">small sample</Tag> : null}
                 {bar.tag === undefined ? null : <Tag tone="neutral">{bar.tag}</Tag>}

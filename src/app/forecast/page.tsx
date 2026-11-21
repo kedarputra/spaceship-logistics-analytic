@@ -1,12 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { askHref } from "@/components/ask-box";
+import { CardBox } from "@/components/card-link";
 import { CardPair } from "@/components/card-pair";
 import { CardTitle } from "@/components/card-title";
 import { forecastChartRows } from "@/components/forecast-card";
 import { ForecastChart } from "@/components/forecast-chart";
 import { forecastChoice, SCOPE_VALUES } from "@/components/forecast-choice";
 import { ForecastControls } from "@/components/forecast-controls";
+import { choiceParams, DEFAULT_MONTHS, forecastHref } from "@/components/forecast-scopes";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { SKU_QUESTION } from "@/components/suggested-questions";
@@ -131,11 +133,18 @@ const SCOPE_GROUPS = [
   { type: "region", title: "Regions" },
 ] as const;
 
-/** Every category, warehouse and region forecast over the default horizon, each with its own method. */
+/**
+ * Every category, warehouse and region forecast over the default horizon, each with its own method.
+ * Each card opens the page with its scope chosen (ticket 29).
+ */
 function ScopeGrid() {
   const groups = SCOPE_GROUPS.map(({ type, title }) => ({
     title,
-    forecasts: SCOPE_VALUES[type].map((value) => ({ value, forecast: forecastFor(forecastSpecSchema.parse({ tool: "forecast", scope: { type, value } })) })),
+    forecasts: SCOPE_VALUES[type].map((value) => ({
+      value,
+      href: forecastHref(choiceParams({ scope: type, value, months: DEFAULT_MONTHS })),
+      forecast: forecastFor(forecastSpecSchema.parse({ tool: "forecast", scope: { type, value } })),
+    })),
   }));
   const first = groups[0]?.forecasts[0];
   if (first === undefined) throw new Error("The data has no category to forecast");
@@ -150,18 +159,20 @@ function ScopeGrid() {
         <div key={title} className="flex flex-col gap-2">
           <h3 className="text-label text-muted uppercase">{title}</h3>
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,200px),1fr))] gap-2.5">
-            {forecasts.map(({ value, forecast }) => (
-              <li key={value} data-scope-card className="flex flex-col gap-1 rounded-control border border-grid bg-inset p-3.5 text-small">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="font-semibold">{value}</span>
-                  {forecast.method.rough ? <Tag tone="neutral">rough</Tag> : null}
-                </span>
-                <span className="text-figure">
-                  {formatCount(forecast.recommendation.units)} <span className="text-small font-normal tracking-normal text-muted">units</span>
-                </span>
-                <span className="text-ink-2">{`${formatCount(forecast.recommendation.demand)} forecast + ${formatCount(forecast.recommendation.safetyStock)} safety stock`}</span>
-                <span className="text-note text-muted">{`${forecast.method.label} · WAPE ${chosenWape(forecast)}`}</span>
-                {forecast.scopeNote === undefined ? null : <span className="text-note text-ink-2">{forecast.scopeNote}</span>}
+            {forecasts.map(({ value, href, forecast }) => (
+              <li key={value} data-scope-card>
+                <CardBox name={value} link={{ href, text: "View the forecast" }} className="flex flex-col gap-1 rounded-control border border-grid bg-inset p-3.5 text-small">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{value}</span>
+                    {forecast.method.rough ? <Tag tone="neutral">rough</Tag> : null}
+                  </span>
+                  <span className="text-figure">
+                    {formatCount(forecast.recommendation.units)} <span className="text-small font-normal tracking-normal text-muted">units</span>
+                  </span>
+                  <span className="text-ink-2">{`${formatCount(forecast.recommendation.demand)} forecast + ${formatCount(forecast.recommendation.safetyStock)} safety stock`}</span>
+                  <span className="text-note text-muted">{`${forecast.method.label} · WAPE ${chosenWape(forecast)}`}</span>
+                  {forecast.scopeNote === undefined ? null : <span className="text-note text-ink-2">{forecast.scopeNote}</span>}
+                </CardBox>
               </li>
             ))}
           </ul>

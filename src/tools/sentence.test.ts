@@ -8,7 +8,7 @@ import { querySpecSchema } from "./spec";
 function answerFor(spec: Record<string, unknown>): Answer {
   const result = runQuery(querySpecSchema.parse({ tool: "query", ...spec }), getDataset());
   if (result.kind !== "result") throw new Error(result.message);
-  return presentAnswer(result);
+  return presentAnswer(result, getDataset().orders);
 }
 
 describe("template sentences, one per kind of result (ADR 0009 §4)", () => {

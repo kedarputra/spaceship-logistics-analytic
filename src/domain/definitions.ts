@@ -9,6 +9,9 @@ import { type Bucket, type BucketUnit, daysBetween, groupByBucket, type Period }
 /** A delivered order: one with a delivery date (status delivered, delayed, or exception). */
 export type DeliveredOrder = Order & { delivery_date: string };
 
+/** The statuses of a delivered order: the 370 of Reading B. */
+export const DELIVERED_STATUSES = ["delivered", "delayed", "exception"] as const satisfies readonly Order["status"][];
+
 /** How delivered orders turned out. Every delivered order has exactly one outcome. */
 export interface DeliveryOutcomes {
   /** status = delivered */
@@ -251,6 +254,29 @@ export const ORDER_SHARE_DEFINITION = {
   definition: "Orders that match the question, as a share of all orders in the same period.",
   dateField: "order_date",
 } as const satisfies MetricBase;
+
+/**
+ * The statuses of the orders each metric is computed over, as a status filter picks them (ticket 29):
+ * what a count counts, the delivered orders a rate or an average divides by, and every status
+ * (undefined) for the order count, a sum and the share of orders. Raw data opens a figure's orders
+ * with these. Delivered is defined by the delivery date; in the data that is exactly status delivered,
+ * delayed or exception (docs/data.md), which a test checks.
+ */
+export const METRIC_STATUSES: Record<MetricId | "delivery_outcomes" | "order_share", readonly Order["status"][] | undefined> = {
+  order_count: undefined,
+  delivered_orders: DELIVERED_STATUSES,
+  on_time_deliveries: ["delivered"],
+  delayed_orders: ["delayed"],
+  exception_orders: ["exception"],
+  on_time_rate: DELIVERED_STATUSES,
+  delay_rate: DELIVERED_STATUSES,
+  average_delivery_time: DELIVERED_STATUSES,
+  units: undefined,
+  gross_order_value: undefined,
+  net_order_value: undefined,
+  delivery_outcomes: DELIVERED_STATUSES,
+  order_share: undefined,
+};
 
 /** The share of orders: the orders that match ÷ every order in the same period. */
 export function orderShare(matchingOrders: number, ordersInPeriod: number): Ratio {

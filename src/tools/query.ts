@@ -1,5 +1,6 @@
 import {
   type DateField,
+  DELIVERED_STATUSES,
   DELIVERY_OUTCOMES_DEFINITION,
   deliveredOrders,
   type DeliveryOutcomes,
@@ -198,7 +199,6 @@ function queryMetric(id: QuerySpec["metric"], ordersInPeriod: number): QueryMetr
 }
 
 const MATCHING_ORDERS_SHOWN = 50;
-const DELIVERED_STATUSES: readonly Order["status"][] = ["delivered", "delayed", "exception"];
 const STATUS_REWRITES: { status: Order["status"]; metric: MetricId }[] = [
   { status: "delivered", metric: "on_time_deliveries" },
   { status: "delayed", metric: "delayed_orders" },
@@ -216,7 +216,7 @@ function rewriteStatusFilter(spec: QuerySpec): { spec: QuerySpec; rewrite?: Stat
   if (spec.metric !== "order_count" || statuses === undefined) return { spec };
   const distinct = [...new Set(statuses)];
   const single = distinct.length === 1 ? STATUS_REWRITES.find((rewrite) => rewrite.status === distinct[0]) : undefined;
-  const allDelivered = distinct.every((status) => DELIVERED_STATUSES.includes(status));
+  const allDelivered = distinct.every((status) => DELIVERED_STATUSES.some((delivered) => delivered === status));
   const metric = single?.metric ?? (allDelivered && distinct.length === DELIVERED_STATUSES.length ? "delivered_orders" : undefined);
   if (metric === undefined) return { spec, dateField: allDelivered ? "delivery_date" : "order_date" };
   return {
