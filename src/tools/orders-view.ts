@@ -1,6 +1,6 @@
-import { deliveryDays, isDelivered } from "@/domain/definitions";
+import { deliveryDays, isDelivered, transitAge } from "@/domain/definitions";
 import type { Order } from "@/domain/orders";
-import { isInPeriod, monthsPeriod } from "@/domain/periods";
+import { anchorDate, isInPeriod, monthsPeriod } from "@/domain/periods";
 import type { ListFilter } from "./list-filters";
 import { matchesFilters } from "./query";
 import type { QueryFilters } from "./spec";
@@ -14,13 +14,17 @@ import type { QueryFilters } from "./spec";
 export type DateBasis = "order" | "delivery";
 export type SortDirection = "asc" | "desc";
 
-/** The columns the page shows, in its order: the file's, Order ID first, and the days from order to delivery. Each can sort the view. */
+/**
+ * The columns the page shows, in its order: the file's, Order ID first, the days from order to delivery,
+ * and the transit age of an order in transit (ticket 32). Each can sort the view.
+ */
 export const VIEW_COLUMNS = [
   "order_id",
   "client_id",
   "order_date",
   "delivery_date",
   "delivery_days",
+  "age",
   "carrier",
   "origin_city",
   "destination_city",
@@ -34,7 +38,7 @@ export const VIEW_COLUMNS = [
   "promo_discount_pct",
   "region",
   "warehouse",
-] as const satisfies readonly (keyof Order | "delivery_days")[];
+] as const satisfies readonly (keyof Order | "delivery_days" | "age")[];
 export type ViewColumn = (typeof VIEW_COLUMNS)[number];
 
 export interface OrdersView {
@@ -66,9 +70,10 @@ function searchedText(order: Order): string[] {
   return [order.order_id, order.client_id, order.sku, order.origin_city, order.destination_city];
 }
 
-/** An order's value in a column, for sorting; null when it has none. */
-function sortValue(order: Order, column: ViewColumn): string | number | null {
+/** An order's value in a column, for sorting; null when it has none. The anchor dates the transit age. */
+function sortValue(order: Order, column: ViewColumn, anchor: string): string | number | null {
   if (column === "delivery_days") return deliveryDaysOf(order);
+  if (column === "age") return transitAge(order, anchor);
   if (column === "is_promo") return order.is_promo ? 1 : 0;
   return order[column];
 }
@@ -82,7 +87,11 @@ function compareValues(a: string | number | null, b: string | number | null, dir
   return direction === "asc" ? ascending : -ascending;
 }
 
-/** The orders a view shows, in its order: the filters, the date range and the search, then the sort (file order when unsorted). */
+/**
+ * The orders a view shows, in its order: the filters, the date range and the search, then the sort (file
+ * order when unsorted). `orders` is every order of the data, so their anchor date (ADR 0002) dates the
+ * transit age.
+ */
 export function ordersInView(orders: readonly Order[], view: OrdersView): Order[] {
   const { range, basis } = view.dates;
   const period = range === undefined ? undefined : monthsPeriod(range.from, range.to);
@@ -95,9 +104,11 @@ export function ordersInView(orders: readonly Order[], view: OrdersView): Order[
       (needle === "" || searchedText(order).some((text) => text.toLowerCase().includes(needle))),
   );
   const { sort } = view;
-  if (sort === undefined) return selected;
+  // No rows, nothing to sort; and no orders at all would have no anchor date.
+  if (sort === undefined || selected.length === 0) return selected;
+  const anchor = anchorDate(orders);
   // Array.prototype.sort is stable, so ties keep file order.
-  return selected.sort((a, b) => compareValues(sortValue(a, sort.column), sortValue(b, sort.column), sort.direction));
+  return selected.sort((a, b) => compareValues(sortValue(a, sort.column, anchor), sortValue(b, sort.column, anchor), sort.direction));
 }
 
 export interface OrdersPage {

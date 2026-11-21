@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { AttentionAlert } from "@/components/attention-alert";
 import { infoLines, visibleText } from "@/components/markup-text";
 import { OverviewPage } from "./overview-page";
 
@@ -41,6 +42,19 @@ describe("the Overview page (ticket 24, figures from docs/design/README.md)", ()
     ]) {
       expect(html).toContain(`href="${href}"`);
     }
+  });
+
+  it("warns above the KPI cards of the orders overdue in transit, with an icon and words, linking to Needs attention (ticket 32)", () => {
+    const alert = /<a[^>]*href="\/attention"[^>]*>(.*?)<\/a>/s.exec(html);
+    expect(visibleText(alert?.[1] ?? "").trim()).toBe("26 orders in transit longer than any completed delivery (12 days)");
+    expect(alert?.[1]).toContain("<svg");
+    expect(html.indexOf('href="/attention"')).toBeLessThan(html.indexOf('aria-label="Key figures"'));
+  });
+
+  it("says nothing when no order is overdue, or nothing was delivered to compare with (ticket 32)", () => {
+    expect(renderToStaticMarkup(<AttentionAlert overdue={0} longest={12} />)).toBe("");
+    expect(renderToStaticMarkup(<AttentionAlert overdue={3} longest={null} />)).toBe("");
+    expect(visibleText(renderToStaticMarkup(<AttentionAlert overdue={1} longest={1} />)).trim()).toBe("1 order in transit longer than any completed delivery (1 day)");
   });
 
   it("shows the five KPIs with their breakdowns", () => {

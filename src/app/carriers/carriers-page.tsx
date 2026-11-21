@@ -149,7 +149,7 @@ export function CarriersPage({ role }: { role: Role }) {
         <Table
           headers={["Carrier", ...columns.map(({ header }) => header)]}
           rowHeaders
-          numeric
+          numericFrom={1}
           sortedBy={1 + columns.findIndex(({ result }) => result === delay)}
           linkedRows
           rows={delay.rows.map((row) => [

@@ -67,6 +67,13 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **The 403 page** is a card in place of the page: "Your role, Viewer, can't open Ask the data.", with Overview and "Sign in as someone else".
    - **Links to Ask** (the Overview's ask box, the chips on Carriers and Forecast) and Raw data's "Download CSV" show only to roles that can use them.
 
+   *Amended 21 Nov 2026 (ticket 32):* Needs attention, the orders to act on.
+   - **The rail** lists Needs attention `/attention` under Overview, for every role. A badge after its name counts the orders overdue in transit: the count on the warn tint, and "overdue" in its name. Collapsed, a dot on the icon stays and the tooltip says "Needs attention · 26 overdue". A count of 0 has no badge.
+   - **The page** is four cards: overdue in transit, exceptions, delayed and canceled. Each has its count, its count per carrier, and its first 10 orders, oldest first by order date. The overdue card shows the orders in transit by age (0–7, 8–14, 15–30, 31+ days) as small tiles, and how many more are in transit within the threshold.
+   - **Links:** a card's title and its "View all" open its status in Raw data sorted by order date (`/data?status=delayed&sort=order_date`), so the table's rows are the first the view shows. The overdue card is the one exception to "the view shows the card's number": Raw data has no age filter, so it opens every order in transit, 27 against the card's 26, and its link says so, "View all 27 in transit". The orders within the threshold are the youngest, so they come last. An empty card links nowhere, even when orders are in transit within the threshold.
+   - **The Overview** shows one line above the KPI cards while any order is overdue: the warning icon and "26 orders in transit longer than any completed delivery (12 days)" on the warn tint. The whole line opens `/attention`.
+   - **Raw data** gains "Days in transit", the transit age of an order in transit, which sorts like any other column (`sort=age`).
+
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 
@@ -74,6 +81,7 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
 
 - Four new routes and a shell. Overview becomes a summary that links to the detail pages.
   _Amended 21 Nov 2026 (ticket 28): a fifth new route, Raw data `/data`, so six pages in all (§5). The title keeps the decision's original name._
+  _Amended 21 Nov 2026 (ticket 32): a sixth, Needs attention `/attention`, so seven pages, and Users for admins (§5)._
 - The design files in `docs/design/` are references, not code. They need the design canvas's runtime to render, so read them as markup, styles and example data. Their numbers double as golden values for tests.
 - The README's screenshots (if any) and the Loom are recorded after the redesign.
 - Ticket 24 ships the tokens, the shell, Overview and Ask. Ticket 25 adds Delivery, Carriers and Forecast and can be cut if time runs out; the rail then lists only the pages that exist.

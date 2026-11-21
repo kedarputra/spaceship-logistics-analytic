@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { transitAge } from "@/domain/definitions";
 import { formatCount, formatUsd } from "@/domain/format";
 import type { Order } from "@/domain/orders";
 import { formatDate } from "@/domain/periods";
@@ -11,8 +12,8 @@ interface Column {
   heading: string;
   /** Numbers: right-aligned. */
   numeric?: boolean;
-  /** The value as the file has it, formatted only for reading; null for an empty cell. */
-  cell: (order: Order) => ReactNode;
+  /** The value as the file has it, formatted only for reading; null for an empty cell. The anchor dates the transit age. */
+  cell: (order: Order, anchor: string) => ReactNode;
 }
 
 const STATUS_STYLES: Record<Order["status"], { pill: string; dot: string }> = {
@@ -47,6 +48,14 @@ const COLUMNS: Record<ViewColumn, Column> = {
       return days === null ? null : formatCount(days);
     },
   },
+  age: {
+    heading: "Days in transit",
+    numeric: true,
+    cell: (order, anchor) => {
+      const age = transitAge(order, anchor);
+      return age === null ? null : formatCount(age);
+    },
+  },
   carrier: { heading: "Carrier", cell: (order) => order.carrier },
   origin_city: { heading: "Origin", cell: (order) => order.origin_city },
   destination_city: { heading: "Destination", cell: (order) => order.destination_city },
@@ -74,9 +83,10 @@ const ARROW = { asc: "↑", desc: "↓" } as const;
 /**
  * The orders of one page of a Raw data view (ticket 28). It scrolls inside its card both ways: the
  * heading row stays in view as the rows scroll, the Order ID column as the table scrolls sideways.
- * Each heading sorts by its column, and a second click reverses it.
+ * Each heading sorts by its column, and a second click reverses it. `anchor` is the data's date, which
+ * an order in transit is aged to (ticket 32).
  */
-export function OrdersTable({ rows, view }: { rows: readonly Order[]; view: OrdersView }) {
+export function OrdersTable({ rows, view, anchor }: { rows: readonly Order[]; view: OrdersView; anchor: string }) {
   return (
     <div role="region" aria-label="Orders table, scrolls both ways" tabIndex={0} className="max-h-[min(70dvh,720px)] overflow-auto rounded-control border border-line">
       <table className="w-max min-w-full border-separate border-spacing-0 text-small">
@@ -113,14 +123,14 @@ export function OrdersTable({ rows, view }: { rows: readonly Order[]; view: Orde
                 if (index === 0) {
                   return (
                     <th key={key} scope="row" className={`${CELL} ${PINNED} z-[5] text-left font-medium`}>
-                      {cell(order)}
+                      {cell(order, anchor)}
                     </th>
                   );
                 }
                 const align = numeric ? "text-right" : "text-left";
                 return (
                   <td key={key} className={`${CELL} ${align}`}>
-                    {cell(order)}
+                    {cell(order, anchor)}
                   </td>
                 );
               })}

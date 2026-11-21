@@ -1,6 +1,7 @@
 import { can, type Role } from "@/auth/roles";
 import { LiveAiStatusPill } from "@/components/ai-status";
 import { AskBox } from "@/components/ask-box";
+import { AttentionAlert } from "@/components/attention-alert";
 import { CardPair } from "@/components/card-pair";
 import { CarrierCard } from "@/components/carrier-card";
 import { ChartCard } from "@/components/chart-card";
@@ -10,7 +11,7 @@ import { OrderBars } from "@/components/month-charts";
 import { OutcomesChartCard } from "@/components/outcomes-chart-card";
 import { PageHeader } from "@/components/page-header";
 import { OVERVIEW_QUESTIONS } from "@/components/suggested-questions";
-import { dashboardKpis, deliveryOutcomesOverTime, orderCountOverTime } from "@/domain/definitions";
+import { dashboardKpis, deliveryOutcomesOverTime, longestCompletedDelivery, orderCountOverTime, overdueInTransit } from "@/domain/definitions";
 import { formatCount } from "@/domain/format";
 import { getDataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod } from "@/domain/periods";
@@ -20,7 +21,8 @@ import { queryResult } from "./query-result";
 
 /**
  * The Overview (ADR 0011 §5): a summary of the data that links to the Ask page and the detail pages.
- * Every figure is computed. The ask box is for roles that can ask (ticket 31).
+ * Every figure is computed. The ask box is for roles that can ask (ticket 31). Above the KPI cards, a
+ * line warns of orders overdue in transit and opens Needs attention (ticket 32).
  */
 export function OverviewPage({ role }: { role: Role }) {
   const { orders, anchor } = getDataset();
@@ -41,6 +43,7 @@ export function OverviewPage({ role }: { role: Role }) {
         <LiveAiStatusPill />
       </PageHeader>
       {can(role, "ask") ? <AskBox questions={OVERVIEW_QUESTIONS} /> : null}
+      <AttentionAlert overdue={overdueInTransit(orders, anchor).length} longest={longestCompletedDelivery(orders)} />
       <KpiCards kpis={kpis} />
       <CardPair label="Orders and delivery outcomes">
         <ChartCard

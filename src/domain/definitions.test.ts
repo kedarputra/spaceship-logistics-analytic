@@ -7,6 +7,7 @@ import {
   deliveryOutcomesOverTime,
   exceptionRate,
   isRateOrAverage,
+  longestCompletedDelivery,
   type MetricDefinition,
   METRIC_STATUSES,
   METRICS,
@@ -14,7 +15,10 @@ import {
   type MetricId,
   onTimeRate,
   orderCountOverTime,
+  overdueInTransit,
   ratio,
+  transitAge,
+  transitAgeBuckets,
 } from "./definitions";
 import { getDataset, type Order } from "./orders";
 
@@ -299,5 +303,88 @@ describe("the statuses each metric is computed over (ticket 29, golden numbers i
     }
     expect(ids(withStatus(METRIC_STATUSES.delivery_outcomes))).toEqual(ids(deliveredOrders(orders)));
     expect(withStatus(METRIC_STATUSES.order_share)).toHaveLength(400);
+  });
+});
+
+// Ticket 32: what the Needs attention worklist is built on. Golden numbers recomputed from the CSV.
+describe("orders in transit and how old they are (ticket 32)", () => {
+  const { orders, anchor } = getDataset();
+
+  it("ages an order in transit from its order date to the anchor date, in days, and gives any other order no age", () => {
+    expect(transitAge(order("in_transit", "2025-12-23", null), "2025-12-31")).toBe(8);
+    expect(transitAge(order("in_transit", "2025-12-31", null), "2025-12-31")).toBe(0);
+    expect(transitAge(order("delivered", "2025-12-23", "2025-12-26"), "2025-12-31")).toBeNull();
+    expect(transitAge(order("canceled", "2025-03-07", null), "2025-12-31")).toBeNull();
+  });
+
+  it("finds the oldest orders in transit in the file 362 days old, and the youngest 8", () => {
+    const ages = orders.map((each) => transitAge(each, anchor)).filter((age) => age !== null);
+    expect(ages).toHaveLength(27);
+    expect(Math.max(...ages)).toBe(362);
+    expect(Math.min(...ages)).toBe(8);
+  });
+});
+
+describe("the longest completed delivery (ticket 32)", () => {
+  it("is 12 days in the file: the slowest of the 370 delivered orders, an exception order", () => {
+    expect(longestCompletedDelivery(getDataset().orders)).toBe(12);
+  });
+
+  it("comes from the orders given, over delivered orders only, so another file gets its own", () => {
+    const orders = [
+      order("delivered", "2025-03-01", "2025-03-04"),
+      order("delayed", "2025-03-01", "2025-03-21"),
+      order("in_transit", "2025-01-01", null),
+      order("canceled", "2025-01-01", null),
+    ];
+    expect(longestCompletedDelivery(orders)).toBe(20);
+  });
+
+  it("is none when nothing has been delivered", () => {
+    expect(longestCompletedDelivery([order("in_transit", "2025-01-01", null)])).toBeNull();
+    expect(longestCompletedDelivery([])).toBeNull();
+  });
+});
+
+describe("overdue in transit (ticket 32)", () => {
+  const ids = (list: readonly Order[]) => list.map((each) => each.order_id);
+
+  it("finds 26 of the 27 orders in transit older than the longest completed delivery, 12 days; the one left is 8 days old", () => {
+    const { orders, anchor } = getDataset();
+    const overdue = overdueInTransit(orders, anchor);
+    expect(overdue).toHaveLength(26);
+    expect(overdue.every((each) => each.status === "in_transit")).toBe(true);
+    const within = orders.filter((each) => each.status === "in_transit" && !overdue.includes(each));
+    expect(ids(within)).toEqual(["ORD-2026-328876-0262"]);
+  });
+
+  it("counts an order as overdue only past the threshold: 12 days is not, 13 is", () => {
+    const slowest = order("exception", "2025-06-01", "2025-06-13");
+    const twelve = { ...order("in_transit", "2025-12-19", null), order_id: "twelve" };
+    const thirteen = { ...order("in_transit", "2025-12-18", null), order_id: "thirteen" };
+    expect(ids(overdueInTransit([slowest, twelve, thirteen], "2025-12-31"))).toEqual(["thirteen"]);
+  });
+
+  it("finds none overdue when nothing has been delivered, as there is no delivery to compare with", () => {
+    expect(overdueInTransit([order("in_transit", "2025-01-01", null)], "2025-12-31")).toEqual([]);
+  });
+});
+
+describe("transit age buckets (ticket 32)", () => {
+  it("counts the 27 orders in transit as 0–7: 0, 8–14: 1, 15–30: 0, 31+: 26", () => {
+    const { orders, anchor } = getDataset();
+    expect(transitAgeBuckets(orders, anchor)).toEqual([
+      { label: "0–7", count: 0 },
+      { label: "8–14", count: 1 },
+      { label: "15–30", count: 0 },
+      { label: "31+", count: 26 },
+    ]);
+  });
+
+  it("puts each edge in its bucket, and leaves out orders not in transit", () => {
+    const daysOld = (days: number) => order("in_transit", new Date(Date.UTC(2025, 11, 31 - days)).toISOString().slice(0, 10), null);
+    const orders = [0, 7, 8, 14, 15, 30, 31, 300].map(daysOld);
+    orders.push(order("delivered", "2025-01-01", "2025-01-03"), order("canceled", "2025-01-01", null));
+    expect(transitAgeBuckets(orders, "2025-12-31").map(({ count }) => count)).toEqual([2, 2, 2, 2]);
   });
 });

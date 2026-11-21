@@ -10,6 +10,7 @@ import { POST as askRoute } from "./api/ask/route";
 import { GET as csvRoute } from "./api/orders.csv/route";
 import { POST as runRoute } from "./api/run/route";
 import AskRoute from "./ask/page";
+import AttentionRoute from "./attention/page";
 import CarriersRoute from "./carriers/page";
 import DataRoute from "./data/page";
 import DeliveryRoute from "./delivery/page";
@@ -44,6 +45,7 @@ const noQuery = { searchParams: Promise.resolve({}) };
 type Page = (props: { searchParams: Promise<Record<string, string>> }) => Promise<ReactNode>;
 const PAGES: Record<string, Page> = {
   "/": OverviewRoute,
+  "/attention": AttentionRoute,
   "/delivery": DeliveryRoute,
   "/carriers": CarriersRoute,
   "/forecast": ForecastRoute,
@@ -98,6 +100,7 @@ const ASKERS_API = { nobody: "401", viewer: "403", analyst: "allowed", admin: "a
 
 const EXPECTED: Record<string, Record<Who, Outcome>> = {
   "/": EVERYONE,
+  "/attention": EVERYONE,
   "/delivery": EVERYONE,
   "/carriers": EVERYONE,
   "/forecast": EVERYONE,

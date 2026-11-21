@@ -11,8 +11,10 @@ interface TableProps {
   rows: ReactNode[][];
   /** The first cell of each row names it, as a row header. */
   rowHeaders?: boolean;
-  /** The columns after the first hold numbers, right-aligned. */
-  numeric?: boolean;
+  /** The columns from this one on hold numbers, right-aligned: 1 for every column after the first. */
+  numericFrom?: number;
+  /** No cell wraps: short codes such as order IDs and dates keep one line, and the table scrolls sideways instead. */
+  noWrap?: boolean;
   /** The column the rows are sorted by, highest first: marked with ↓ and aria-sort. */
   sortedBy?: number;
   /** A totals row. */
@@ -24,8 +26,9 @@ interface TableProps {
 const CELL = "px-3 py-2";
 
 /** A bordered table that scrolls sideways on a narrow screen rather than widening the page. */
-export function Table({ headers, rows, rowHeaders = false, numeric = false, sortedBy, footer, linkedRows = false }: TableProps) {
-  const align = (column: number) => (numeric && column > 0 ? "text-right whitespace-nowrap" : "text-left");
+export function Table({ headers, rows, rowHeaders = false, numericFrom, noWrap = false, sortedBy, footer, linkedRows = false }: TableProps) {
+  const isNumeric = (column: number) => numericFrom !== undefined && column >= numericFrom;
+  const align = (column: number) => (isNumeric(column) ? "text-right whitespace-nowrap" : `text-left${noWrap ? " whitespace-nowrap" : ""}`);
   const cell = (content: ReactNode, column: number, key: string) =>
     rowHeaders && column === 0 ? (
       <th key={key} scope="row" className={`${CELL} text-left font-semibold whitespace-nowrap`}>

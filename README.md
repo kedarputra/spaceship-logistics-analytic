@@ -16,7 +16,7 @@ npm run users -- add me admin --generate   # prints the password once
 npm run dev                                # http://localhost:3000, sign in as "me"
 ```
 
-Every page asks you to sign in (ADR 0012), so even a local run needs a session secret and an users file: the `AUTH_` variables below. The dashboard pages (Overview, Delivery, Carriers, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
+Every page asks you to sign in (ADR 0012), so even a local run needs a session secret and an users file: the `AUTH_` variables below. The dashboard pages (Overview, Needs attention, Delivery, Carriers, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
 
 Copy `.env.example` to `.env.local` and set these variables:
 
@@ -67,7 +67,7 @@ Every page asks you to sign in. The test accounts, one per role, are in the subm
 
 | Action | Viewer | Analyst | Admin |
 |---|---|---|---|
-| Dashboards: Overview, Delivery, Carriers, Forecast, Raw data | yes | yes | yes |
+| Dashboards: Overview, Needs attention, Delivery, Carriers, Forecast, Raw data | yes | yes | yes |
 | Ask the data: `/ask`, `/api/ask`, `/api/run` | no | yes | yes |
 | Downloads: `/api/orders.csv` | no | yes | yes |
 | Import data (planned) | no | no | yes |
@@ -100,14 +100,15 @@ Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → 
 
 | Route | What it shows |
 |---|---|
-| `/` Overview | The five KPIs, orders and delivery outcomes per month, the delay rate by carrier, and the demand forecast, with links to the detail pages |
+| `/` Overview | The five KPIs, orders and delivery outcomes per month, the delay rate by carrier, and the demand forecast, with links to the detail pages. Above the KPIs, while any order is overdue in transit, one line that says how many and opens Needs attention |
+| `/attention` Needs attention | The orders to act on, oldest first, the way a WMS exception queue lists them: overdue in transit (26, in transit longer than the longest completed delivery, 12 days, with the 27 in transit by age), exceptions (11), delayed (55) and canceled (3). Each has a count per carrier, so you see whom to call, and its first 10 orders; its title and "View all" open all of them in Raw data, oldest first. The menu shows the overdue count as a badge |
 | `/ask` Ask the data | The ask box, the answer with its chart and explanation panel, suggested questions, and the recent questions of this browser |
 | `/delivery` | Delivery outcomes and the on-time delivery rate per month, and the average delivery time by region and by warehouse |
 | `/carriers` | All 9 carriers: the delay-rate chart, highlights, and a table with every metric |
 | `/forecast` | A forecast for the total or one category, warehouse or region, 1, 3 or 6 months ahead; the method comparison, the plan's arithmetic, and all 22 scopes side by side |
 | `/login` | Sign in: the product name, Username and Password. The only page that opens without a session |
 | `/users` | For admins: the accounts and their roles, read-only |
-| `/data` Raw data | The 400 orders as the file has them, read-only: filters by status, carrier, region, warehouse, category, promo, a month range by order or delivery date, and a search; a sort by any column, pages of 50, a summary of the rows shown, and a CSV download. Every view is a URL, such as `/data?status=delayed&carrier=FedEx` |
+| `/data` Raw data | The 400 orders as the file has them, read-only: filters by status, carrier, region, warehouse, category, promo, a month range by order or delivery date, and a search; a sort by any column, pages of 50, a summary of the rows shown, and a CSV download. An order in transit shows its days in transit. Every view is a URL, such as `/data?status=delayed&carrier=FedEx` |
 
 The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. Raw data reads its filters with the query spec's schema and picks rows with the query tool's own matching, so it counts the same orders an answer with the same filters counts. A card, bar or table row that shows a count opens those orders in Raw data, and the view shows the same number; a rate with no orders of its own opens the page that breaks it down. An answer on the Ask page opens the orders it was computed over the same way, when every part of its spec is a Raw data filter. A count of 0 has no link. Pointing at a month on a month chart, or moving to it with the arrow keys, shows its values in a tooltip, and a click opens that month's orders. Cards and charts carry no explanatory subtext: a definition, a date basis or a note is in the info popover after the title, one hover, focus or tap away. The pages follow ADR 0011: a dark rail with the pages the role can open and, at its foot, who is signed in; three brand colours; and chart colours checked for colour-blind separation.
 
@@ -163,7 +164,7 @@ While the model works, which can take 10 to 18 seconds on a busy GPU, the answer
 | Bonus scope: history, cache, tests, ambiguity handling and a pipeline trace; Docker only if time is left | 0008 |
 | Our own LLM behind our gateway; one structured output; sentences checked by code | 0009 |
 | Self-hosted as a Windows service behind a Cloudflare Tunnel, deployed by a watchdog | 0010 (replaces 0007) |
-| Six pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
+| Seven pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
 | Sign-in with three roles in one matrix; accounts in a file, sessions in a signed cookie | 0012 (replaces 0007 §3) |
 
 ### Bonus items
@@ -271,7 +272,7 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 
 - **On time comes from `status`.** The data has no promised date, so "on time" can only mean `status = delivered`.
 - **An exception is not late.** Exception orders were delivered but are neither on time nor delayed. They have their own count, so the on-time delivery rate (82.2%) and the delay rate (14.9%) don't add up to 100%: the other 3.0% are exceptions.
-- **`status` is trusted as given.** 26 of the 27 in-transit orders were placed before December, the oldest on 3 Jan 2025, but they are counted as open, not overdue.
+- **`status` is trusted as given.** Every KPI counts an order in transit as in transit, however old. 26 of the 27 have been on their way longer than the longest completed delivery (12 days), the oldest since 3 Jan 2025, so Needs attention lists them as overdue in transit. With no promised date in the data, that is the honest threshold: older than any order that ever arrived.
 - **Small samples are flagged.** A group with fewer than 20 delivered orders is a small sample. Rankings still rank it, mark it, and never name it the winner on its own.
 - **`order_value_usd` is gross.** Net order value applies `promo_discount_pct`.
 - **Forecasts are monthly units by order date,** for one scope at a time. The candidates are the all-history average, the 3-month moving average, linear regression and Holt's linear trend with fixed parameters. Each is scored on Oct–Dec 2025 after fitting on Jan–Sep. The lowest error wins, a tie goes to the simpler method, and the winner is refit on all 12 months (ADR 0003).
@@ -289,6 +290,7 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **One server.** Availability depends on the server's power and internet line. Other workloads share the GPU, so the ask box can answer "busy, try again shortly". After a reboot, the dashboard comes back at once and the ask box when the gateway is up.
 - **History stays in one browser,** and reviewers behind one office IP share the limit of 20 questions a minute, and of 5 sign-in tries a minute.
 - **Sessions are not stored on the server.** Removing an account ends its sessions at once, but a changed password does not end the old ones before their 8 hours; changing the secret signs everyone out. Ten wrong passwords in an hour lock a username for the rest of that hour, so someone guessing can lock a shared test account.
+- **What a WMS has that this data can't support.** There is no stock on hand, no bin locations, no receiving and no pick or pack tasks, so putaway, slotting, picking, cycle counts and labour reports are out of reach. Needs attention is the part the data can carry: an exception queue of orders.
 - **Unsupported queries** are listed, with what each gets instead, under [Supported questions](#supported-questions).
 
 ## Future improvements

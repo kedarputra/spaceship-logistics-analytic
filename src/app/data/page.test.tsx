@@ -57,7 +57,11 @@ describe("the Raw data page (ticket 28)", () => {
     const html = await render();
     expect(visibleText(html)).toContain("Data Raw data Data as of 31 Dec 2025 Search");
     expect(visibleText(html)).toContain("Orders 1–50 of 400 Download CSV");
-    expect(infoLines(html, "Orders")).toEqual(["The 400 orders of mock_logistics_data.csv as the file has them. Read-only: filter, sort and download them.", "In file order."]);
+    expect(infoLines(html, "Orders")).toEqual([
+      "The 400 orders of mock_logistics_data.csv as the file has them. Read-only: filter, sort and download them.",
+      "In file order.",
+      "Days in transit: from the order date to 31 Dec 2025, for orders still in transit.",
+    ]);
     expect(infoLines(await render({ sort: "order_date" }), "Orders")?.[1]).toBe("Sorted by the marked column.");
   });
 
@@ -84,7 +88,7 @@ describe("the Raw data page (ticket 28)", () => {
     expect(visibleText(part(await render({ carrier: "FedEx" }), "Summary"))).not.toContain(note);
   });
 
-  it("shows every column of the file, Order ID first and Delivery days after the dates, each value formatted only for reading", async () => {
+  it("shows every column of the file, Order ID first and Delivery days and Days in transit after the dates, each value formatted only for reading", async () => {
     const html = await render();
     expect(headings(html)).toEqual([
       "Order ID",
@@ -92,6 +96,7 @@ describe("the Raw data page (ticket 28)", () => {
       "Order date",
       "Delivery date",
       "Delivery days",
+      "Days in transit",
       "Carrier",
       "Origin",
       "Destination",
@@ -108,7 +113,7 @@ describe("the Raw data page (ticket 28)", () => {
     ]);
     // The file's first line: CL-1023,ORD-2026-267300-0001,2025-10-19,2025-10-22,DHL,"London, UK","Leeds, UK",delivered,PAPER-0197,PAPER,2,13.11,26.22,0,0,UK,LON-FC1
     expect(bodyRows(html)[0]).toBe(
-      "ORD-2026-267300-0001 | CL-1023 | 19 Oct 2025 | 22 Oct 2025 | 3 | DHL | London, UK | Leeds, UK | Delivered | PAPER-0197 | PAPER | 2 | $13.11 | $26.22 | No | 0% | UK | LON-FC1 |",
+      "ORD-2026-267300-0001 | CL-1023 | 19 Oct 2025 | 22 Oct 2025 | 3 | | DHL | London, UK | Leeds, UK | Delivered | PAPER-0197 | PAPER | 2 | $13.11 | $26.22 | No | 0% | UK | LON-FC1 |",
     );
     // Each Order ID names its row.
     expect(html).toContain('<th scope="row"');
@@ -117,10 +122,21 @@ describe("the Raw data page (ticket 28)", () => {
 
   it("leaves the delivery date and days empty for an order not delivered, and shows a promo's discount", async () => {
     const [inTransit] = bodyRows(await render({ status: "in_transit" }));
-    expect(inTransit).toMatch(/^ORD-2026-571946-0024 \| CL-\d+ \| \d+ \w{3} 2025 \| \| \| /);
+    // Ordered 13 Nov 2025 and still in transit: 48 days old on 31 Dec 2025 (ticket 32).
+    expect(inTransit).toMatch(/^ORD-2026-571946-0024 \| CL-1022 \| 13 Nov 2025 \| \| \| 48 \| UPS \| /);
     expect(inTransit).toContain("| In transit |");
     const [promo] = bodyRows(await render({ promo: "yes" }));
     expect(promo).toMatch(/^ORD-2026-981522-0012 .*\| \$47\.95 \| Yes \| 17% \|/);
+  });
+
+  it("opens the orders in transit oldest first, with their transit age, as Needs attention's View all links (ticket 32)", async () => {
+    const html = await render({ status: "in_transit", sort: "order_date" });
+    expect(headings(html)).toContain("Order date ↑ (ascending)");
+    const rows = bodyRows(html);
+    expect(rows).toHaveLength(27);
+    expect(rows[0]).toMatch(/^ORD-2026-182650-0096 \| CL-1006 \| 3 Jan 2025 \| \| \| 362 \| DHL \| /);
+    expect(rows.at(-1)).toMatch(/^ORD-2026-328876-0262 .*\| 8 \| UPS \| /);
+    expect(hrefOf(html, "Days in transit")).toBe("/data?status=in_transit&sort=age");
   });
 
   it("pages 50 orders at a time, with the page in the URL", async () => {

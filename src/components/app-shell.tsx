@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { User } from "@/auth/users";
+import { overdueInTransit } from "@/domain/definitions";
 import { formatCount } from "@/domain/format";
 import { DATASET_FILE, type Dataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod, formatYears } from "@/domain/periods";
@@ -15,7 +16,7 @@ import { RailNav } from "./rail-nav";
  * the data and the AI status, then the page. Where the two fit side by side, the rail is 232 px wide,
  * or 64 px collapsed, and the page takes the rest up to its 1200 px; below that, the rail stacks above
  * the page (ticket 27). The menu lists the pages the user's role can open, and the rail ends with who is
- * signed in and Sign out (ticket 31).
+ * signed in and Sign out (ticket 31). Needs attention carries the count of orders overdue in transit (ticket 32).
  */
 export function AppShell({
   user,
@@ -78,7 +79,7 @@ export function AppShell({
           }
           account={<RailAccount user={user} />}
         >
-          <RailNav role={user.role} />
+          <RailNav role={user.role} overdue={overdueInTransit(dataset.orders, dataset.anchor).length} />
         </Rail>
         <main id="content" className="min-w-0 flex-1 px-4 pt-7 pb-16 sm:px-9">
           <div className="mx-auto flex max-w-[1200px] flex-col gap-5">{children}</div>

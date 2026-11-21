@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/page-header";
 import { type DashboardKpis, dashboardKpis, METRICS } from "@/domain/definitions";
 import { formatCount, formatDays, formatFraction, formatPercent } from "@/domain/format";
 import { DATASET_FILE, getDataset } from "@/domain/orders";
+import { formatDate } from "@/domain/periods";
 import { type OrdersPage, type OrdersView, ordersInView, pageOf } from "@/tools/orders-view";
 
 /** Each active filter as a chip that removes it, then Clear all. */
@@ -139,11 +140,12 @@ function Paging({ page, view }: { page: OrdersPage; view: OrdersView }) {
   );
 }
 
-/** What the Orders card shows, in its info popover (ticket 30). */
-function ordersInfo(total: number, view: OrdersView): string[] {
+/** What the Orders card shows, in its info popover (ticket 30), and what the transit age counts (ticket 32). */
+function ordersInfo(total: number, view: OrdersView, anchor: string): string[] {
   return [
     `The ${formatCount(total)} orders of ${DATASET_FILE} as the file has them. Read-only: filter, sort and download them.`,
     view.sort === undefined ? "In file order." : "Sorted by the marked column.",
+    `Days in transit: from the order date to ${formatDate(anchor)}, for orders still in transit.`,
   ];
 }
 
@@ -175,7 +177,7 @@ export async function DataPage({ searchParams, role }: DataPageProps & { role: R
       <Summary kpis={dashboardKpis(inView)} total={orders.length} statusFiltered={view.filters.status !== undefined} />
       <section aria-labelledby="orders-title" className="card card-body">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle id="orders-title" title="Orders" info={ordersInfo(orders.length, view)} detail={page.total === 0 ? "No orders" : rowsShown(page)} />
+          <CardTitle id="orders-title" title="Orders" info={ordersInfo(orders.length, view, anchor)} detail={page.total === 0 ? "No orders" : rowsShown(page)} />
           {can(role, "download") ? (
             <a href={csvHref(view)} download className="button-small gap-1.5 no-underline">
               <Icon name="download" size={15} />
@@ -191,7 +193,7 @@ export async function DataPage({ searchParams, role }: DataPageProps & { role: R
             </Link>
           </p>
         ) : (
-          <OrdersTable rows={page.rows} view={view} />
+          <OrdersTable rows={page.rows} view={view} anchor={anchor} />
         )}
         {/* No orders is one page, so an empty view has no paging. */}
         {page.pages > 1 ? <Paging page={page} view={view} /> : null}

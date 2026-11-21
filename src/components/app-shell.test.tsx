@@ -13,9 +13,10 @@ function links(html: string): [string, boolean][] {
 }
 
 describe("the rail's menu (ADR 0011 §5, ticket 24)", () => {
-  it("lists the six pages an analyst can open, Raw data after Forecast, marking the current one for assistive technology (tickets 25, 28)", () => {
+  it("lists the seven pages an analyst can open, Needs attention under Overview and Raw data after Forecast, marking the current one for assistive technology (tickets 25, 28, 32)", () => {
     expect(links(renderToStaticMarkup(<NavLinks pathname="/" role="analyst" />))).toEqual([
       ["Overview", true],
+      ["Needs attention", false],
       ["Ask the data", false],
       ["Delivery", false],
       ["Carriers", false],
@@ -28,9 +29,17 @@ describe("the rail's menu (ADR 0011 §5, ticket 24)", () => {
 
   it("lists only the pages the role can open: no Ask for a viewer, and Users for an admin (ticket 31)", () => {
     const names = (role: "viewer" | "analyst" | "admin") => links(renderToStaticMarkup(<NavLinks pathname="/" role={role} />)).map(([name]) => name);
-    expect(names("viewer")).toEqual(["Overview", "Delivery", "Carriers", "Forecast", "Raw data"]);
-    expect(names("analyst")).toEqual(["Overview", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data"]);
-    expect(names("admin")).toEqual(["Overview", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data", "Users"]);
+    expect(names("viewer")).toEqual(["Overview", "Needs attention", "Delivery", "Carriers", "Forecast", "Raw data"]);
+    expect(names("analyst")).toEqual(["Overview", "Needs attention", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data"]);
+    expect(names("admin")).toEqual(["Overview", "Needs attention", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data", "Users"]);
+  });
+
+  it("badges Needs attention with its count, named for assistive technology and kept in the collapsed rail's tooltip (ticket 32)", () => {
+    const html = renderToStaticMarkup(<NavLinks pathname="/" role="viewer" overdue={26} />);
+    expect(links(html)[1]).toEqual(["Needs attention 26 overdue", false]);
+    expect(html).toContain('data-tip="Needs attention · 26 overdue"');
+    // No badge for a count of 0.
+    expect(links(renderToStaticMarkup(<NavLinks pathname="/" role="viewer" overdue={0} />))[1]).toEqual(["Needs attention", false]);
   });
 });
 
@@ -54,6 +63,7 @@ describe("the rail, collapsed and expanded (ticket 27)", () => {
     expect(html).toMatch(/<header[^>]*data-rail-collapsed/);
     expect(links(html)).toEqual([
       ["Overview", false],
+      ["Needs attention", false],
       ["Ask the data", false],
       ["Delivery", true],
       ["Carriers", false],
@@ -101,6 +111,10 @@ describe("the shell around every page", () => {
     expect(text(html)).toContain("Logistics Analytics Order data, 2025");
     expect(text(html)).toMatch(/Data mock_logistics_data\.csv (mock_logistics_data\.csv )?400 orders · 1 Jan–31 Dec 2025 · read-only/);
     expect(text(html)).toContain("Gemma 4 12B on this server.");
+  });
+
+  it("badges Needs attention with the orders overdue in transit, computed from the dataset (ticket 32)", () => {
+    expect(text(html)).toContain("Overview Needs attention 26 overdue Ask the data");
   });
 
   it("links the data file's name to the orders in Raw data (ticket 28)", () => {

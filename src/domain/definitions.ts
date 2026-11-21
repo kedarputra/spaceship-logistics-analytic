@@ -352,6 +352,61 @@ export function deliveryOutcomesOverTime(
   return perBucket(orders, (order) => order.delivery_date, period, unit, deliveryOutcomes);
 }
 
+/**
+ * Transit age (ticket 32): how long an order with status in_transit has been on its way, from its order
+ * date to the anchor date (ADR 0002), in whole days. Any other order has none.
+ */
+export function transitAge(order: Order, anchor: string): number | null {
+  return order.status === "in_transit" ? daysBetween(order.order_date, anchor) : null;
+}
+
+/**
+ * The longest completed delivery (ticket 32): the largest delivery time among delivered orders, 12
+ * days in the file. It comes from the orders given, so another file gets its own. None when nothing
+ * has been delivered.
+ */
+export function longestCompletedDelivery(orders: readonly Order[]): number | null {
+  const delivered = deliveredOrders(orders);
+  return delivered.length === 0 ? null : Math.max(...delivered.map(deliveryDays));
+}
+
+/**
+ * Overdue in transit (ticket 32): orders in transit longer than the longest completed delivery, in file
+ * order. The data has no promised date (docs/data.md trap 2), so this is the honest threshold: older
+ * than any order that ever arrived. With nothing delivered there is nothing to compare with, so none.
+ */
+export function overdueInTransit(orders: readonly Order[], anchor: string): Order[] {
+  const longest = longestCompletedDelivery(orders);
+  if (longest === null) return [];
+  return orders.filter((order) => {
+    const age = transitAge(order, anchor);
+    return age !== null && age > longest;
+  });
+}
+
+/** The age buckets of orders in transit (ticket 32), in days: 0–7, 8–14, 15–30 and 31 or more. */
+const TRANSIT_AGE_BUCKETS: readonly { label: string; min: number; max?: number }[] = [
+  { label: "0–7", min: 0, max: 7 },
+  { label: "8–14", min: 8, max: 14 },
+  { label: "15–30", min: 15, max: 30 },
+  { label: "31+", min: 31 },
+];
+
+/** One age bucket, "8–14", and how many orders in transit are in it. */
+export interface TransitAgeBucket {
+  label: string;
+  count: number;
+}
+
+/** How many orders in transit fall in each age bucket, in the buckets' order. */
+export function transitAgeBuckets(orders: readonly Order[], anchor: string): TransitAgeBucket[] {
+  const ages = orders.map((order) => transitAge(order, anchor)).filter((age) => age !== null);
+  return TRANSIT_AGE_BUCKETS.map(({ label, min, max }) => ({
+    label,
+    count: ages.filter((age) => age >= min && (max === undefined || age <= max)).length,
+  }));
+}
+
 /** The five KPI cards of R1. In-transit and canceled orders count only toward total orders. */
 export function dashboardKpis(orders: readonly Order[]): DashboardKpis {
   const outcomes = deliveryOutcomes(orders);

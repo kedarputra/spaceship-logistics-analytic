@@ -81,7 +81,7 @@ Only transform, opacity and a collapsible's height move, and nothing moves on fi
 **Rail.** It is 232 px wide on desktop and stacks above the content on narrow screens. From top to bottom:
 
 1. **Product name:** "Logistics Analytics", with "Order data, 2025" below it.
-2. **Menu:** Overview, Ask the data, Delivery, Carriers, Forecast. The active item gets a 3 px amber bar at the rail's edge, the amber at 14% as background, amber text, and `aria-current="page"`.
+2. **Menu:** Overview, Ask the data, Delivery, Carriers, Forecast. The active item gets a 3 px amber bar at the rail's edge, the amber at 14% as background, amber text, and `aria-current="page"`. _Ticket 32: Needs attention under Overview, with a badge of the orders overdue in transit (26) on the warn tint; collapsed, a dot on its icon._
 3. **Data block:** `mock_logistics_data.csv`, "400 orders · 1 Jan–31 Dec 2025 · read-only".
 4. **AI status:** online, busy or unavailable, from `/api/health?ai=1`. The rail reads "Gemma 4 12B on this server. The AI routes and explains; code computes every number."
 
@@ -109,11 +109,40 @@ Only transform, opacity and a collapsible's height move, and nothing moves on fi
 - **Charts:**
   - Orders per month, by order date. Only the highest (Jan 75) and lowest (Sep 18) bars are labelled.
   - Delivery outcomes per month, stacked, with a 2 px gap between segments. The legend carries the totals.
+- **Alert** (ticket 32): above the KPI cards while any order is overdue in transit, one line on the warn tint (`#FBEAD2`, border `#F0C68E`, text `#7A4E10`) with a warning icon: "26 orders in transit longer than any completed delivery (12 days)". The whole line links to `/attention`.
 - **Carrier card:** the delay rate by carrier, top 4, using the small-sample rule. Its sentence reads "Among carriers with at least 20 deliveries, USPS is highest at 23.4% (11 of 47)." It links to `/carriers`.
 - **Forecast card:**
   - "Units to plan for, Jan–Mar 2026" = 405, from 285 forecast + 120 safety stock.
   - The method chip, and a small history line with the forecast band.
   - It links to `/forecast`.
+
+### Needs attention (`/attention`, ticket 32)
+
+No canvas file: it reuses the cards, tables and tiles above. Four cards, each a title that links to Raw data, an info popover, a count, the count per carrier, and the first 10 orders oldest first by order date, then "View all N".
+
+**Definitions** (`src/domain/definitions.ts`):
+- **Transit age:** anchor date − order date in days, for an order in transit. Shown as "Days in transit".
+- **Longest completed delivery:** the largest delivery time among the 370 delivered orders: 12 days, an exception order.
+- **Overdue in transit:** transit age above the longest completed delivery.
+- **Age buckets:** 0–7, 8–14, 15–30 and 31+ days.
+
+**Golden numbers:**
+
+| Card | Count | By carrier | Opens |
+|---|---|---|---|
+| Overdue in transit | 26 of 27 in transit | UPS 7, DHL 5, FedEx 4, DPD 2, LaserShip 2, OnTrac 2, USPS 2, GLS 1, Royal Mail 1 | `/data?status=in_transit&sort=order_date`, "View all 27 in transit" |
+| Exceptions | 11 | DPD 2, OnTrac 2, UPS 2, DHL 1, FedEx 1, GLS 1, Royal Mail 1, USPS 1 | `/data?status=exception&sort=order_date` |
+| Delayed | 55 | UPS 17, FedEx 11, USPS 11, Royal Mail 5, OnTrac 4, DHL 3, GLS 2, LaserShip 2 | `/data?status=delayed&sort=order_date` |
+| Canceled | 3 | UPS 2, LaserShip 1 | `/data?status=canceled&sort=order_date` |
+
+- **In transit:** 27. Longest completed delivery 12 days. Overdue 26; within the threshold 1, ORD-2026-328876-0262 (UPS, LON-FC1, 8 days), shown as "1 more in transit, within 12 days". Median age of the 27: 223 days.
+- **Age tiles** over the 27: 0–7: 0, 8–14: 1, 15–30: 0, 31+: 26.
+- **Oldest overdue:** ORD-2026-182650-0096 (DHL, SFO-DC2) and ORD-2026-616202-0285 (DHL, LON-FC1), both ordered 3 Jan 2025, 362 days. Next, ORD-2026-807844-0076 (UPS, BER-FC1), 355 days.
+- **Canceled,** oldest first: ORD-2026-975697-0193 (7 Mar 2025), ORD-2026-774620-0268 (12 Apr), ORD-2026-375289-0272 (14 Aug).
+- Ties in order date keep file order, as Raw data's sort does, so each table's rows are the first rows its link opens.
+- Per carrier: most first, ties by name.
+
+**Raw data** gains "Days in transit" after "Delivery days", empty for orders not in transit, sortable as `sort=age`.
 
 ### Ask (`/ask`)
 

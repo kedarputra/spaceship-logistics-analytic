@@ -123,6 +123,24 @@ describe("Raw data: the orders a URL asks for (ticket 28)", () => {
     expect(byCarrier.map((order) => order.order_id)).toEqual(rows({ carrier: "FedEx" }).map((order) => order.order_id));
   });
 
+  it("opens the orders in transit oldest first by order date, as Needs attention's View all does (ticket 32)", () => {
+    const oldest = rows({ status: "in_transit", sort: "order_date" });
+    expect(oldest.slice(0, 2).map((order) => order.order_id)).toEqual(["ORD-2026-182650-0096", "ORD-2026-616202-0285"]);
+    // The one order in transit within the longest completed delivery is the youngest, so it comes last.
+    expect(oldest.at(-1)?.order_id).toBe("ORD-2026-328876-0262");
+  });
+
+  it("sorts by transit age either way, orders not in transit last (ticket 32)", () => {
+    const oldest = rows({ sort: "age", dir: "desc" });
+    expect(oldest.slice(0, 2).map((order) => order.order_id)).toEqual(["ORD-2026-182650-0096", "ORD-2026-616202-0285"]);
+    expect(oldest.slice(0, 27).every((order) => order.status === "in_transit")).toBe(true);
+    expect(oldest.slice(27).some((order) => order.status === "in_transit")).toBe(false);
+    const youngest = rows({ sort: "age" });
+    expect(youngest[0]?.order_id).toBe("ORD-2026-328876-0262");
+    expect(youngest.at(-1)?.status).not.toBe("in_transit");
+    expect(read({ sort: "age" }).ignored).toEqual([]);
+  });
+
   it("pages 50 orders at a time, and shows the last page for a page past the end", () => {
     expect(pageOf(rows({}), 2)).toMatchObject({ page: 2, pages: 8, first: 51, last: 100, total: 400 });
     expect(pageOf(rows({}), 2).rows[0]?.order_id).toBe(orders[50]?.order_id);

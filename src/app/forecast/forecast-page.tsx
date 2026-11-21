@@ -76,7 +76,7 @@ function ChosenForecast({ forecast }: { forecast: ForecastAnswer }) {
           </dl>
           <Table
             headers={["Month", "Forecast", "95% range"]}
-            numeric
+            numericFrom={1}
             rows={forecast.forecastMonths.map((month) => [month.label, formatDecimal(month.units, 0), `${formatDecimal(month.low, 0)}–${formatDecimal(month.high, 0)}`])}
           />
         </div>
@@ -105,7 +105,7 @@ function HowChosen({ forecast }: { forecast: ForecastAnswer }) {
         />
         <Table
           headers={["Method", "MAE, units", "WAPE"]}
-          numeric
+          numericFrom={1}
           rows={candidates.map((candidate) => [
             candidate.method === method.id ? `${candidate.label} · chosen` : candidate.label,
             formatDecimal(candidate.mae, 2),

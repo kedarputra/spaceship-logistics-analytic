@@ -15,6 +15,10 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Delay rate** | Delayed orders divided by delivered orders, per group (for example per carrier). Shown with n. |
 | **Share of orders** | The orders that match a question's filters (and group) divided by all orders in the same period: "22 of 400 orders were promo orders, 5.5%". Not a delivery rate: a percentage delivered on time is the on-time delivery rate. The small-sample rule does not apply. ADR 0006 §1 (amended). |
 | **Delivery time** | `delivery_date − order_date` in whole days, over delivered orders. |
+| **Transit age** | How long an order with status `in_transit` has been on its way: anchor date − order date, in whole days. Other orders have none. Shown as "Days in transit". Ticket 32. |
+| **Longest completed delivery** | The largest delivery time among delivered orders: 12 days in the file. Taken from the data, so another file gets its own. Ticket 32. |
+| **Overdue in transit** | An order in transit whose transit age is greater than the longest completed delivery: older than any order that ever arrived. The data has no promised date, so this is the threshold. 26 of the 27 orders in transit in the file. With no delivered order, none is overdue. Ticket 32. |
+| **Needs attention** | The worklist at `/attention`: the orders someone should act on, as a WMS exception queue lists them. Overdue in transit, exception, delayed and canceled orders, each oldest first by order date, with a count per carrier. The rail's badge and the Overview's alert count the overdue. Ticket 32. |
 | **Small sample** | A group with fewer than 20 delivered orders. Rates and averages on it are flagged, and a ranking never names it as the winner on its own. ADR 0001. |
 | **Anchor date** | The latest `order_date` or `delivery_date` in the data (2025-12-31). Relative periods count back from it; the UI shows it as "Data as of". ADR 0002. |
 | **Relative period** | A period named against the anchor date. "Last month" is the full month before the anchor's month; "last 3 months" is the 3 months ending with the anchor's month; "this month" is the anchor's month. Always shown with its resolved dates. ADR 0002. |
@@ -43,6 +47,6 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |
 | **Gross / net order value** | `order_value_usd` as given (gross), or after the promo discount (net). |
 | **Role** | What a signed-in account may do: Viewer, Analyst or Admin. One matrix in code (`can(role, action)` in `src/auth/roles.ts`) decides it for every page, API route and the rail, with the role the users file gives the account now. ADR 0012. |
-| **Viewer** | The role that reads the dashboards: Overview, Delivery, Carriers, Forecast and Raw data. It cannot ask the data or download. |
+| **Viewer** | The role that reads the dashboards: Overview, Needs attention, Delivery, Carriers, Forecast and Raw data. It cannot ask the data or download. |
 | **Analyst** | The role that also asks the data (`/ask`, `/api/ask`, `/api/run`) and downloads (`/api/orders.csv`). |
 | **Admin** | The role that also imports data and sees the accounts and their roles (`/users`). |
