@@ -103,6 +103,11 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **The PDF** draws the page's sections from the same source (`components/report-sections.ts`) on A4 in one or two pages, with Figtree embedded from the repository and the chart marks of §3 (`PRINT_INK` in `palette.ts` for its text and rules). Its one chart, the outcomes per week, has each week's total above the bar and a row per outcome under the weeks, so the amber marks keep their values.
    - **Every figure** is a definition's or a tool's (§6): `periodFigures`, `change`, `pointsChange` and `valueChange` in `definitions.ts`, and the report in `tools/report.ts` over the same groupings as Inventory, Network and Needs attention, so a month here counts what the same month counts there.
 
+   *Amended 22 Nov 2026 (ticket 35):* Import data, for admins (ADR 0013).
+   - **`/import`** is linked from Reports, not listed in the rail. One card, Orders file: the rules in its info popover, "Download a template", and a drop zone with a file picker. A checked file gets a second card: its name, "N rows · M problems", then the first 100 problems as a table (row, column, problem) with "and K more", or for a clean file its date and the Overview's five KPI cards, which open nothing. "Use this data" is the amber primary action, disabled until the file has no problem.
+   - **The banner:** while a session runs on an import, every page opens with one line on the amber tint, with the warning icon and words: "Imported data: `<file name>` · N orders · data as of `<anchor>`", and "Back to the original data".
+   - **The rail** names the session's file, links it to Raw data as before, and says "imported" in place of "read-only".
+
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 
@@ -113,6 +118,7 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
   _Amended 21 Nov 2026 (ticket 32): a sixth, Needs attention `/attention`, so seven pages, and Users for admins (§5)._
   _Amended 21 Nov 2026 (ticket 33): Inventory `/inventory` and Network `/network`, so nine pages, and Users for admins (§5)._
   _Amended 21 Nov 2026 (ticket 34): Reports `/reports`, so ten pages, and Users for admins (§5)._
+  _Amended 22 Nov 2026 (ticket 35): and Import `/import` for admins, linked from Reports (§5)._
 - The design files in `docs/design/` are references, not code. They need the design canvas's runtime to render, so read them as markup, styles and example data. Their numbers double as golden values for tests.
 - The README's screenshots (if any) and the Loom are recorded after the redesign.
 - Ticket 24 ships the tokens, the shell, Overview and Ask. Ticket 25 adds Delivery, Carriers and Forecast and can be cut if time runs out; the rail then lists only the pages that exist.

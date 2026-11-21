@@ -16,7 +16,7 @@ import { Tag } from "@/components/tag";
 import { Table } from "@/components/text-table";
 import { METRIC_STATUSES, METRICS } from "@/domain/definitions";
 import { formatCount, formatDays, formatMetricValue, formatOf, formatPercent, formatPercentPlain } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod } from "@/domain/periods";
 import type { QueryResult, ResultRow } from "@/tools/query";
 import { andList, dateFieldWords } from "@/tools/words";
@@ -51,16 +51,16 @@ function mostOrdersLink(tied: readonly ResultRow[]): CardLink | undefined {
  * answers use; the header's totals from the KPI definitions. Highlights, bars and rows open the orders
  * behind them in Raw data (ticket 29). The questions to ask are for roles that can ask (ticket 31).
  */
-export function CarriersPage({ role }: { role: Role }) {
-  const { orders, anchor } = getDataset();
+export function CarriersPage({ role, dataset }: { role: Role; dataset: Dataset }) {
+  const { orders, anchor } = dataset;
   const dates = formatPeriod(dataPeriod(orders));
-  const delay = queryResult({ metric: "delay_rate", groupBy: "carrier", sort: "desc" });
-  const counts = queryResult({ metric: "order_count", groupBy: "carrier", sort: "desc" });
-  const shares = queryResult({ metric: "order_share", groupBy: "carrier" });
-  const delivered = queryResult({ metric: "delivered_orders", groupBy: "carrier" });
-  const onTime = queryResult({ metric: "on_time_rate", groupBy: "carrier", sort: "desc" });
-  const exceptions = queryResult({ metric: "exception_orders", groupBy: "carrier" });
-  const times = queryResult({ metric: "average_delivery_time", groupBy: "carrier", sort: "desc" });
+  const delay = queryResult({ metric: "delay_rate", groupBy: "carrier", sort: "desc" }, dataset);
+  const counts = queryResult({ metric: "order_count", groupBy: "carrier", sort: "desc" }, dataset);
+  const shares = queryResult({ metric: "order_share", groupBy: "carrier" }, dataset);
+  const delivered = queryResult({ metric: "delivered_orders", groupBy: "carrier" }, dataset);
+  const onTime = queryResult({ metric: "on_time_rate", groupBy: "carrier", sort: "desc" }, dataset);
+  const exceptions = queryResult({ metric: "exception_orders", groupBy: "carrier" }, dataset);
+  const times = queryResult({ metric: "average_delivery_time", groupBy: "carrier", sort: "desc" }, dataset);
 
   const delayLeader = reliableLeader(delay);
   const onTimeLeader = reliableLeader(onTime).leader;

@@ -4,7 +4,8 @@ import { AiError } from "@/ai/client";
 import { createInterpretationCache } from "@/ai/cache";
 import type { InterpretOutcome } from "@/ai/interpret";
 import type { Phrased } from "@/ai/phrase";
-import type { Interpretation } from "@/tools/spec";
+import { type ActiveDataset, datasetOf, getDataset } from "@/domain/orders";
+import { type Interpretation, interpretationSchema } from "@/tools/spec";
 import { TRACE_STAGES } from "@/tools/trace-stage";
 import { handleAsk } from "./handle-ask";
 
@@ -32,9 +33,10 @@ function setup(outcome: () => Promise<InterpretOutcome>, phrasing: () => Promise
     modelName: () => "fake-model",
     cache: createInterpretationCache(),
   };
-  const ask = async (question: unknown) => {
+  const ask = async (question: unknown, dataset: ActiveDataset = getDataset()) => {
     const response = await handleAsk(
       new Request("http://localhost/api/ask", { method: "POST", body: JSON.stringify({ question }) }),
+      dataset,
       deps,
     );
     const body: unknown = await response.json();
@@ -310,5 +312,42 @@ describe("POST /api/ask: the pipeline trace (B5, ADR 0008 §4)", () => {
     expect(stage((await forecast.ask("How much inventory should I plan?")).body, "tool")).toEqual({ stage: "tool", detail: "forecast tool: all products" });
     const unknown = setup(interpreted({ tool: "forecast", scope: { type: "sku", value: "CRAYON-9999" } }));
     expect((await unknown.ask("Forecast SKU CRAYON-9999")).body).not.toHaveProperty("trace");
+  });
+});
+
+describe("POST /api/ask: on the session's active dataset (ticket 35)", () => {
+  const file = getDataset();
+  // An import of the file's first five orders, the first for a client the file does not have.
+  const [first, ...rest] = file.orders.slice(0, 5);
+  if (first === undefined) throw new Error("no order");
+  const imported = datasetOf([{ ...first, client_id: "CL-9999" }, ...rest], { csv: "five orders", fileName: "five.csv", imported: true });
+
+  it("runs the spec on the session's dataset", async () => {
+    const { ask } = setup(interpreted({ tool: "query", metric: "order_count" }));
+    expect((await ask("How many orders?", imported)).body).toMatchObject({ rows: [{ value: 5 }] });
+    expect((await ask("How many orders?", file)).body).toMatchObject({ rows: [{ value: 400 }] });
+  });
+
+  it("keeps a cache entry per dataset: the same question on two datasets is two entries, each with its own sentence", async () => {
+    const { ask, calls, phraseCalls } = setup(interpreted(LATE_LAST_MONTH));
+    expect((await ask("How many orders were delivered late last month?", file)).body).toMatchObject({ cached: false });
+    expect((await ask("How many orders were delivered late last month?", imported)).body).toMatchObject({ cached: false });
+    expect([calls(), phraseCalls()]).toEqual([2, 2]);
+    expect((await ask("How many orders were delivered late last month?", imported)).body).toMatchObject({ cached: true });
+    expect((await ask("How many orders were delivered late last month?", file)).body).toMatchObject({ cached: true });
+    expect([calls(), phraseCalls()]).toEqual([2, 2]);
+  });
+
+  it("validates the model's reply against the session's dataset, so an imported client is a value only its session can ask about", async () => {
+    // The fake model replies with the spec, checked by the AI layer's own schema as the real interpret does.
+    const reply = { tool: "query", metric: "order_count", filters: { client: ["cl-9999"] } };
+    const { ask } = setup(async () => {
+      const parsed = interpretationSchema.safeParse(reply);
+      return parsed.success
+        ? { kind: "interpreted", interpretation: parsed.data, attempts: 1 }
+        : { kind: "failed", message: parsed.error.issues[0]?.message ?? "", examples: [], problems: [] };
+    });
+    expect((await ask("How many orders for CL-9999?", imported)).body).toMatchObject({ kind: "result", rows: [{ value: 1 }] });
+    expect((await ask("How many orders for CL-9999?", file)).body).toMatchObject({ kind: "unsupported", message: 'Unknown client "cl-9999". It is not in the data.' });
   });
 });

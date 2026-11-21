@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { getDataset } from "@/domain/orders";
+import { datasetOf, getDataset } from "@/domain/orders";
 import { AppShell } from "./app-shell";
 import { Rail } from "./rail";
 import { NavLinks } from "./rail-nav";
@@ -136,5 +136,35 @@ describe("the shell around every page", () => {
     expect(form).toContain('method="post"');
     // Collapsed, the account's icon names who it is.
     expect(html).toContain('data-tip="dina · Analyst"');
+  });
+});
+
+describe("the shell on an import (ticket 35)", () => {
+  const imported = datasetOf(getDataset().orders.slice(0, 5), { csv: "five", fileName: "october-orders.csv", imported: true });
+  const shell = (dataset = imported) =>
+    renderToStaticMarkup(
+      <AppShell user={{ username: "admin", role: "admin" }} dataset={dataset} modelName="Gemma 4 12B" railCollapsed={false}>
+        <p>Page content</p>
+      </AppShell>,
+    );
+
+  it("puts a banner over the page, on the amber tint with an icon: the file, its orders, its date, and the way back", () => {
+    const html = shell();
+    const banner = /<div role="status" aria-label="Imported data"[^>]*>(.*?)<\/div>/s.exec(html);
+    expect(banner?.[0]).toContain("bg-warn-tint");
+    expect(banner?.[1]).toContain("<svg");
+    expect(text(banner?.[1] ?? "")).toBe("Imported data: october-orders.csv · 5 orders · data as of 22 Oct 2025 Back to the original data");
+    expect(html.indexOf('aria-label="Imported data"')).toBeLessThan(html.indexOf("Page content"));
+  });
+
+  it("names the imported file in the rail, with its orders and period", () => {
+    const html = shell();
+    expect(html).toMatch(/<a [^>]*href="\/data"[^>]*>october-orders\.csv<\/a>/);
+    expect(text(html)).toContain("5 orders · 13 Jan–22 Oct 2025 · imported");
+    expect(html).toContain("· october-orders.csv");
+  });
+
+  it("has no banner on the file in data/", () => {
+    expect(shell(getDataset())).not.toContain("Imported data");
   });
 });

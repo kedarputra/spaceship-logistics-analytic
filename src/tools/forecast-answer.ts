@@ -1,5 +1,5 @@
 import { formatCount, formatDecimal, formatPercent } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import { type Dataset, getDataset } from "@/domain/orders";
 import { formatDate } from "@/domain/periods";
 import type { SentenceSource } from "./answer";
 import { type Candidate, type ForecastResult, NOT_A_REORDER, runForecast } from "./forecast";
@@ -150,8 +150,11 @@ export function presentForecast(result: ForecastResult): ForecastAnswer {
   };
 }
 
-/** A validated forecast spec, run over the dataset and presented: what /api/run and /api/ask both answer with. */
-export function answerForecast(spec: ForecastSpec): ForecastAnswer | NoDataResult {
-  const result = runForecast(spec, getDataset());
+/**
+ * A validated forecast spec, run over a dataset and presented: what /api/run and /api/ask both answer
+ * with. The routes and pages pass the session's active dataset (ticket 35); the eval and the tests run on the file.
+ */
+export function answerForecast(spec: ForecastSpec, dataset: Dataset = getDataset()): ForecastAnswer | NoDataResult {
+  const result = runForecast(spec, dataset);
   return result.kind === "forecast" ? presentForecast(result) : result;
 }

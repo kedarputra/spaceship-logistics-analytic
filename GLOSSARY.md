@@ -20,7 +20,7 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Overdue in transit** | An order in transit whose transit age is greater than the longest completed delivery: older than any order that ever arrived. The data has no promised date, so this is the threshold. 26 of the 27 orders in transit in the file. With no delivered order, none is overdue. Ticket 32. |
 | **Needs attention** | The worklist at `/attention`: the orders someone should act on, as a WMS exception queue lists them. Overdue in transit, exception, delayed and canceled orders, each oldest first by order date, with a count per carrier. The rail's badge and the Overview's alert count the overdue. Ticket 32. |
 | **Small sample** | A group with fewer than 20 delivered orders. Rates and averages on it are flagged, and a ranking never names it as the winner on its own. ADR 0001. |
-| **Anchor date** | The latest `order_date` or `delivery_date` in the data (2025-12-31). Relative periods count back from it; the UI shows it as "Data as of". ADR 0002. |
+| **Anchor date** | The latest `order_date` or `delivery_date` in the data (2025-12-31). Relative periods count back from it; the UI shows it as "Data as of". An import has its own. ADR 0002. |
 | **Relative period** | A period named against the anchor date. "Last month" is the full month before the anchor's month; "last 3 months" is the 3 months ending with the anchor's month; "this month" is the anchor's month. Always shown with its resolved dates. ADR 0002. |
 | **Week** | An ISO week, Monday to Sunday, named by its Monday ("w/c 6 Oct"), never by its week number. ADR 0002. |
 | **Carrier** | The shipping company on the order. |
@@ -57,3 +57,5 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Viewer** | The role that reads the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Reports, Forecast and Raw data. It cannot ask the data or download. |
 | **Analyst** | The role that also asks the data (`/ask`, `/api/ask`, `/api/run`) and downloads (`/api/orders.csv` and the monthly report's files). |
 | **Admin** | The role that also imports data and sees the accounts and their roles (`/users`). |
+| **Import** | An orders CSV an admin has checked against the file's rules and is viewing the app on, for one session only: every page, Ask, the reports and the downloads run on it. Clean or not used at all; never saved, and gone on sign-out, after 2 hours, or when the server restarts. Not a change to the dataset, which stays read-only. ADR 0013. |
+| **Active dataset** | The data a session's pages, answers and downloads run on: its import while it has one, otherwise the file in `data/`. A banner on every page says when it is an import. ADR 0013. |

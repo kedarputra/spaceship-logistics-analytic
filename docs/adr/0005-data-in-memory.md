@@ -19,6 +19,8 @@ Three parsing traps were checked on Zod 4.6.7:
 
 1. **In memory.** Computation is typed TypeScript over the parsed rows. No database and no SQL anywhere, so the "raw AI SQL" risk (R10) cannot arise.
 2. **Loading.** `src/domain/orders` reads `data/mock_logistics_data.csv` with `fs` at runtime, once per server instance, and keeps the parsed rows in a module-level memo. Nothing ever writes to `data/`. `GET /api/health` returns `{ "rows": 400, "anchor": "2025-12-31" }`, so one request after each deploy confirms that the file shipped and parsed.
+
+   *Amended 22 Nov 2026 (ticket 35):* an admin can also view the app on an imported CSV, for one session, in memory only (ADR 0013). The file stays read-only and is what every other session, `/api/health` and the eval read. The file is now parsed with `columns: false`, so the header can be checked column by column, and passes the same import rules as an upload; an invalid row's number counts as a spreadsheet does, the header being row 1.
 3. **Parser:** `csv-parse/sync` with `columns: true`.
 4. **Row schema.** A Zod schema turns each row into a typed `Order`; any invalid row throws at load with its row number, never skipped (a dropped row would change every KPI).
    - Dates: `z.iso.date()`, kept as `YYYY-MM-DD` strings. An empty `delivery_date` becomes `null`.

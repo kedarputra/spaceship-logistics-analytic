@@ -1,5 +1,5 @@
 import { type ChartType, chartReason, chooseChart, MAX_CATEGORY_BARS, type ResultShape } from "./chart";
-import { getDataset, type Order } from "@/domain/orders";
+import { type Dataset, getDataset, type Order } from "@/domain/orders";
 import { type OrdersBehind, ordersBehind } from "./orders-behind";
 import { type NoDataResult, type QueryResult, runQuery } from "./query";
 import { templateSentence } from "./sentence";
@@ -132,9 +132,11 @@ export function followUpsFor(result: QueryResult): FollowUp[] {
   return followUps;
 }
 
-/** A validated spec, run over the dataset and presented: what /api/run and /api/ask both answer with. */
-export function answerQuery(spec: QuerySpec): Answer | NoDataResult {
-  const dataset = getDataset();
+/**
+ * A validated spec, run over a dataset and presented: what /api/run and /api/ask both answer with. The
+ * routes pass the session's active dataset (ticket 35); the eval and the tests run on the file.
+ */
+export function answerQuery(spec: QuerySpec, dataset: Dataset = getDataset()): Answer | NoDataResult {
   const result = runQuery(spec, dataset);
   return result.kind === "result" ? presentAnswer(result, dataset.orders) : result;
 }

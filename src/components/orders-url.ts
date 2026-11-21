@@ -1,8 +1,8 @@
-import type { Order } from "@/domain/orders";
+import type { Dataset, Order } from "@/domain/orders";
 import { buckets, dataPeriod, formatMonths } from "@/domain/periods";
 import { LIST_FILTERS, type ListFilter, MENU_FILTERS, type MenuFilter } from "@/tools/list-filters";
 import { type DateBasis, type OrdersView, VIEW_COLUMNS, type ViewColumn } from "@/tools/orders-view";
-import { DIMENSION_VALUES, filtersSchema, valuesInData } from "@/tools/spec";
+import { DIMENSION_VALUES, filtersSchema, validatingAgainst, valuesInData } from "@/tools/spec";
 import { valueLabel } from "@/tools/words";
 import type { FilterList, Option } from "./data-filters";
 import { DATA_PAGE_PATH, hrefOf, ordersHref, viewParams } from "./orders-href";
@@ -75,9 +75,14 @@ export function paramsRecord(params: URLSearchParams): Record<string, string[]> 
 
 /**
  * The view a URL asks for (`/data?status=delayed&carrier=FedEx`), with each parameter or value it
- * cannot apply set aside with its reason. A date range must lie in the months of `orders`.
+ * cannot apply set aside with its reason. Destinations, clients and SKUs must be in `dataset`, and a
+ * date range in its months: the session's active dataset (ticket 35).
  */
-export function readOrdersView(params: SearchParams, orders: readonly Order[]): { view: OrdersView; ignored: IgnoredParameter[] } {
+export function readOrdersView(params: SearchParams, dataset: Dataset): { view: OrdersView; ignored: IgnoredParameter[] } {
+  return validatingAgainst(dataset, () => readView(params, dataset.orders));
+}
+
+function readView(params: SearchParams, orders: readonly Order[]): { view: OrdersView; ignored: IgnoredParameter[] } {
   const months = dataMonths(orders).map(({ value }) => value);
   const ignored: IgnoredParameter[] = [];
   const lists: Partial<Record<ListFilter, string[]>> = {};
@@ -162,17 +167,17 @@ function readPage(page: string | undefined, ignored: IgnoredParameter[]): number
   return 1;
 }
 
-/** A menu's values: the query spec's own, or for clients those in the data, as the spec checks them (ticket 33). */
-function menuValues(filter: MenuFilter): readonly string[] {
-  return filter === "client" ? valuesInData("client_id") : DIMENSION_VALUES[filter];
+/** A menu's values: the query spec's own, or for clients those in the dataset, as the spec checks them (tickets 33, 35). */
+function menuValues(filter: MenuFilter, dataset: Dataset): readonly string[] {
+  return filter === "client" ? valuesInData("client_id", dataset) : DIMENSION_VALUES[filter];
 }
 
 /** The lists the filter form offers as menus: the query spec's values, statuses in words. */
-export function filterLists(): FilterList[] {
+export function filterLists(dataset: Dataset): FilterList[] {
   return MENU_FILTERS.map((filter) => ({
     name: filter,
     label: LIST_LABELS[filter],
-    options: menuValues(filter).map((value) => ({ value, label: valueLabel(filter, value) })),
+    options: menuValues(filter, dataset).map((value) => ({ value, label: valueLabel(filter, value) })),
   }));
 }
 

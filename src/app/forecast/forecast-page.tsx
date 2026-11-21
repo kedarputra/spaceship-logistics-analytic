@@ -17,15 +17,15 @@ import { Tag } from "@/components/tag";
 import { Table } from "@/components/text-table";
 import { mostOrdersOfOneSku } from "@/domain/definitions";
 import { formatCount, formatDecimal, formatPercent, formatPercentPlain } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 import { NOT_A_REORDER, ROUGH_WAPE } from "@/tools/forecast";
 import { answerForecast, type ForecastAnswer, winnerScore } from "@/tools/forecast-answer";
 import { forecastSpecSchema, type ForecastSpec } from "@/tools/spec";
 import { capitalized, countOf } from "@/tools/words";
 
 /** The forecast tool's answer for a spec that is always in the data. */
-function forecastFor(spec: ForecastSpec): ForecastAnswer {
-  const answer = answerForecast(spec);
+function forecastFor(spec: ForecastSpec, dataset: Dataset): ForecastAnswer {
+  const answer = answerForecast(spec, dataset);
   if (answer.kind !== "forecast") throw new Error(answer.message);
   return answer;
 }
@@ -141,13 +141,13 @@ const SCOPE_GROUPS = [
  * Every category, warehouse and region forecast over the default horizon, each with its own method.
  * Each card opens the page with its scope chosen (ticket 29).
  */
-function ScopeGrid() {
+function ScopeGrid({ dataset }: { dataset: Dataset }) {
   const groups = SCOPE_GROUPS.map(({ type, title }) => ({
     title,
     forecasts: SCOPE_VALUES[type].map((value) => ({
       value,
       href: forecastHref(choiceParams({ scope: type, value, months: DEFAULT_MONTHS })),
-      forecast: forecastFor(forecastSpecSchema.parse({ tool: "forecast", scope: { type, value } })),
+      forecast: forecastFor(forecastSpecSchema.parse({ tool: "forecast", scope: { type, value } }), dataset),
     })),
   }));
   const first = groups[0]?.forecasts[0];
@@ -194,10 +194,10 @@ export interface ForecastPageProps {
  * The Forecast page (ADR 0011 §5, ticket 25). Its controls run the forecast tool directly, with no model
  * call. The SKU question opens Ask, so only roles that can ask see it (ticket 31).
  */
-export async function ForecastPage({ searchParams, role }: ForecastPageProps & { role: Role }) {
+export async function ForecastPage({ searchParams, role, dataset }: ForecastPageProps & { role: Role; dataset: Dataset }) {
   const choice = forecastChoice(await searchParams);
-  const forecast = forecastFor(choice.spec);
-  const { orders, anchor } = getDataset();
+  const forecast = forecastFor(choice.spec, dataset);
+  const { orders, anchor } = dataset;
   return (
     <>
       <PageHeader label="Forecast" title="Demand forecast" asOf={anchor}>
@@ -210,7 +210,7 @@ export async function ForecastPage({ searchParams, role }: ForecastPageProps & {
       )}
       <ChosenForecast forecast={forecast} />
       <HowChosen forecast={forecast} />
-      <ScopeGrid />
+      <ScopeGrid dataset={dataset} />
       <aside className="flex flex-wrap items-center gap-3 rounded-card border border-grid bg-inset px-[18px] py-3.5 text-small text-ink-2">
         <Icon name="info" className="shrink-0 text-grey-green" />
         <span className="min-w-0 flex-[1_1_320px]">

@@ -4,10 +4,11 @@ import type { Role } from "@/auth/roles";
 import { Icon } from "@/components/icons";
 import { infoLines, visibleText as readerText } from "@/components/markup-text";
 import { ReportsPage } from "./reports-page";
+import { getDataset } from "@/domain/orders";
 
 // Golden numbers: ticket 34, recomputed from data/mock_logistics_data.csv.
 const render = async (params: Record<string, string> = {}, role: Role = "analyst") =>
-  renderToStaticMarkup(await ReportsPage({ searchParams: Promise.resolve(params), role }));
+  renderToStaticMarkup(await ReportsPage({ searchParams: Promise.resolve(params), role, dataset: getDataset() }));
 
 const LOCK = renderToStaticMarkup(<Icon name="lock" size={15} />);
 

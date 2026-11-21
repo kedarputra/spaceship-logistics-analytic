@@ -1,6 +1,6 @@
 import { type Action, can, deniedMessage } from "./roles";
 import { authSecret } from "./secret";
-import { verifySession } from "./session";
+import { type Session, verifySession } from "./session";
 import { type Account, accountsFromEnv, findAccount, type User, userOf } from "./users";
 
 /**
@@ -10,13 +10,14 @@ import { type Account, accountsFromEnv, findAccount, type User, userOf } from ".
  * through src/app/auth.tsx.
  */
 
-export type SignedIn = { kind: "not-configured" } | { kind: "signed-out" } | { kind: "signed-in"; user: User };
+/** `session` is the verified cookie: its ID keeps the session's import apart (ticket 35), its expiry bounds it. */
+export type SignedIn = { kind: "not-configured" } | { kind: "signed-out" } | { kind: "signed-in"; user: User; session: Session };
 
 export type Access =
   | { kind: "not-configured" }
   | { kind: "signed-out" }
   | { kind: "forbidden"; user: User; message: string }
-  | { kind: "allowed"; user: User };
+  | { kind: "allowed"; user: User; session: Session };
 
 let reported = "";
 
@@ -54,13 +55,13 @@ export function userFor(token: string | undefined, now = Date.now()): SignedIn {
   if (setup === undefined) return { kind: "not-configured" };
   const session = verifySession(token, setup.key, now);
   const account = session && findAccount(setup.accounts, session.username);
-  return account === undefined ? { kind: "signed-out" } : { kind: "signed-in", user: userOf(account) };
+  return session === undefined || account === undefined ? { kind: "signed-out" } : { kind: "signed-in", user: userOf(account), session };
 }
 
 export function requireRole(token: string | undefined, action: Action, now = Date.now()): Access {
   const signedIn = userFor(token, now);
   if (signedIn.kind !== "signed-in") return signedIn;
-  const { user } = signedIn;
+  const { user, session } = signedIn;
   if (!can(user.role, action)) return { kind: "forbidden", user, message: deniedMessage(user.role, action) };
-  return { kind: "allowed", user };
+  return { kind: "allowed", user, session };
 }

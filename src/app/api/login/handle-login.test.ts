@@ -45,7 +45,7 @@ describe("POST /api/login (ticket 31)", () => {
     expect(cookie).toMatch(/^session=[^;]+; Path=\/; Max-Age=28800; HttpOnly; Secure; SameSite=Lax$/);
     const token = /^session=([^;]+)/.exec(cookie)?.[1];
     const key = Buffer.from(accounts.env.AUTH_SECRET, "base64");
-    expect(verifySession(token, key, NOW)).toEqual({ username: "analyst", role: "analyst", expires: NOW + 8 * 60 * 60 * 1000 });
+    expect(verifySession(token, key, NOW)).toEqual({ username: "analyst", role: "analyst", expires: NOW + 8 * 60 * 60 * 1000, sessionId: expect.any(String) });
   });
 
   it("says the same for an unknown username and a wrong password, and sets no cookie", async () => {

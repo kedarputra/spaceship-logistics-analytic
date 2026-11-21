@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { infoLines, visibleText } from "@/components/markup-text";
 import { GROSS_VALUE_NOTE } from "@/components/gross-value";
 import { InventoryPage } from "./inventory-page";
+import { getDataset } from "@/domain/orders";
 
 // Golden numbers: ticket 33, recomputed from data/mock_logistics_data.csv.
-const html = renderToStaticMarkup(<InventoryPage />);
+const html = renderToStaticMarkup(<InventoryPage dataset={getDataset()} />);
 
 /** The markup inside a named part (aria-label or aria-labelledby), up to `end`. */
 function part(name: string, end = "</section>"): string {

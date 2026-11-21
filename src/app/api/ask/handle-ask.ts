@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AiError } from "@/ai/client";
+import type { ActiveDataset } from "@/domain/orders";
 import type { InterpretationCache } from "@/ai/cache";
 import type { InterpretOutcome } from "@/ai/interpret";
 import type { PhraseableAnswer, Phrased } from "@/ai/phrase";
@@ -7,7 +8,7 @@ import { answerQuery } from "@/tools/answer";
 import { EXAMPLE_QUESTIONS, type ExampleId, MAX_QUESTION_LENGTH, UNSUPPORTED_REASONS } from "@/tools/examples";
 import { answerForecast } from "@/tools/forecast-answer";
 import type { NoDataResult } from "@/tools/query";
-import type { Interpretation } from "@/tools/spec";
+import { type Interpretation, validatingAgainst } from "@/tools/spec";
 import { traceStage } from "@/tools/trace";
 import type { TraceStage } from "@/tools/trace-stage";
 import { errorResponse, readJsonBody } from "../body";
@@ -16,7 +17,9 @@ import { cachedPhrasingStage, phrasingStage, pipelineTrace, type Timed, timed } 
 /**
  * POST /api/ask {question}: the flow of R7. Question → AI interpretation (cached) → tool → computed
  * result → a sentence phrased from the result and checked by the number guard → answer. The model
- * chooses the spec and words the sentence; every number comes from the tools.
+ * chooses the spec and words the sentence; every number comes from the tools. The session's active
+ * dataset (ticket 35) is what the spec is checked against and run on, and part of the cache key; the
+ * model never sees its rows.
  */
 
 export interface AskDependencies {
@@ -59,13 +62,13 @@ function reply(answer: AskAnswer, cached: boolean): Response {
   return Response.json({ ...answer, cached });
 }
 
-/** The answer to an interpretation, computed by the tools, with the template sentence. */
-function answerFor(interpretation: Interpretation): AskAnswer {
+/** The answer to an interpretation, computed by the tools over `dataset`, with the template sentence. */
+function answerFor(interpretation: Interpretation, dataset: ActiveDataset): AskAnswer {
   switch (interpretation.tool) {
     case "query":
-      return answerQuery(interpretation);
+      return answerQuery(interpretation, dataset);
     case "forecast":
-      return answerForecast(interpretation);
+      return answerForecast(interpretation, dataset);
     case "unsupported":
       return {
         kind: "unsupported",
@@ -84,11 +87,14 @@ function withSentence<T extends PhraseableAnswer>(answer: T, phrased: Phrased): 
   return { ...answer, sentence: phrased.sentence, sentenceSource: phrased.source };
 }
 
-/** The model's interpretation, or the reply when there is none: the AI's state, or an honest "could not". */
-async function interpretByModel(dependencies: AskDependencies, question: string): Promise<Interpreted | Response> {
+/**
+ * The model's interpretation, or the reply when there is none: the AI's state, or an honest "could not".
+ * Its reply is validated against `dataset`'s values (a client or SKU only an import has).
+ */
+async function interpretByModel(dependencies: AskDependencies, question: string, dataset: ActiveDataset): Promise<Interpreted | Response> {
   let interpreting: Timed<InterpretOutcome>;
   try {
-    interpreting = await timed(dependencies.now, () => dependencies.interpret(question));
+    interpreting = await timed(dependencies.now, () => validatingAgainst(dataset, () => dependencies.interpret(question)));
   } catch (error) {
     if (!(error instanceof AiError)) throw error;
     return errorResponse(error.kind === "busy" ? 429 : 503, error.message);
@@ -116,7 +122,7 @@ async function phraseNow(dependencies: AskDependencies, question: string, answer
   return { phrased, stage: phrasingStage(phrased, ms) };
 }
 
-export async function handleAsk(request: Request, dependencies: AskDependencies): Promise<Response> {
+export async function handleAsk(request: Request, dataset: ActiveDataset, dependencies: AskDependencies): Promise<Response> {
   const read = await readJsonBody(request);
   if (!read.ok) return read.response;
   const parsed = requestSchema.safeParse(read.body);
@@ -125,27 +131,27 @@ export async function handleAsk(request: Request, dependencies: AskDependencies)
   const { now, cache } = dependencies;
   const model = dependencies.modelName();
 
-  const lookup = await timed(now, () => cache.get(question, model));
+  const lookup = await timed(now, () => cache.get(question, model, dataset.id));
   const hit = lookup.value;
   const interpreted =
     hit === undefined
-      ? await interpretByModel(dependencies, question)
+      ? await interpretByModel(dependencies, question, dataset)
       : { interpretation: hit.interpretation, stage: traceStage("interpretation", "from the cache, no model call", { ms: lookup.ms }) };
   if (interpreted instanceof Response) return interpreted;
   const { interpretation } = interpreted;
   const cached = hit !== undefined;
 
-  const computed = await timed(now, () => answerFor(interpretation));
+  const computed = await timed(now, () => answerFor(interpretation, dataset));
   const answer = computed.value;
   if (!isPhraseable(answer)) {
-    cache.set(question, model, { interpretation });
+    cache.set(question, model, dataset.id, { interpretation });
     return reply(answer, cached);
   }
   // A question cached without its sentence (the phrase call had failed) is phrased again.
   const sentence: Sentence =
     hit?.phrased === undefined ? await phraseNow(dependencies, question, answer) : { phrased: hit.phrased, stage: cachedPhrasingStage(hit.phrased) };
   const { phrased } = sentence;
-  cache.set(question, model, phrased.cacheable ? { interpretation, phrased } : { interpretation });
+  cache.set(question, model, dataset.id, phrased.cacheable ? { interpretation, phrased } : { interpretation });
   // An answer with an explanation panel also carries the pipeline trace (B5, ADR 0008 §4).
   const questionStage = traceStage("question", "asked in words");
   const trace = pipelineTrace({ question: questionStage, interpretation: interpreted.stage, phrasing: sentence.stage }, answer, computed.ms);

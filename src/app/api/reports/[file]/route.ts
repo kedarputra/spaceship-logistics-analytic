@@ -1,5 +1,4 @@
 import { monthLabel } from "@/components/report-sections";
-import { DATASET_FILE, getDataset } from "@/domain/orders";
 import { monthlyReport, reportMonths } from "@/tools/report";
 import { reportCsv } from "@/tools/report-csv";
 import { withApiRole } from "../../../auth";
@@ -13,10 +12,9 @@ const REPORT_FILE = /^(\d{4}-\d{2})\.(pdf|csv)$/;
  * GET /api/reports/<YYYY-MM>.pdf and .csv: the monthly report as a file (ticket 34), for a month the data
  * covers. A download, so analysts and admins (ADR 0012); under /api/, so the proxy counts it toward the
  * per-IP limit as it does the orders CSV (ADR 0010 §5). Made on the server from the data in memory:
- * nothing is fetched and nothing leaves it.
+ * nothing is fetched and nothing leaves it. Of the session's active dataset, named in the PDF's header (ticket 35).
  */
-export const GET = withApiRole("download", async (request) => {
-  const dataset = getDataset();
+export const GET = withApiRole("download", async (request, { dataset }) => {
   const file = new URL(request.url).pathname.split("/").at(-1) ?? "";
   const [, month = "", kind] = REPORT_FILE.exec(file) ?? [];
   const report = monthlyReport(dataset, month);
@@ -32,7 +30,7 @@ export const GET = withApiRole("download", async (request) => {
       headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="wms-report-${month}.csv"` },
     });
   }
-  const pdf = await renderReportPdf(report, { dataset: DATASET_FILE, generatedAt: new Date() });
+  const pdf = await renderReportPdf(report, { dataset: dataset.fileName, generatedAt: new Date() });
   return new Response(new Uint8Array(pdf), {
     headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${reportPdfName(month)}"` },
   });

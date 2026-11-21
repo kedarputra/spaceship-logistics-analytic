@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csvField, csvLine } from "./csv";
+import { csvField, csvLine, csvRecordCounter } from "./csv";
 
 describe("a CSV cell (tickets 28 and 34)", () => {
   it("is written as it is when it holds nothing a spreadsheet or a CSV reader would act on", () => {
@@ -29,5 +29,30 @@ describe("a CSV cell (tickets 28 and 34)", () => {
   it("joins a line's cells with commas", () => {
     expect(csvLine(["carriers", "Royal Mail", "delivered_orders", "2", ""])).toBe("carriers,Royal Mail,delivered_orders,2,");
     expect(csvLine(["lanes", "London, UK → Leeds, UK", "=1+1"])).toBe("lanes,\"London, UK → Leeds, UK\",'=1+1");
+  });
+});
+
+describe("counting a CSV's records as it streams in (ticket 35)", () => {
+  const count = (...chunks: string[]) => {
+    const counter = csvRecordCounter();
+    let records = 0;
+    for (const chunk of chunks) records = counter.push(chunk);
+    return records;
+  };
+
+  it("counts a line with something on it, ended or not", () => {
+    expect(count("a,b\n1,2\n")).toBe(2);
+    expect(count("a,b\n1,2")).toBe(2);
+    expect(count("a,b\r\n1,2\r\n")).toBe(2);
+  });
+
+  it("does not count empty lines, which the reader skips", () => {
+    expect(count("a,b\n\n1,2\n\r\n\n")).toBe(2);
+    expect(count("")).toBe(0);
+  });
+
+  it("does not end a record at a line break inside quotes, even one split across chunks", () => {
+    expect(count('a,b\n"x\ny",2\n')).toBe(2);
+    expect(count('a,b\n"x', "\n", 'y""z",2\n3,4')).toBe(3);
   });
 });

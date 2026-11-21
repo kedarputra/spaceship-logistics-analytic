@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { GROSS_VALUE_NOTE } from "@/components/gross-value";
 import { infoLines, visibleText } from "@/components/markup-text";
 import { NetworkPage, readScorecardSort, scorecardSortHref } from "./network-page";
+import { getDataset } from "@/domain/orders";
 
 // Golden numbers: ticket 33, recomputed from data/mock_logistics_data.csv.
-const render = async (params: Record<string, string> = {}) => renderToStaticMarkup(await NetworkPage({ searchParams: Promise.resolve(params) }));
+const render = async (params: Record<string, string> = {}) => renderToStaticMarkup(await NetworkPage({ searchParams: Promise.resolve(params), dataset: getDataset() }));
 const html = await render();
 
 /** The markup inside a named part, up to the end of its section. */

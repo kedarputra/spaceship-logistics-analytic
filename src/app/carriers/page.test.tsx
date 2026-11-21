@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { infoLines, visibleText } from "@/components/markup-text";
 import { METRICS } from "@/domain/definitions";
 import { CarriersPage } from "./carriers-page";
+import { getDataset } from "@/domain/orders";
 
 function part(html: string, name: string, end = "</section>"): string {
   const start = html.search(new RegExp(`aria-label(?:ledby)?="${name}"`));
@@ -10,7 +11,7 @@ function part(html: string, name: string, end = "</section>"): string {
   return visibleText(html.slice(start, html.indexOf(end, start)));
 }
 
-const html = renderToStaticMarkup(<CarriersPage role="analyst" />);
+const html = renderToStaticMarkup(<CarriersPage role="analyst" dataset={getDataset()} />);
 
 describe("the Carriers page (ticket 25, figures from docs/design/README.md)", () => {
   it("is headed Carriers with the data's date, and no sentence under it (ticket 30)", () => {

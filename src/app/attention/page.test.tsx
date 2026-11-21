@@ -8,7 +8,7 @@ import { ordersInView } from "@/tools/orders-view";
 import { AttentionPage } from "./attention-page";
 
 // Golden numbers: ticket 32, recomputed from data/mock_logistics_data.csv, and docs/design/README.md.
-const html = renderToStaticMarkup(<AttentionPage />);
+const html = renderToStaticMarkup(<AttentionPage dataset={getDataset()} />);
 
 const SECTIONS = ["overdue", "exceptions", "delayed", "canceled"] as const;
 
@@ -99,7 +99,7 @@ describe("the Needs attention page (ticket 32)", () => {
     for (const id of SECTIONS) {
       const [, href = ""] = links(section(id))[0] ?? [];
       const params = Object.fromEntries(new URL(href, "http://localhost").searchParams);
-      const opened = ordersInView(orders, readOrdersView(params, orders).view).map((order) => order.order_id);
+      const opened = ordersInView(orders, readOrdersView(params, getDataset()).view).map((order) => order.order_id);
       expect(bodyRows(section(id)).map((row) => row.split(" | ")[0]), id).toEqual(opened.slice(0, 10));
     }
   });

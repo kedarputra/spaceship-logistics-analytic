@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
 import {
   DELIVERY_OUTCOMES_DEFINITION,
@@ -6,7 +7,7 @@ import {
   type MetricId,
   ORDER_SHARE_DEFINITION,
 } from "@/domain/definitions";
-import { getDataset, type Order, ORDER_STATUSES } from "@/domain/orders";
+import { type Dataset, FIXED_VALUES, getDataset, ORDER_STATUSES } from "@/domain/orders";
 import { EXAMPLE_IDS, UNSUPPORTED_REASON_IDS } from "./examples";
 import { matchValue, unknownValueMessage } from "./values";
 
@@ -50,23 +51,16 @@ export const CATEGORY_DIMENSIONS = [
   "promo",
 ] as const;
 
-/** The small dimensions, as schema enums. A test checks they are exactly the values in the data. */
+/**
+ * The small dimensions, as schema enums: the file's fixed values, which an import may not add to
+ * (domain/orders.ts, ticket 35). A test checks they are exactly the values in the data.
+ */
 export const DIMENSION_VALUES = {
-  carrier: ["DHL", "DPD", "FedEx", "GLS", "LaserShip", "OnTrac", "Royal Mail", "UPS", "USPS"],
-  region: ["EU", "UK", "US-C", "US-E", "US-W"],
-  warehouse: ["AMS-FC1", "ATL-DC1", "BER-FC1", "CHI-DC1", "DFW-DC1", "EWR-DC1", "LAX-DC1", "LON-FC1", "SFO-DC2"],
-  origin: [
-    "Amsterdam, NL",
-    "Atlanta, GA",
-    "Berlin, DE",
-    "Chicago, IL",
-    "Dallas, TX",
-    "London, UK",
-    "Los Angeles, CA",
-    "Newark, NJ",
-    "San Francisco, CA",
-  ],
-  category: ["BOOK", "BRUSH", "CRAYON", "MARKER", "PAINT", "PAPER", "PENCIL", "STICKER"],
+  carrier: FIXED_VALUES.carrier,
+  region: FIXED_VALUES.region,
+  warehouse: FIXED_VALUES.warehouse,
+  origin: FIXED_VALUES.origin_city,
+  category: FIXED_VALUES.product_category,
   status: ORDER_STATUSES,
 } as const;
 
@@ -85,14 +79,40 @@ function enumValues<const T extends readonly [string, ...string[]]>(dimension: s
   return z.array(enumValue(dimension, values, cities)).min(1).max(MAX_VALUES);
 }
 
-const distinctValues = new Map<keyof Order, readonly string[]>();
+type DataValuedField = "destination_city" | "client_id" | "sku";
 
-/** The distinct values of an order field, read from the data once, sorted: what a large dimension's filter accepts. */
-export function valuesInData(field: "destination_city" | "client_id" | "sku"): readonly string[] {
-  let values = distinctValues.get(field);
+/**
+ * The dataset a spec is checked against while `validatingAgainst` runs (ticket 35). The schema below is
+ * one module-level whitelist, and the AI layer validates the model's reply with it, so the dataset
+ * travels with the request rather than as an argument. Outside a scope it is the file in data/.
+ */
+const specDataset = new AsyncLocalStorage<Dataset>();
+
+/**
+ * Runs `run` with the data-valued filters (destination, client, SKU) checked against `dataset`: the one
+ * the spec will run on. A route that validates a spec for a session wraps the validation in it.
+ */
+export function validatingAgainst<T>(dataset: Dataset, run: () => T): T {
+  return specDataset.run(dataset, run);
+}
+
+// Per dataset, and gone with it when an import is dropped.
+const distinctValues = new WeakMap<Dataset, Map<DataValuedField, readonly string[]>>();
+
+/**
+ * The distinct values of an order field in a dataset, sorted, worked out once per dataset: what a large
+ * dimension's filter accepts. By default the dataset being validated against (`validatingAgainst`).
+ */
+export function valuesInData(field: DataValuedField, dataset: Dataset = specDataset.getStore() ?? getDataset()): readonly string[] {
+  let fields = distinctValues.get(dataset);
+  if (fields === undefined) {
+    fields = new Map();
+    distinctValues.set(dataset, fields);
+  }
+  let values = fields.get(field);
   if (values === undefined) {
-    values = [...new Set(getDataset().orders.map((order) => order[field]))].sort();
-    distinctValues.set(field, values);
+    values = [...new Set(dataset.orders.map((order) => order[field]))].sort();
+    fields.set(field, values);
   }
   return values;
 }

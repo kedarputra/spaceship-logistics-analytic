@@ -17,8 +17,12 @@ beforeEach(() => {
 });
 
 describe("requireRole (ticket 31)", () => {
-  it("allows a signed-in account what its role may do, and says who it is", () => {
-    expect(requireRole(accounts.token("analyst"), "ask")).toEqual({ kind: "allowed", user: { username: "analyst", role: "analyst" } });
+  it("allows a signed-in account what its role may do, and says who it is and which session (ticket 35)", () => {
+    expect(requireRole(accounts.token("analyst"), "ask")).toEqual({
+      kind: "allowed",
+      user: { username: "analyst", role: "analyst" },
+      session: { username: "analyst", role: "analyst", expires: expect.any(Number), sessionId: expect.stringMatching(/^[\w-]{22}$/) },
+    });
   });
 
   it("forbids what the role may not do, with the 403 page's sentence", () => {
@@ -33,7 +37,7 @@ describe("requireRole (ticket 31)", () => {
     const token = accounts.token("viewer");
     expect(requireRole(token, "ask").kind).toBe("forbidden");
     accounts.write([{ username: "viewer", role: "analyst" }]);
-    expect(requireRole(token, "ask")).toEqual({ kind: "allowed", user: { username: "viewer", role: "analyst" } });
+    expect(requireRole(token, "ask")).toMatchObject({ kind: "allowed", user: { username: "viewer", role: "analyst" } });
     // A cookie that claims more than the file gives is held to the file.
     expect(requireRole(accounts.token("viewer", "admin"), "users").kind).toBe("forbidden");
   });

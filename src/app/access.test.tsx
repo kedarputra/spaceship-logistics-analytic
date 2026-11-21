@@ -7,6 +7,8 @@ import { createTestAccounts } from "@/auth/testing";
 import { visibleText } from "@/components/markup-text";
 import { proxy } from "@/proxy";
 import { POST as askRoute } from "./api/ask/route";
+import { DELETE as clearImportRoute, POST as importRoute } from "./api/import/route";
+import { GET as templateRoute } from "./api/import/template/route";
 import { GET as csvRoute } from "./api/orders.csv/route";
 import { GET as reportRoute } from "./api/reports/[file]/route";
 import { POST as runRoute } from "./api/run/route";
@@ -16,6 +18,7 @@ import CarriersRoute from "./carriers/page";
 import DataRoute from "./data/page";
 import DeliveryRoute from "./delivery/page";
 import ForecastRoute from "./forecast/page";
+import ImportRoute from "./import/page";
 import InventoryRoute from "./inventory/page";
 import LoginRoute from "./login/page";
 import NetworkRoute from "./network/page";
@@ -59,15 +62,32 @@ const PAGES: Record<string, Page> = {
   "/data": DataRoute,
   "/ask": AskRoute,
   "/users": UsersRoute,
+  "/import": ImportRoute,
 };
 
-const API: Record<string, { method: string; body?: string; route: (request: NextRequest) => Promise<Response> }> = {
+// The header and one row of the file, as the template has them.
+const ONE_ORDER = [
+  "client_id,order_id,order_date,delivery_date,carrier,origin_city,destination_city,status,sku,product_category,quantity,unit_price_usd,order_value_usd,is_promo,promo_discount_pct,region,warehouse",
+  'CL-1023,ORD-1,2025-10-19,2025-10-22,DHL,"London, UK","Leeds, UK",delivered,PAPER-0197,PAPER,2,13.11,26.22,0,0,UK,LON-FC1',
+].join("\n");
+
+const API: Record<string, { method: string; body?: string; headers?: Record<string, string>; route: (request: NextRequest) => Promise<Response> }> = {
   // An empty question is refused before the model would be called.
   "/api/ask": { method: "POST", body: JSON.stringify({ question: "" }), route: askRoute },
   "/api/run": { method: "POST", body: JSON.stringify({ spec: { tool: "query", metric: "order_count" } }), route: runRoute },
   "/api/orders.csv": { method: "GET", route: csvRoute },
   "/api/reports/2025-11.pdf": { method: "GET", route: reportRoute },
   "/api/reports/2025-11.csv": { method: "GET", route: reportRoute },
+  // A check of the template's rows, from a page of this site (ticket 35).
+  "/api/import": {
+    method: "POST",
+    body: ONE_ORDER,
+    headers: { "sec-fetch-site": "same-origin", "content-type": "text/csv", "content-length": String(Buffer.byteLength(ONE_ORDER)), "x-file-name": "orders.csv" },
+    route: importRoute,
+  },
+  "/api/import/template": { method: "GET", route: templateRoute },
+  // Back to the original data: any session may drop its own import.
+  "DELETE /api/import": { method: "DELETE", headers: { "sec-fetch-site": "same-origin" }, route: clearImportRoute },
 };
 
 /** A digest like NEXT_REDIRECT;replace;/login;307;, which redirect() throws. */
@@ -87,7 +107,7 @@ async function openPage(path: string, who: Who): Promise<{ outcome: Outcome; htm
   const page = PAGES[path];
   if (page === undefined) throw new Error(`No page ${path}`);
   const html = renderToStaticMarkup(await page(noQuery));
-  return { outcome: html.includes("can&#x27;t open") ? "403" : "allowed", html };
+  return { outcome: html.includes(">No access<") ? "403" : "allowed", html };
 }
 
 /** Calls an API route as `who`: first the proxy, then the route. */
@@ -95,8 +115,8 @@ async function callApi(path: string, who: Who): Promise<Outcome> {
   const api = API[path];
   if (api === undefined) throw new Error(`No route ${path}`);
   ip += 1;
-  const headers: Record<string, string> = { "cf-connecting-ip": `198.18.0.${ip}`, ...(who === "nobody" ? {} : { cookie: accounts.cookie(who) }) };
-  const request = () => new NextRequest(`http://localhost${path}`, { method: api.method, headers, body: api.body });
+  const headers: Record<string, string> = { "cf-connecting-ip": `198.18.0.${ip}`, ...api.headers, ...(who === "nobody" ? {} : { cookie: accounts.cookie(who) }) };
+  const request = () => new NextRequest(`http://localhost${path.replace(/^[A-Z]+ /, "")}`, { method: api.method, headers, body: api.body });
   const gate = proxy(request());
   if (gate.status === 401) return "401";
   const response = await api.route(request());
@@ -119,18 +139,22 @@ const EXPECTED: Record<string, Record<Who, Outcome>> = {
   "/data": EVERYONE,
   "/ask": { nobody: "sign-in", viewer: "403", analyst: "allowed", admin: "allowed" },
   "/users": { nobody: "sign-in", viewer: "403", analyst: "403", admin: "allowed" },
+  "/import": { nobody: "sign-in", viewer: "403", analyst: "403", admin: "allowed" },
   "/api/ask": ASKERS_API,
   "/api/run": ASKERS_API,
   "/api/orders.csv": ASKERS_API,
   "/api/reports/2025-11.pdf": ASKERS_API,
   "/api/reports/2025-11.csv": ASKERS_API,
+  "/api/import": { nobody: "401", viewer: "403", analyst: "403", admin: "allowed" },
+  "/api/import/template": { nobody: "401", viewer: "403", analyst: "403", admin: "allowed" },
+  "DELETE /api/import": { nobody: "401", viewer: "allowed", analyst: "allowed", admin: "allowed" },
 };
 
 describe("every route for every role (ticket 31): allowed, sent to sign in, or refused", () => {
   const cases = Object.keys(EXPECTED).flatMap((path) => WHO.map((who) => [path, who] as const));
 
   it.each(cases)("%s as %s", async (path, who) => {
-    const outcome = path.startsWith("/api/") ? await callApi(path, who) : (await openPage(path, who)).outcome;
+    const outcome = path in API ? await callApi(path, who) : (await openPage(path, who)).outcome;
     expect(outcome).toBe(EXPECTED[path]?.[who]);
   });
 });

@@ -70,7 +70,7 @@ Every page asks you to sign in. The test accounts, one per role, are in the subm
 | Dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Reports, Forecast, Raw data | yes | yes | yes |
 | Ask the data: `/ask`, `/api/ask`, `/api/run` | no | yes | yes |
 | Downloads: `/api/orders.csv`, and the monthly report as `/api/reports/<YYYY-MM>.pdf` and `.csv` | no | yes | yes |
-| Import data (planned) | no | no | yes |
+| Import data: `/import`, `/api/import`, for this session only | no | no | yes |
 | Users: the accounts and their roles, read-only, at `/users` | no | no | yes |
 
 - **The menu** lists only the pages the role can open, and links to Ask or the CSV show only to roles that can use them. On Reports, a viewer sees the three downloads disabled, with a lock and "Analyst role needed".
@@ -82,7 +82,7 @@ Every page asks you to sign in. The test accounts, one per role, are in the subm
 
 ## Architecture
 
-One Next.js 16 app (App Router): its route handlers are the backend, and there is no separate service. React 19, TypeScript 7 in strict mode, Tailwind 4, Recharts 3 and Zod 4, tested with Vitest 5. The monthly report's PDF is drawn on the server with pdfkit 0.20, pinned: a long-maintained, pure-JavaScript library with no headless browser, no native build and no install script in its dependency tree, which embeds the repository's own Figtree file (OFL, in `assets/fonts/figtree/`), so a report needs no network call and nothing in it leaves the server. Next takes it from `node_modules` as it is (`serverExternalPackages`). There is no database and no SQL: the 400 orders are parsed from the CSV once per server instance, validated row by row, and kept in memory (ADR 0005). The LLM is called with plain `fetch`, without an SDK.
+One Next.js 16 app (App Router): its route handlers are the backend, and there is no separate service. React 19, TypeScript 7 in strict mode, Tailwind 4, Recharts 3 and Zod 4, tested with Vitest 5. The monthly report's PDF is drawn on the server with pdfkit 0.20, pinned: a long-maintained, pure-JavaScript library with no headless browser, no native build and no install script in its dependency tree, which embeds the repository's own Figtree file (OFL, in `assets/fonts/figtree/`), so a report needs no network call and nothing in it leaves the server. Next takes it from `node_modules` as it is (`serverExternalPackages`). There is no database and no SQL: the 400 orders are parsed from the CSV once per server instance, validated row by row, and kept in memory (ADR 0005). An admin's import is held the same way, for one session, and never written anywhere (ADR 0013). The LLM is called with plain `fetch`, without an SDK.
 
 ### Layers
 
@@ -111,9 +111,10 @@ Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → 
 | `/forecast` | A forecast for the total or one category, warehouse or region, 1, 3 or 6 months ahead; the method comparison, the plan's arithmetic, and all 22 scopes side by side |
 | `/login` | Sign in: the product name, Username and Password. The only page that opens without a session |
 | `/users` | For admins: the accounts and their roles, read-only |
+| `/import` Import data | For admins: check an orders CSV against the file's rules, every problem listed with its row and column, then view the whole app on it for this session only. A banner on every page names the import and leads back to the original data. Nothing is saved (ADR 0013) |
 | `/data` Raw data | The 400 orders as the file has them, read-only: filters by status, carrier, region, warehouse, origin, category, client, promo, a month range by order or delivery date, and a search; destination and SKU as filters from a link or the URL; a sort by any column, pages of 50, a summary of the rows shown, and a CSV download. An order in transit shows its days in transit. Every view is a URL, such as `/data?status=delayed&carrier=FedEx` |
 
-The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. Raw data reads its filters with the query spec's schema and picks rows with the query tool's own matching, so it counts the same orders an answer with the same filters counts. A card, bar or table row that shows a count opens those orders in Raw data, and the view shows the same number; a rate with no orders of its own opens the page that breaks it down. An answer on the Ask page opens the orders it was computed over the same way, when every part of its spec is a Raw data filter. A count of 0 has no link. Pointing at a month on a month chart, or moving to it with the arrow keys, shows its values in a tooltip, and a click opens that month's orders. Cards and charts carry no explanatory subtext: a definition, a date basis or a note is in the info popover after the title, one hover, focus or tap away. The pages follow ADR 0011: a dark rail with the pages the role can open and, at its foot, who is signed in; three brand colours; and chart colours checked for colour-blind separation.
+The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. Every page, answer and download runs on the session's active dataset: the file, or the admin's import while it lasts. Raw data reads its filters with the query spec's schema and picks rows with the query tool's own matching, so it counts the same orders an answer with the same filters counts. A card, bar or table row that shows a count opens those orders in Raw data, and the view shows the same number; a rate with no orders of its own opens the page that breaks it down. An answer on the Ask page opens the orders it was computed over the same way, when every part of its spec is a Raw data filter. A count of 0 has no link. Pointing at a month on a month chart, or moving to it with the arrow keys, shows its values in a tooltip, and a click opens that month's orders. Cards and charts carry no explanatory subtext: a definition, a date basis or a note is in the info popover after the title, one hover, focus or tap away. The pages follow ADR 0011: a dark rail with the pages the role can open and, at its foot, who is signed in; three brand colours; and chart colours checked for colour-blind separation.
 
 | Endpoint | Does |
 |---|---|
@@ -125,6 +126,9 @@ The dashboard pages call `domain/` and the tools directly, without the LLM, so t
 | `GET /api/orders.csv?…` | The orders of a Raw data view, with the page's own parameters, as CSV: the file's header and raw values, all pages, in the view's sort. |
 | `GET /api/reports/<YYYY-MM>.pdf` | The monthly report for a month of the data as a PDF, `wms-report-2025-11.pdf`; 404 for any other month. |
 | `GET /api/reports/<YYYY-MM>.csv` | The same report as CSV: `section, item, metric, value, previous_month`, a row per figure, the values as computed numbers (rates as fractions, money to the cent). |
+| `POST /api/import[?use=1]` | An orders CSV as the body (its name in `X-File-Name`): checked, with its rows, the first 100 problems and, when clean, its KPIs; with `?use=1` checked again and made this session's data. At most 5 MB and 20,000 rows; 10 checks and 10 imports an hour per user. Admins only. |
+| `DELETE /api/import` | Back to the original data for this session. |
+| `GET /api/import/template` | A CSV to start from: the file's header and first 5 rows. Admins only. |
 
 Every CSV cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`, so a spreadsheet never runs it as a formula.
 
@@ -173,11 +177,12 @@ While the model works, which can take 10 to 18 seconds on a busy GPU, the answer
 | Self-hosted as a Windows service behind a Cloudflare Tunnel, deployed by a watchdog | 0010 (replaces 0007) |
 | Ten pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
 | Sign-in with three roles in one matrix; accounts in a file, sessions in a signed cookie | 0012 (replaces 0007 §3) |
+| An import is a view for one session, checked whole and kept only in memory; the dataset stays read-only | 0013 |
 
 ### Bonus items
 
 - **Query history (B1):** the last 20 questions in this browser's `localStorage`, re-run through `/api/run` without the model.
-- **Caching (B2):** an in-memory cache of validated specs and checked sentences, keyed by the normalized question, the model and the prompt version. Results are always recomputed.
+- **Caching (B2):** an in-memory cache of validated specs and checked sentences, keyed by the normalized question, the model, the prompt version and the dataset. Results are always recomputed.
 - **Tests (B3):** golden numbers from `docs/data.md`, the row schema's traps, period buckets, the status rewrites, city matching, the number guard, the forecast methods, and the architecture rule.
 - **Advanced explainability (B5):** the pipeline trace and the "why this chart" sentence.
 - **Ambiguous queries (B6):** documented defaults, stated in the answer, with the other readings as chips.
@@ -285,7 +290,7 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **Forecasts are monthly units by order date,** for one scope at a time. The candidates are the all-history average, the 3-month moving average, linear regression and Holt's linear trend with fixed parameters. Each is scored on Oct–Dec 2025 after fitting on Jan–Sep. The lowest error wins, a tie goes to the simpler method, and the winner is refit on all 12 months (ADR 0003).
 - **The plan is forecast demand plus safety stock,** rounded up: safety stock = 1.65 × σ × √months, a one-sided 95% service level, with σ from the chosen method's one-step-ahead errors from April 2025. For the total over 3 months: 285 + 119.05 = 404.05, so 405 units to plan for. The data has no stock on hand, so this is a plan, not a reorder quantity.
 - **A month's report reads each figure by its own date.** Orders, units and value count the orders placed in the month; deliveries, rates and delivery time the orders delivered in it, so a month on Reports counts what the same month counts elsewhere. The orders it lists as still in transit are in transit on the anchor date, 31 Dec 2025: the data has no history of statuses, so it cannot say what was in transit at the end of a past month, and the report says "still in transit on 31 Dec 2025".
-- **One server instance.** The cache, the rate limits and the sign-in limits are in memory, which is reliable only because there is one instance.
+- **One server instance.** The cache, the rate limits, the sign-in limits and the imports are in memory, which is reliable only because there is one instance.
 
 ## Limitations and unsupported queries
 
@@ -297,6 +302,7 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **The model can misread a question.** The explanation panel shows exactly how it was read, and the eval guards the readings we know about. A sentence that fails the number guard gives way to the plainer template fallback.
 - **One server.** Availability depends on the server's power and internet line. Other workloads share the GPU, so the ask box can answer "busy, try again shortly". After a reboot, the dashboard comes back at once and the ask box when the gateway is up.
 - **History stays in one browser,** and reviewers behind one office IP share the limit of 20 questions a minute, and of 5 sign-in tries a minute.
+- **Imports don't persist.** An import is a view for the session that made it, held in the server's memory: it goes on sign-out, after 2 hours, when a fourth import needs its place, and at every deploy. It is never saved, and it can't add a carrier, region, warehouse, origin or category the file doesn't have, since Ask's spec and prompt list those.
 - **Sessions are not stored on the server.** Removing an account ends its sessions at once, but a changed password does not end the old ones before their 8 hours; changing the secret signs everyone out. Ten wrong passwords in an hour lock a username for the rest of that hour, so someone guessing can lock a shared test account.
 - **What a WMS has that this data can't support.** There is no stock on hand, no bin locations, no receiving and no pick or pack tasks, so putaway, slotting, picking, cycle counts and labour reports are out of reach. What the data can carry is here: an exception queue of orders (Needs attention), an ABC classification by value (Inventory), and a scorecard per warehouse, lane and client (Network). Value is gross: the file's order value before promo discounts.
 - **Unsupported queries** are listed, with what each gets instead, under [Supported questions](#supported-questions).

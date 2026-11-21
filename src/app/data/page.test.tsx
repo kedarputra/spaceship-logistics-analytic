@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { infoLines, visibleText as readerText } from "@/components/markup-text";
 import { METRICS } from "@/domain/definitions";
 import { DataPage } from "./data-page";
+import { getDataset } from "@/domain/orders";
 
 // The filter form navigates with Next's router, which only exists inside a running app; the markup is what is under test.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
@@ -27,7 +28,7 @@ function checkboxes(html: string): { field: string; checked: boolean }[] {
   }));
 }
 
-const render = async (params: Record<string, string | string[]> = {}) => renderToStaticMarkup(await DataPage({ searchParams: Promise.resolve(params), role: "analyst" }));
+const render = async (params: Record<string, string | string[]> = {}) => renderToStaticMarkup(await DataPage({ searchParams: Promise.resolve(params), role: "analyst", dataset: getDataset() }));
 
 /** Each column heading's text, and its aria-sort when it has one. */
 function headings(html: string): string[] {

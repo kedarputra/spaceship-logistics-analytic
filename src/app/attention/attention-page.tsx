@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Table } from "@/components/text-table";
 import { METRICS } from "@/domain/definitions";
 import { formatCount } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 import { formatDate } from "@/domain/periods";
 import { type AttentionRow, type AttentionSection, type AttentionSectionId, needsAttention, type Worklist } from "@/tools/attention";
 import { countOf } from "@/tools/words";
@@ -186,8 +186,7 @@ function SectionCard({ section, worklist, anchor }: { section: AttentionSection;
  * per carrier and its first 10 orders; each opens all of them in Raw data. Every figure comes from
  * domain/definitions through the worklist tool (ADR 0011 §6).
  */
-export function AttentionPage() {
-  const dataset = getDataset();
+export function AttentionPage({ dataset }: { dataset: Dataset }) {
   const worklist = needsAttention(dataset);
   return (
     <>

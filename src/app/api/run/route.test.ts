@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestAccounts } from "@/auth/testing";
+import { getDataset } from "@/domain/orders";
 import type { Answer } from "@/tools/answer";
 import { handleRun } from "./handle-run";
 import { POST } from "./route";
@@ -181,6 +182,7 @@ describe("POST /api/run: the pipeline trace (B5, ADR 0008 §4)", () => {
         method: "POST",
         body: JSON.stringify({ spec: { tool: "query", metric: "delay_rate", groupBy: "carrier", sort: "desc", limit: 1 } }),
       }),
+      getDataset(),
       () => (clock += 5),
     );
     const body: unknown = await response.json();

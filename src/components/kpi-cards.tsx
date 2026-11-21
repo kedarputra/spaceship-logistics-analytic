@@ -44,8 +44,10 @@ function KpiCard({ label, definition, icon, tone = "green", value, detail, link 
  * opens its orders in Raw data; a rate or an average, which has no orders of its own to show, opens
  * the Delivery page where it is broken down (ticket 29).
  */
-export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
+export function KpiCards({ kpis, linked = true }: { kpis: DashboardKpis; linked?: boolean }) {
   const { totalOrders, deliveredOrders, delayedOrders, onTimeRate, averageDeliveryDays } = kpis;
+  // Import's preview (ticket 35) shows a file not yet in use, so its cards open nothing.
+  const linkTo = (link: CardLink | undefined) => (linked ? link : undefined);
   const onTimeShare = onTimeRate.value === null ? 0 : onTimeRate.value * 100;
   return (
     <section aria-label="Key figures">
@@ -53,14 +55,14 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         <KpiCard
           {...KPI_DEFINITIONS.totalOrders}
           icon="box"
-          link={ordersLink(totalOrders.count, "orders", {})}
+          link={linkTo(ordersLink(totalOrders.count, "orders", {}))}
           value={formatCount(totalOrders.count)}
           detail={`${formatCount(totalOrders.inTransit)} in transit · ${formatCount(totalOrders.canceled)} canceled`}
         />
         <KpiCard
           {...KPI_DEFINITIONS.deliveredOrders}
           icon="truck"
-          link={ordersLink(deliveredOrders.count, "orders", { status: METRIC_STATUSES.delivered_orders })}
+          link={linkTo(ordersLink(deliveredOrders.count, "orders", { status: METRIC_STATUSES.delivered_orders }))}
           value={formatCount(deliveredOrders.count)}
           detail={
             <span className="flex flex-wrap gap-x-2.5 gap-y-1">
@@ -74,7 +76,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
           {...KPI_DEFINITIONS.delayedOrders}
           icon="clock"
           tone="amber"
-          link={ordersLink(delayedOrders.count, "orders", { status: METRIC_STATUSES.delayed_orders })}
+          link={linkTo(ordersLink(delayedOrders.count, "orders", { status: METRIC_STATUSES.delayed_orders }))}
           value={formatCount(delayedOrders.count)}
           detail={
             <>
@@ -86,7 +88,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         <KpiCard
           {...KPI_DEFINITIONS.onTimeRate}
           icon="target"
-          link={{ href: `/delivery#${ON_TIME_BY_MONTH_ID}`, text: "View the rate by month" }}
+          link={linkTo({ href: `/delivery#${ON_TIME_BY_MONTH_ID}`, text: "View the rate by month" })}
           value={formatPercent(onTimeRate.value)}
           detail={
             <span className="flex items-center gap-2.5">
@@ -104,7 +106,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         <KpiCard
           {...KPI_DEFINITIONS.averageDeliveryDays}
           icon="calendar"
-          link={{ href: `/delivery#${TIME_BY_PLACE_ID}`, text: "View the times by region and warehouse" }}
+          link={linkTo({ href: `/delivery#${TIME_BY_PLACE_ID}`, text: "View the times by region and warehouse" })}
           value={<DaysFigure days={averageDeliveryDays.value} />}
         />
       </ul>

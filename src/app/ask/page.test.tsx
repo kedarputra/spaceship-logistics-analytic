@@ -2,8 +2,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { infoLines, visibleText } from "@/components/markup-text";
 import { AskPage } from "./ask-page";
+import { getDataset } from "@/domain/orders";
 
-const render = async (q?: string | string[]) => renderToStaticMarkup(await AskPage({ searchParams: Promise.resolve(q === undefined ? {} : { q }) }));
+const render = async (q?: string | string[]) => renderToStaticMarkup(await AskPage({ searchParams: Promise.resolve(q === undefined ? {} : { q }), dataset: getDataset() }));
 
 describe("the Ask page (ticket 24, docs/design/Ask.dc.html)", () => {
   it("is headed as the AI workspace with the data's date, and no sentence under it (ticket 30)", async () => {

@@ -9,7 +9,7 @@ const { orders } = getDataset();
 
 type Params = Record<string, string | string[]>;
 
-const read = (params: Params) => readOrdersView(params, orders);
+const read = (params: Params) => readOrdersView(params, getDataset());
 const rows = (params: Params): Order[] => ordersInView(orders, read(params).view);
 const ids = (list: readonly Order[]) => list.map((order) => order.order_id).sort();
 

@@ -13,7 +13,7 @@ import { ParetoChart } from "@/components/pareto-chart";
 import { Table } from "@/components/text-table";
 import { ABC_LIMITS, type AbcClass } from "@/domain/definitions";
 import { formatCount, formatPercent, formatUsd } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 import { type AbcClassFigures, type Inventory, inventory as inventoryOf } from "@/tools/inventory";
 import { countOf } from "@/tools/words";
 
@@ -152,8 +152,8 @@ function Categories({ inventory }: { inventory: Inventory }) {
  * categories. Every figure comes from domain/definitions through tools/inventory (ADR 0011 §6). SKUs and
  * categories open their orders in Raw data, and categories their forecast.
  */
-export function InventoryPage() {
-  const { orders, anchor } = getDataset();
+export function InventoryPage({ dataset }: { dataset: Dataset }) {
+  const { orders, anchor } = dataset;
   const inventory = inventoryOf(orders);
   const shape = shapeLine(inventory);
   return (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { getDataset } from "@/domain/orders";
-import { DIMENSION_VALUES, interpretationSchema, querySpecSchema } from "./spec";
+import { DIMENSION_VALUES, interpretationSchema, querySpecSchema, validatingAgainst, valuesInData } from "./spec";
 
 function errorsOf(input: unknown): string[] {
   const result = querySpecSchema.safeParse(input);
@@ -197,5 +197,41 @@ describe("the dimension values the schema knows are the data's (ADR 0006 §4)", 
     expect(new Set(origins).size).toBe(origins.length);
     expect(new Set(destinations).size).toBe(destinations.length);
     expect(origins.filter((city) => destinations.includes(city))).toEqual([]);
+  });
+});
+
+describe("data-valued filters check the dataset the spec runs on (ticket 35)", () => {
+  const file = getDataset();
+  const [first] = file.orders;
+  if (first === undefined) throw new Error("no order");
+  // An import with one client the file does not have, and none of the file's.
+  const imported = { orders: [{ ...first, client_id: "CL-9999", destination_city: "Reno, NV" }], anchor: first.order_date };
+  const spec = { tool: "query", metric: "order_count", filters: { client: ["cl-9999"] } };
+
+  it("accepts an imported client only while validating against the import", () => {
+    expect(validatingAgainst(imported, () => querySpecSchema.safeParse(spec)).data?.filters).toEqual({ client: ["CL-9999"] });
+    expect(querySpecSchema.safeParse(spec).success).toBe(false);
+    expect(validatingAgainst(file, () => querySpecSchema.safeParse(spec)).success).toBe(false);
+  });
+
+  it("rejects the file's clients against an import that lacks them", () => {
+    const fileClient = { ...spec, filters: { client: ["CL-1001"] } };
+    expect(querySpecSchema.safeParse(fileClient).success).toBe(true);
+    expect(validatingAgainst(imported, () => errorsOf(fileClient))).toEqual(['Unknown client "CL-1001". It is not in the data.']);
+  });
+
+  it("keeps the scope across awaits, as the AI layer's validation of a model reply needs", async () => {
+    const later = validatingAgainst(imported, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      return querySpecSchema.safeParse(spec).success;
+    });
+    expect(await later).toBe(true);
+  });
+
+  it("works out each dataset's values once, apart from every other dataset's", () => {
+    expect(valuesInData("client_id", imported)).toEqual(["CL-9999"]);
+    expect(valuesInData("client_id", imported)).toBe(valuesInData("client_id", imported));
+    expect(valuesInData("client_id")).toHaveLength(30);
+    expect(valuesInData("destination_city", imported)).toEqual(["Reno, NV"]);
   });
 });

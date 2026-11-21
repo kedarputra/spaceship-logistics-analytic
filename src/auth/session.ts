@@ -1,13 +1,14 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { MAX_USERNAME_LENGTH } from "./credentials";
 import { ROLES } from "./roles";
 
 /**
- * The session (ticket 31, ADR 0012): a cookie that holds the username, the role and an 8-hour expiry,
- * signed with HMAC-SHA256 under the server's secret (AUTH_SECRET_FILE or AUTH_SECRET). It proves who
- * signed in and when; what they may do now is read from the users file on every request
- * (`requireRole`), so a removed account or a changed role applies at once.
+ * The session (ticket 31, ADR 0012): a cookie that holds the username, the role, an 8-hour expiry and,
+ * since ticket 35, a random session ID that the session's import is kept under. It is signed with
+ * HMAC-SHA256 under the server's secret (AUTH_SECRET_FILE or AUTH_SECRET), and proves who signed in and
+ * when; what they may do now is read from the users file on every request (`requireRole`), so a removed
+ * account or a changed role applies at once.
  */
 
 export const SESSION_COOKIE = "session";
@@ -18,6 +19,14 @@ const sessionSchema = z.object({
   role: z.enum(ROLES),
   /** When it ends, in ms since the epoch. */
   expires: z.number().int().positive(),
+  /**
+   * 16 random bytes, base64url, new at every sign-in (ticket 35): what the session's import is kept
+   * under. A session signed before ticket 35 has none, and so no import.
+   */
+  sessionId: z
+    .string()
+    .regex(/^[\w-]{22}$/)
+    .optional(),
 });
 
 export type Session = z.infer<typeof sessionSchema>;
@@ -28,7 +37,12 @@ function signature(payload: string, key: Buffer): Buffer {
 
 /** `<payload>.<signature>`, both base64url: the payload is the session as JSON. */
 export function signSession(user: Pick<Session, "username" | "role">, key: Buffer, now: number): string {
-  const session: Session = { username: user.username, role: user.role, expires: now + SESSION_SECONDS * 1000 };
+  const session: Session = {
+    username: user.username,
+    role: user.role,
+    expires: now + SESSION_SECONDS * 1000,
+    sessionId: randomBytes(16).toString("base64url"),
+  };
   const payload = Buffer.from(JSON.stringify(session)).toString("base64url");
   return `${payload}.${signature(payload, key).toString("base64url")}`;
 }

@@ -13,7 +13,7 @@ import { OUTCOME_SERIES } from "@/components/series";
 import { Tag } from "@/components/tag";
 import { Table } from "@/components/text-table";
 import { formatCount } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 import { type MonthlyReport, monthlyReport, reportMonths } from "@/tools/report";
 
 const REPORTS_PATH = "/reports";
@@ -149,8 +149,7 @@ function readMonth(params: SearchParams, anchor: string): string {
  * (components/report-sections), so they say the same thing. A month the data does not cover shows the
  * anchor's, as the other pages leave out what they cannot apply.
  */
-export async function ReportsPage({ searchParams, role }: ReportsPageProps & { role: Role }) {
-  const dataset = getDataset();
+export async function ReportsPage({ searchParams, role, dataset }: ReportsPageProps & { role: Role; dataset: Dataset }) {
   const report = monthlyReport(dataset, readMonth(await searchParams, dataset.anchor)) ?? monthlyReport(dataset, dataset.anchor.slice(0, 7));
   if (report === undefined) throw new Error("The data has no report for its own anchor month");
   const month = report.current.month;

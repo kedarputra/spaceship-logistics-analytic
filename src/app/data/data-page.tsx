@@ -21,7 +21,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { type DashboardKpis, dashboardKpis, METRICS } from "@/domain/definitions";
 import { formatCount, formatDays, formatFraction, formatPercent } from "@/domain/format";
-import { DATASET_FILE, getDataset } from "@/domain/orders";
+import type { ActiveDataset } from "@/domain/orders";
 import { formatDate } from "@/domain/periods";
 import { URL_ONLY_FILTERS } from "@/tools/list-filters";
 import { type OrdersPage, type OrdersView, ordersInView, pageOf } from "@/tools/orders-view";
@@ -142,9 +142,9 @@ function Paging({ page, view }: { page: OrdersPage; view: OrdersView }) {
 }
 
 /** What the Orders card shows, in its info popover (ticket 30), and what the transit age counts (ticket 32). */
-function ordersInfo(total: number, view: OrdersView, anchor: string): string[] {
+function ordersInfo(total: number, view: OrdersView, { anchor, fileName }: ActiveDataset): string[] {
   return [
-    `The ${formatCount(total)} orders of ${DATASET_FILE} as the file has them. Read-only: filter, sort and download them.`,
+    `The ${formatCount(total)} orders of ${fileName} as the file has them. Read-only: filter, sort and download them.`,
     view.sort === undefined ? "In file order." : "Sorted by the marked column.",
     `Days in transit: from the order date to ${formatDate(anchor)}, for orders still in transit.`,
   ];
@@ -155,14 +155,14 @@ export interface DataPageProps {
 }
 
 /**
- * Raw data (ticket 28): the orders of the file as they are, read-only, with the filters of the query
- * spec, a sort, pages of 50, a summary and a CSV. Every view is a URL. The rows are picked by the
+ * Raw data (ticket 28): the orders of the session's dataset (ticket 35) as they are, read-only, with
+ * the filters of the query spec, a sort, pages of 50, a summary and a CSV. Every view is a URL. The rows are picked by the
  * query tool's own matching and summed up by the KPI definitions (ADR 0011 §5–6). The CSV is a download,
  * so only roles that can download see it (ticket 31).
  */
-export async function DataPage({ searchParams, role }: DataPageProps & { role: Role }) {
-  const { orders, anchor } = getDataset();
-  const { view, ignored } = readOrdersView(await searchParams, orders);
+export async function DataPage({ searchParams, role, dataset }: DataPageProps & { role: Role; dataset: ActiveDataset }) {
+  const { orders, anchor } = dataset;
+  const { view, ignored } = readOrdersView(await searchParams, dataset);
   const inView = ordersInView(orders, view);
   const page = pageOf(inView, view.page);
   const chips = filterChips(view);
@@ -171,14 +171,14 @@ export async function DataPage({ searchParams, role }: DataPageProps & { role: R
     <>
       <PageHeader label="Data" title="Raw data" asOf={anchor} />
       <section aria-label="Filters" className="card flex flex-col gap-3 p-3.5">
-        <DataFilters path={DATA_PAGE_PATH} query={filterQuery(view)} lists={filterLists()} months={dataMonths(orders)} carried={URL_ONLY_FILTERS} />
+        <DataFilters path={DATA_PAGE_PATH} query={filterQuery(view)} lists={filterLists(dataset)} months={dataMonths(orders)} carried={URL_ONLY_FILTERS} />
         {chips.length === 0 ? null : <ActiveFilters chips={chips} clearHref={clearAllHref(view)} />}
       </section>
       {ignored.length === 0 ? null : <IgnoredNote ignored={ignored} />}
       <Summary kpis={dashboardKpis(inView)} total={orders.length} statusFiltered={view.filters.status !== undefined} />
       <section aria-labelledby="orders-title" className="card card-body">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle id="orders-title" title="Orders" info={ordersInfo(orders.length, view, anchor)} detail={page.total === 0 ? "No orders" : rowsShown(page)} />
+          <CardTitle id="orders-title" title="Orders" info={ordersInfo(orders.length, view, dataset)} detail={page.total === 0 ? "No orders" : rowsShown(page)} />
           {can(role, "download") ? (
             <a href={csvHref(view)} download className="button-small gap-1.5 no-underline">
               <Icon name="download" size={15} />

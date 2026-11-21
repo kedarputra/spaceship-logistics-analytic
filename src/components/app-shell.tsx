@@ -3,10 +3,11 @@ import type { ReactNode } from "react";
 import type { User } from "@/auth/users";
 import { overdueInTransit } from "@/domain/definitions";
 import { formatCount } from "@/domain/format";
-import { DATASET_FILE, type Dataset } from "@/domain/orders";
+import type { ActiveDataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod, formatYears } from "@/domain/periods";
 import { LiveRailAiStatus } from "./ai-status";
 import { Icon } from "./icons";
+import { ImportBanner } from "./import-banner";
 import { Rail } from "./rail";
 import { RailAccount } from "./rail-account";
 import { RailNav } from "./rail-nav";
@@ -17,6 +18,8 @@ import { RailNav } from "./rail-nav";
  * or 64 px collapsed, and the page takes the rest up to its 1200 px; below that, the rail stacks above
  * the page (ticket 27). The menu lists the pages the user's role can open, and the rail ends with who is
  * signed in and Sign out (ticket 31). Needs attention carries the count of orders overdue in transit (ticket 32).
+ * The data is the session's active dataset: the rail names its file, and over the page a banner says
+ * while it is an import (ticket 35).
  */
 export function AppShell({
   user,
@@ -26,7 +29,7 @@ export function AppShell({
   children,
 }: {
   user: User;
-  dataset: Dataset;
+  dataset: ActiveDataset;
   modelName: string;
   /** The viewer's kept choice, from the rail cookie. */
   railCollapsed: boolean;
@@ -65,15 +68,15 @@ export function AppShell({
                   {/* The file's name opens its rows (ticket 28). Collapsed, the link would take focus unseen, so it hides once faded and only the words stay. */}
                   <Link
                     href="/data"
-                    className="self-start text-small font-medium text-panel underline decoration-panel/30 underline-offset-[3px] transition-[visibility] hover:text-panel hover:decoration-panel rail-collapsed:invisible"
+                    className="self-start break-all text-small font-medium text-panel underline decoration-panel/30 underline-offset-[3px] transition-[visibility] hover:text-panel hover:decoration-panel rail-collapsed:invisible"
                   >
-                    {DATASET_FILE}
+                    {dataset.fileName}
                   </Link>
-                  <span className="sr-only hidden rail-collapsed:inline">{DATASET_FILE}</span>
-                  <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · read-only`}</span>
+                  <span className="sr-only hidden rail-collapsed:inline">{dataset.fileName}</span>
+                  <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · ${dataset.imported ? "imported" : "read-only"}`}</span>
                   <div className="h-px bg-panel/8" />
                 </div>
-                <LiveRailAiStatus modelName={modelName} dataFile={DATASET_FILE} />
+                <LiveRailAiStatus modelName={modelName} dataFile={dataset.fileName} />
               </div>
             </div>
           }
@@ -82,7 +85,10 @@ export function AppShell({
           <RailNav role={user.role} overdue={overdueInTransit(dataset.orders, dataset.anchor).length} />
         </Rail>
         <main id="content" className="min-w-0 flex-1 px-4 pt-7 pb-16 sm:px-9">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-5">{children}</div>
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-5">
+            <ImportBanner dataset={dataset} />
+            {children}
+          </div>
         </main>
       </div>
     </>

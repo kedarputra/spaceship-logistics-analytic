@@ -15,9 +15,26 @@ function withPayload(original: string, payload: object): string {
 }
 
 describe("the session token (ticket 31)", () => {
-  it("holds the username, the role and an 8-hour expiry", () => {
+  it("holds the username, the role, an 8-hour expiry and a random session ID (ticket 35)", () => {
     expect(SESSION_SECONDS).toBe(8 * 60 * 60);
-    expect(verifySession(token, KEY, NOON)).toEqual({ username: "dina", role: "analyst", expires: NOON + 8 * HOUR });
+    expect(verifySession(token, KEY, NOON)).toEqual({ username: "dina", role: "analyst", expires: NOON + 8 * HOUR, sessionId: expect.stringMatching(/^[\w-]{22}$/) });
+  });
+
+  it("gives every sign-in its own session ID, even the same user's at the same moment", () => {
+    const again = signSession({ username: "dina", role: "analyst" }, KEY, NOON);
+    expect(verifySession(again, KEY, NOON)?.sessionId).not.toBe(verifySession(token, KEY, NOON)?.sessionId);
+  });
+
+  it("still accepts a session signed before session IDs, which has none and so no import", () => {
+    const body = Buffer.from(JSON.stringify({ username: "dina", role: "analyst", expires: NOON + HOUR })).toString("base64url");
+    const signed = `${body}.${createHmac("sha256", KEY).update(body).digest("base64url")}`;
+    expect(verifySession(signed, KEY, NOON)).toEqual({ username: "dina", role: "analyst", expires: NOON + HOUR });
+  });
+
+  it("refuses a session ID that is not one this server makes", () => {
+    const body = Buffer.from(JSON.stringify({ username: "dina", role: "analyst", expires: NOON + HOUR, sessionId: "../other" })).toString("base64url");
+    const signed = `${body}.${createHmac("sha256", KEY).update(body).digest("base64url")}`;
+    expect(verifySession(signed, KEY, NOON)).toBeUndefined();
   });
 
   it("is valid until its expiry and not a moment after", () => {
@@ -28,6 +45,9 @@ describe("the session token (ticket 31)", () => {
   it("refuses a tampered payload, even one that only raises the role or the expiry", () => {
     expect(verifySession(withPayload(token, { username: "dina", role: "admin", expires: NOON + 8 * HOUR }), KEY, NOON)).toBeUndefined();
     expect(verifySession(withPayload(token, { username: "dina", role: "analyst", expires: NOON + 99 * HOUR }), KEY, NOON)).toBeUndefined();
+    // Another session's ID, to reach its import, is a tampered payload too.
+    const sessionId = verifySession(signSession({ username: "dina", role: "analyst" }, KEY, NOON), KEY, NOON)?.sessionId;
+    expect(verifySession(withPayload(token, { username: "dina", role: "analyst", expires: NOON + 8 * HOUR, sessionId }), KEY, NOON)).toBeUndefined();
   });
 
   it("refuses a token signed with another key", () => {

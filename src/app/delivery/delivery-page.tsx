@@ -9,14 +9,14 @@ import { type RankedBar, RankedBars } from "@/components/ranked-bars";
 import { OnTimeLineCard } from "@/components/rate-line";
 import { dashboardKpis, deliveryOutcomesOverTime, exceptionRate, METRIC_STATUSES, METRICS } from "@/domain/definitions";
 import { formatCount, formatDays, formatOf, formatPercent } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod } from "@/domain/periods";
 import { queryResult } from "../query-result";
 
 /** Average delivery time per region or warehouse, slowest first, each with n and its on-time rate, opening its delivered orders. */
-function placeBars(groupBy: "region" | "warehouse"): RankedBar[] {
-  const times = queryResult({ metric: "average_delivery_time", groupBy, sort: "desc" });
-  const onTime = new Map(queryResult({ metric: "on_time_rate", groupBy }).rows.map((row) => [row.key, row]));
+function placeBars(groupBy: "region" | "warehouse", dataset: Dataset): RankedBar[] {
+  const times = queryResult({ metric: "average_delivery_time", groupBy, sort: "desc" }, dataset);
+  const onTime = new Map(queryResult({ metric: "on_time_rate", groupBy }, dataset).rows.map((row) => [row.key, row]));
   return times.rows.map((row) => {
     // Every place with a delivery time has an on-time rate: both are over the same delivered orders.
     const rate = onTime.get(row.key);
@@ -35,15 +35,15 @@ function placeBars(groupBy: "region" | "warehouse"): RankedBar[] {
  * Delivery (ADR 0011 §5, ticket 25): how the delivered orders arrived. Every figure is computed by the
  * definitions and the query tool. Each card and bar opens the orders behind it in Raw data (ticket 29).
  */
-export function DeliveryPage() {
-  const { orders, anchor } = getDataset();
+export function DeliveryPage({ dataset }: { dataset: Dataset }) {
+  const { orders, anchor } = dataset;
   const period = dataPeriod(orders);
   const dates = formatPeriod(period);
   const kpis = dashboardKpis(orders);
   const { totalOrders, deliveredOrders, delayedOrders, onTimeRate, averageDeliveryDays } = kpis;
   const exceptions = exceptionRate(orders);
-  const onTimeByMonth = queryResult({ metric: "on_time_rate", groupBy: "month" });
-  const deliveredByMonth = queryResult({ metric: "delivered_orders", groupBy: "month" }).rows;
+  const onTimeByMonth = queryResult({ metric: "on_time_rate", groupBy: "month" }, dataset);
+  const deliveredByMonth = queryResult({ metric: "delivered_orders", groupBy: "month" }, dataset).rows;
 
   return (
     <>
@@ -92,10 +92,10 @@ export function DeliveryPage() {
       </CardPair>
       <CardPair label="Delivery time by place" id={TIME_BY_PLACE_ID}>
         <ChartCard id="regions-title" title="Average delivery time by region" info={["Days from order to delivery · slowest first"]}>
-          <RankedBars tone="green" bars={placeBars("region")} />
+          <RankedBars tone="green" bars={placeBars("region", dataset)} />
         </ChartCard>
         <ChartCard id="warehouses-title" title="Average delivery time by warehouse" info={["Days from order to delivery · slowest first"]}>
-          <RankedBars tone="green" bars={placeBars("warehouse")} />
+          <RankedBars tone="green" bars={placeBars("warehouse", dataset)} />
         </ChartCard>
       </CardPair>
     </>

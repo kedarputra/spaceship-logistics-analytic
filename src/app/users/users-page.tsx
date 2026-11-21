@@ -4,18 +4,18 @@ import { CardTitle } from "@/components/card-title";
 import { PageHeader } from "@/components/page-header";
 import { Table } from "@/components/text-table";
 import { formatCount } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 
 /**
  * Users (ticket 31): the accounts in the users file and their roles, read-only, for admins. Accounts
  * are managed on the server with `npm run users`; no password or hash ever reaches the page.
  */
-export function UsersPage() {
+export function UsersPage({ dataset }: { dataset: Dataset }) {
   const result = accountsFromEnv();
   const accounts = result.ok ? result.accounts : [];
   return (
     <>
-      <PageHeader label="Admin" title="Users" asOf={getDataset().anchor} />
+      <PageHeader label="Admin" title="Users" asOf={dataset.anchor} />
       <section aria-labelledby="accounts-title" className="card card-body">
         <CardTitle
           id="accounts-title"

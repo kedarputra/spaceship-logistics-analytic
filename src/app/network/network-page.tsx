@@ -10,7 +10,7 @@ import { Tag } from "@/components/tag";
 import { Table } from "@/components/text-table";
 import { type GroupFigures, SMALL_SAMPLE_MIN_DELIVERED } from "@/domain/definitions";
 import { formatCount, formatDays, formatPercent, formatUsd } from "@/domain/format";
-import { getDataset, type Order } from "@/domain/orders";
+import type { Dataset, Order } from "@/domain/orders";
 import {
   clientRows,
   DEFAULT_SCORECARD_SORT,
@@ -201,8 +201,8 @@ export interface NetworkPageProps {
  * domain/definitions through tools/network (ADR 0011 §6). Every row opens its orders in Raw data, with the
  * origin, destination and client filters this ticket added there.
  */
-export async function NetworkPage({ searchParams }: NetworkPageProps) {
-  const { orders, anchor } = getDataset();
+export async function NetworkPage({ searchParams, dataset }: NetworkPageProps & { dataset: Dataset }) {
+  const { orders, anchor } = dataset;
   const sort = readScorecardSort(await searchParams);
   return (
     <>

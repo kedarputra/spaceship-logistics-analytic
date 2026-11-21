@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/page-header";
 import { OVERVIEW_QUESTIONS } from "@/components/suggested-questions";
 import { dashboardKpis, deliveryOutcomesOverTime, longestCompletedDelivery, orderCountOverTime, overdueInTransit } from "@/domain/definitions";
 import { formatCount } from "@/domain/format";
-import { getDataset } from "@/domain/orders";
+import type { Dataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod } from "@/domain/periods";
 import { answerForecast } from "@/tools/forecast-answer";
 import { forecastSpecSchema } from "@/tools/spec";
@@ -24,16 +24,16 @@ import { queryResult } from "./query-result";
  * Every figure is computed. The ask box is for roles that can ask (ticket 31). Above the KPI cards, a
  * line warns of orders overdue in transit and opens Needs attention (ticket 32).
  */
-export function OverviewPage({ role }: { role: Role }) {
-  const { orders, anchor } = getDataset();
+export function OverviewPage({ role, dataset }: { role: Role; dataset: Dataset }) {
+  const { orders, anchor } = dataset;
   const period = dataPeriod(orders);
   const kpis = dashboardKpis(orders);
   const ordersPerMonth = orderCountOverTime(orders, period, "month");
   const outcomesPerMonth = deliveryOutcomesOverTime(orders, period, "month");
   // The same query "What is the delay rate by carrier?" runs, over all the data.
-  const carriers = queryResult({ metric: "delay_rate", groupBy: "carrier", sort: "desc" });
-  const deliveredByMonth = queryResult({ metric: "delivered_orders", groupBy: "month" }).rows;
-  const forecast = answerForecast(forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" } }));
+  const carriers = queryResult({ metric: "delay_rate", groupBy: "carrier", sort: "desc" }, dataset);
+  const deliveredByMonth = queryResult({ metric: "delivered_orders", groupBy: "month" }, dataset).rows;
+  const forecast = answerForecast(forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" } }), dataset);
   if (forecast.kind !== "forecast") throw new Error(forecast.message);
   const dates = formatPeriod(period);
 
