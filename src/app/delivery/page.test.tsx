@@ -35,7 +35,7 @@ describe("the Delivery page (ticket 25, figures from docs/design/README.md)", ()
   it("charts delivery outcomes per month, with its data table", () => {
     const outcomes = part(html, "Delivery over time");
     expect(outcomes).toContain("Delivery outcomes per month By delivery date · 1 Jan–31 Dec 2025 · 370 delivered");
-    expect(outcomes).toContain("Month On time Delayed Exception Jan 2025 54 11 2");
+    expect(outcomes).toContain("Month On time Delayed Exception Delivered Jan 2025 54 11 2 67");
   });
 
   it("draws the on-time rate per month as a line against the year's 82.2%, from 60%, with its two small months hollow", () => {

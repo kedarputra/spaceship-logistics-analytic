@@ -10,8 +10,8 @@ import { SummaryCard } from "./summary-card";
 
 const SHOWN = 4;
 
-/** A carrier's delayed orders in Raw data, as many as its delay rate's numerator (ticket 29). */
-export function carrierDelayedOrders(row: ResultRow, words = "delayed orders"): CardLink {
+/** A carrier's delayed orders in Raw data, as many as its delay rate's numerator (ticket 29); none when it has none (ticket 26). */
+export function carrierDelayedOrders(row: ResultRow, words = "delayed orders"): CardLink | undefined {
   return ordersLink(rowRatio(row).numerator, words, { status: METRIC_STATUSES.delayed_orders, carrier: [row.key] });
 }
 

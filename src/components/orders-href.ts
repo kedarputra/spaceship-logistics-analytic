@@ -1,6 +1,6 @@
 import type { Order } from "@/domain/orders";
 import { LIST_FILTERS, type ListFilter } from "@/tools/list-filters";
-import type { OrdersView } from "@/tools/orders-view";
+import type { DateBasis, OrdersView } from "@/tools/orders-view";
 
 /**
  * Links to the Raw data page (ticket 28): a view written as its URL. No imports that load the data,
@@ -51,4 +51,11 @@ export function ordersHref(view: ViewParams): string {
 /** The orders these filters pick, in a sort or in file order: what a card, a bar or a table row opens. */
 export function filteredOrdersHref(filters: FilterValues, sort?: OrdersView["sort"]): string {
   return ordersHref({ filters, dates: { basis: "order" }, search: "", sort, page: 1 });
+}
+
+/** The orders of one month by order or delivery date that the filters pick: what a month of a chart opens (ticket 26). */
+export function monthOrdersHref(monthStart: string, basis: DateBasis, filters: FilterValues = {}): string {
+  // A month's first day (YYYY-MM-DD, a bucket's key) as the view's YYYY-MM.
+  const key = monthStart.slice(0, 7);
+  return ordersHref({ filters, dates: { basis, range: { from: key, to: key } }, search: "", page: 1 });
 }

@@ -24,6 +24,11 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **Small samples:** `#F6D3A1` with a 1 px `#E39A2E` ring and a "small sample" tag, so identity is never colour alone.
    - **Forecast:** a dashed `#C27A16` line with the amber band at 30%.
    - **Labels:** amber marks are under 3:1 on white, so charts keep value labels and data tables.
+
+   *Amended 21 Nov 2026 (ticket 26):* every chart has the same tooltip, a small panel card: the full month (or group), then one row per series with the value in bold ink before the series name, keyed by a short stroke of its colour. The Recharts charts draw it as their tooltip content. On the three hand-drawn month charts:
+   - **Input:** the plot is one tab stop. A month is the full height and width of its slot, so the pointer always picks the nearest month. The arrows move from month to month and Escape hides the tooltip. On touch, a first tap shows a month and a second opens it.
+   - **Opening a month:** a click or Enter opens its orders in Raw data, by order date for orders per month, and by delivery date and delivered only for the two delivery charts. A month's count comes from a metric (the delivered orders per month from the query tool), never from summing the outcomes.
+   - **What it shows:** only values the Data table already holds. It replaces the marks' native `title` text.
 4. **Type.** Figtree, loaded with `next/font/google`, which self-hosts the files at build time so no visitor's browser calls Google. Numbers use tabular figures.
 5. **Pages.**
    - **Shell:** a dark rail holds five routes: Overview `/`, Ask `/ask`, Delivery `/delivery`, Carriers `/carriers` and Forecast `/forecast`.
@@ -38,6 +43,8 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **Rates on the detail pages** follow the ticket's table: a delay rate opens its delayed orders (the numerator), the highest on-time rate its delivered orders.
    - **An Ask answer** opens every order it was computed over: for a rate or an average, the delivered orders it divides by, and its link says "delivered orders". The link appears only when every part of the spec is a Raw data filter: no origin, destination, client or SKU filter, no limit or minimum of deliveries, and a period of whole months. A forecast answer opens the Forecast page with its scope, a SKU question its category.
    - **Shape:** a whole card is one link and one tab stop, named by what it opens ("Delayed orders: view the 55 orders"), with a line at its foot that says so. A bar's or row's name is its link and the row its hit target. A card that holds a button is not wrapped in a link.
+
+   *Amended 21 Nov 2026 (ticket 26):* a count of 0 opens nothing. A card, bar, row or chart month with no orders behind it gets no link, arrow or "View" line, so no link leads to an empty table (DPD's 0 delayed orders on Carriers).
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 

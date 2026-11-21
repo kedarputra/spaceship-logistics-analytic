@@ -65,7 +65,7 @@ describe("the Overview page (ticket 24, figures from docs/design/README.md)", ()
   it("lists every chart's values in a data table", () => {
     const charts = section(html, "Orders and delivery outcomes");
     expect(charts).toContain("Month Orders Jan 2025 75 Feb 2025 36");
-    expect(charts).toContain("Month On time Delayed Exception Jan 2025 54 11 2");
+    expect(charts).toContain("Month On time Delayed Exception Delivered Jan 2025 54 11 2 67");
   });
 
   it("ranks the top 4 carriers by delay rate, flags the small sample, and names the highest with at least 20", () => {

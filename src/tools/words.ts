@@ -79,6 +79,11 @@ export function capitalized(text: string): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
+/** "On time" → "on time": a label inside a sentence. */
+export function lowered(text: string): string {
+  return `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+}
+
 /** "A", "A and B", "A, B and C". */
 export function andList(items: readonly string[]): string {
   if (items.length <= 1) return items.join("");

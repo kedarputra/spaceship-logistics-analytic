@@ -47,6 +47,7 @@ export default function DeliveryPage() {
   const { totalOrders, deliveredOrders, delayedOrders, onTimeRate, averageDeliveryDays } = kpis;
   const exceptions = exceptionRate(orders);
   const onTimeByMonth = queryResult({ metric: "on_time_rate", groupBy: "month" });
+  const deliveredByMonth = queryResult({ metric: "delivered_orders", groupBy: "month" }).rows;
 
   return (
     <>
@@ -90,7 +91,7 @@ export default function DeliveryPage() {
         </ul>
       </section>
       <CardPair label="Delivery over time">
-        <OutcomesChartCard months={deliveryOutcomesOverTime(orders, period, "month")} delivered={deliveredOrders} dates={dates} />
+        <OutcomesChartCard months={deliveryOutcomesOverTime(orders, period, "month")} deliveredByMonth={deliveredByMonth} delivered={deliveredOrders} dates={dates} />
         <OnTimeLineCard result={onTimeByMonth} />
       </CardPair>
       <CardPair label="Delivery time by place" id={TIME_BY_PLACE_ID}>

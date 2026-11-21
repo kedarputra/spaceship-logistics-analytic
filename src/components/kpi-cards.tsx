@@ -17,8 +17,8 @@ interface KpiCardProps {
   value: ReactNode;
   /** The breakdown or the rate's parts, below the figure. */
   detail: ReactNode;
-  /** What explains the figure (ticket 29): its orders in Raw data, or the page that breaks it down. */
-  link: CardLink;
+  /** What explains the figure (ticket 29): its orders in Raw data, or the page that breaks it down. None for a count of 0. */
+  link: CardLink | undefined;
 }
 
 function KpiCard({ label, definition, icon, tone = "green", value, detail, link }: KpiCardProps) {

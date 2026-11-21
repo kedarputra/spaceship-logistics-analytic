@@ -11,10 +11,10 @@ function cardTexts(html: string): string[] {
   );
 }
 
-/** A card's text: its label, figures and definition, then the line at its foot that says what it opens (ticket 29). */
-function card(kpi: keyof typeof KPI_DEFINITIONS, figures: string, foot: string): string {
+/** A card's text: its label, figures and definition, then the line at its foot that says what it opens (ticket 29), if it opens anything. */
+function card(kpi: keyof typeof KPI_DEFINITIONS, figures: string, foot?: string): string {
   const { label, definition } = KPI_DEFINITIONS[kpi];
-  return `${label} ${figures} ${definition} ${foot}`;
+  return `${label} ${figures} ${definition}${foot === undefined ? "" : ` ${foot}`}`;
 }
 
 describe("KPI cards (R1, ADR 0001)", () => {
@@ -29,12 +29,12 @@ describe("KPI cards (R1, ADR 0001)", () => {
     ]);
   });
 
-  it('shows "n/a" for the rate and the delivery time when nothing was delivered', () => {
+  it('shows "n/a" for the rate and the delivery time when nothing was delivered, and no link to 0 orders (ticket 26)', () => {
     const html = renderToStaticMarkup(<KpiCards kpis={dashboardKpis([])} />);
     expect(cardTexts(html)).toEqual([
-      card("totalOrders", "0 0 in transit · 0 canceled", "View the 0 orders"),
-      card("deliveredOrders", "0 0 on time 0 delayed 0 exception", "View the 0 orders"),
-      card("delayedOrders", "0 Delay rate n/a · 0 / 0", "View the 0 orders"),
+      card("totalOrders", "0 0 in transit · 0 canceled"),
+      card("deliveredOrders", "0 0 on time 0 delayed 0 exception"),
+      card("delayedOrders", "0 Delay rate n/a · 0 / 0"),
       card("onTimeRate", "n/a 0 / 0", "View the rate by month"),
       card("averageDeliveryDays", "n/a Order date to delivery date", "View the times by region and warehouse"),
     ]);

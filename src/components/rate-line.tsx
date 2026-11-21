@@ -1,11 +1,14 @@
-import { SMALL_SAMPLE_MIN_DELIVERED } from "@/domain/definitions";
+import { METRIC_STATUSES, SMALL_SAMPLE_MIN_DELIVERED } from "@/domain/definitions";
 import { formatFraction, formatOf, formatPercent, formatPercentPlain } from "@/domain/format";
 import type { QueryResult, ResultRow } from "@/tools/query";
 import { andList, dateFieldWords } from "@/tools/words";
+import { monthOrdersLink } from "./card-link";
 import { ChartCard } from "./chart-card";
 import { ON_TIME_BY_MONTH_ID } from "./delivery-anchors";
 import { Legend } from "./legend";
 import { monthOnly, Plot } from "./month-charts";
+import type { MonthTip } from "./month-hover";
+import { MARKS } from "./palette";
 import { rowRatio } from "./row-ratio";
 import { extremeIndexes, rateAxis } from "./scale";
 
@@ -16,33 +19,74 @@ import { extremeIndexes, rateAxis } from "./scale";
  * they keep their size at any width. Every value arrives computed.
  */
 
-/** A point's place in the plot, in percent: across from the left, down from the top. */
-function place(index: number, count: number, value: number, range: { min: number; max: number }) {
-  return { x: ((index + 0.5) / count) * 100, y: (1 - (value - range.min) / (range.max - range.min)) * 100 };
+/** A value's height in the plot, in percent down from the top. */
+function heightOf(value: number, range: { min: number; max: number }): number {
+  return (1 - (value - range.min) / (range.max - range.min)) * 100;
+}
+
+/** A month's tooltip (ticket 26): the rate and its ratio, "small sample" under 20 deliveries, and its delivered orders by delivery date. */
+function rateTip(row: ResultRow): MonthTip {
+  if (row.value === null) return { heading: row.label, rows: [], note: "No deliveries" };
+  return {
+    heading: row.label,
+    rows: [{ value: formatPercent(row.value), name: "on time", color: MARKS.onTime }],
+    note: `${formatOf(rowRatio(row))} delivered on time`,
+    smallSample: row.smallSample,
+    link: monthOrdersLink(row.n, "delivered orders", row.key, "delivery", { status: METRIC_STATUSES.on_time_rate }),
+  };
+}
+
+/** A month's point, hollow for a small sample and grown while its month is shown, with its value above or below it when labelled. */
+function RatePoint({ value, top, smallSample, label }: { value: number; top: number; smallSample: boolean; label: "above" | "below" | null }) {
+  const fill = smallSample ? "size-[10px] border-2 border-mark-on-time bg-panel" : "size-[7px] bg-mark-on-time";
+  const labelShift = label === "above" ? "-translate-y-[22px]" : "translate-y-2";
+  return (
+    <>
+      <span
+        data-small-sample={smallSample ? "true" : undefined}
+        className={`absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-[scale] group-data-active/month:scale-150 ${fill}`}
+        style={{ top: `${top}%` }}
+      />
+      {label === null ? null : (
+        <span data-point-label={formatPercent(value)} className={`absolute left-1/2 -translate-x-1/2 text-tick font-bold text-ink ${labelShift}`} style={{ top: `${top}%` }}>
+          {formatPercent(value)}
+        </span>
+      )}
+    </>
+  );
 }
 
 function RateLinePlot({ rows, overall }: { rows: readonly ResultRow[]; overall: number | null }) {
-  const { min, max, ticks } = axisOfRates(rows);
-  const points = rows.flatMap((row, index) => (row.value === null ? [] : [{ row, ...place(index, rows.length, row.value, { min, max }), value: row.value }]));
-  const labelled = extremeIndexes(points.map(({ value }) => value));
+  const range = axisOfRates(rows);
+  const points = rows.flatMap((row, index) => (row.value === null ? [] : [{ index, value: row.value }]));
+  // The months at the highest and the lowest rate carry a label, the highest above its point.
+  const labelled = new Set([...extremeIndexes(points.map(({ value }) => value))].map((point) => points[point]?.index));
   const highest = Math.max(...points.map(({ value }) => value));
+  // The line joins the months' centres, as the slots of the plot lay them out.
+  const line = points.map(({ index, value }) => `${(((index + 0.5) / rows.length) * 100).toFixed(2)},${heightOf(value, range).toFixed(2)}`);
   return (
     <Plot
-      ticks={ticks}
-      min={min}
-      max={max}
+      ticks={range.ticks}
+      min={range.min}
+      max={range.max}
       formatTick={formatPercentPlain}
-      gapless
       months={rows.map((row) => monthOnly(row.label))}
       description="On-time delivery rate per month, as a line. The data table lists every value."
+      tips={rows.map(rateTip)}
+      crosshair
+      marks={rows.map(({ value, smallSample }, index) => {
+        if (value === null) return null;
+        const label = value === highest ? "above" : "below";
+        return <RatePoint value={value} top={heightOf(value, range)} smallSample={smallSample} label={labelled.has(index) ? label : null} />;
+      })}
     >
       {/* The line and the year's rate, stretched to the plot; their strokes keep their width. */}
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" className="absolute inset-0 h-full w-full overflow-visible">
         {overall === null ? null : (
-          <line x1={0} x2={100} y1={place(0, 1, overall, { min, max }).y} y2={place(0, 1, overall, { min, max }).y} strokeWidth={1.5} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" className="stroke-grey-green" />
+          <line x1={0} x2={100} y1={heightOf(overall, range)} y2={heightOf(overall, range)} strokeWidth={1.5} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" className="stroke-grey-green" />
         )}
         <polyline
-          points={points.map(({ x, y }) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ")}
+          points={line.join(" ")}
           fill="none"
           strokeWidth={2.25}
           strokeLinejoin="round"
@@ -51,25 +95,6 @@ function RateLinePlot({ rows, overall }: { rows: readonly ResultRow[]; overall: 
           className="stroke-mark-on-time"
         />
       </svg>
-      {points.map(({ row, x, y, value }, point) => (
-        <span key={row.key}>
-          <span
-            title={`${row.label}: ${formatPercent(value)} (${formatOf(rowRatio(row))})${row.smallSample ? ", a small sample" : ""}`}
-            data-small-sample={row.smallSample ? "true" : undefined}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full ${row.smallSample ? "size-[10px] border-2 border-mark-on-time bg-panel" : "size-[7px] bg-mark-on-time"}`}
-            style={{ left: `${x}%`, top: `${y}%` }}
-          />
-          {labelled.has(point) ? (
-            <span
-              data-point-label={formatPercent(value)}
-              className={`absolute -translate-x-1/2 text-tick font-bold text-ink ${value === highest ? "-translate-y-[22px]" : "translate-y-2"}`}
-              style={{ left: `${x}%`, top: `${y}%` }}
-            >
-              {formatPercent(value)}
-            </span>
-          ) : null}
-        </span>
-      ))}
     </Plot>
   );
 }

@@ -11,7 +11,7 @@ The tooltip only adds a quicker way to read a value. Every value it shows is als
 **Blocked by:** 29
 _29 Cards, bars and rows open the orders behind them (and, through it, 28 Raw data)_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] **One tooltip, shared.** A small client component used by all three charts; the plots themselves stay server-rendered.
   - A small card on the panel surface, with a hairline border and the cards' radius, in the ADR 0011 tokens.
@@ -48,3 +48,5 @@ _29 Cards, bars and rows open the orders behind them (and, through it, 28 Raw da
   - Hover each chart in headless Edge at 1280 px and at 320 px: the tooltip stays inside its card, and nothing scrolls sideways.
 
 ## Comments
+
+- 2026-11-21: Done: one shared tooltip (chart-tip) for the three hand-drawn month charts and the Ask and Forecast Recharts charts. The month charts are one tab stop each, with arrows, Escape and Enter; a click, Enter or a second tap opens the month's orders in Raw data. The outcomes Data table gains a Delivered column from the delivered orders metric, the count each month opens. Counts of 0 get no link (DPD's delay-rate bar). Tests: month links followed into Raw data, the pure hover state and placement, the Recharts tooltip content, a 0 month. Checked in headless Edge at 1280 and 320 px.

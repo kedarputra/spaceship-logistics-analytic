@@ -30,6 +30,7 @@ export default function OverviewPage() {
   const outcomesPerMonth = deliveryOutcomesOverTime(orders, period, "month");
   // The same query "What is the delay rate by carrier?" runs, over all the data.
   const carriers = queryResult({ metric: "delay_rate", groupBy: "carrier", sort: "desc" });
+  const deliveredByMonth = queryResult({ metric: "delivered_orders", groupBy: "month" }).rows;
   const forecast = answerForecast(forecastSpecSchema.parse({ tool: "forecast", scope: { type: "total" } }));
   if (forecast.kind !== "forecast") throw new Error(forecast.message);
   const dates = formatPeriod(period);
@@ -57,7 +58,7 @@ export default function OverviewPage() {
         >
           <OrderBars months={ordersPerMonth} />
         </ChartCard>
-        <OutcomesChartCard months={outcomesPerMonth} delivered={kpis.deliveredOrders} dates={dates} link={{ href: "/delivery", label: "Delivery details" }} />
+        <OutcomesChartCard months={outcomesPerMonth} deliveredByMonth={deliveredByMonth} delivered={kpis.deliveredOrders} dates={dates} link={{ href: "/delivery", label: "Delivery details" }} />
       </CardPair>
       <CardPair label="Carriers and forecast">
         <CarrierCard result={carriers} href="/carriers" />

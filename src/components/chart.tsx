@@ -4,6 +4,8 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Responsive
 import type { MetricDefinition } from "@/domain/definitions";
 import { formatCount, formatMetricValue, formatPercentPlain } from "@/domain/format";
 import type { ChartType } from "@/tools/chart";
+import { lowered } from "@/tools/words";
+import { type ChartTipContent, rowTipContent } from "./chart-tip";
 import { CHART_INK } from "./palette";
 
 /** The chart types drawn by Recharts. An answer card is a number, and horizontal bars are RankedBars. */
@@ -51,6 +53,18 @@ function seriesValue(row: ChartRow, key: string): number | null {
   return row.values[key] ?? null;
 }
 
+/** A row's tooltip (ticket 26): each series with a value, in legend order, as the metric writes it, and a small sample marked. */
+export function answerTip(row: ChartRow, series: readonly ChartSeries[], valueFormat: ValueFormat): ChartTipContent {
+  return {
+    heading: row.label,
+    rows: series.flatMap((item) => {
+      const value = seriesValue(row, item.key);
+      return value === null ? [] : [{ value: formatMetricValue(value, valueFormat), name: lowered(item.label), color: item.color }];
+    }),
+    smallSample: row.muted === true,
+  };
+}
+
 function assertNever(type: never): never {
   throw new Error(`No renderer for chart type ${String(type)}`);
 }
@@ -58,8 +72,8 @@ function assertNever(type: never): never {
 /** Draws the chart type that chooseChart picked (ADR 0006 §6) in the marks of ADR 0011 §3. All values arrive computed. */
 export function Chart({ type, series, rows, valueFormat }: ChartProps) {
   const formatTick = tickFormatter(valueFormat);
-  const labelText = (value: unknown) => (typeof value === "number" ? formatMetricValue(value, valueFormat) : String(value));
-  const tooltip = <Tooltip formatter={labelText} itemSorter={(item) => series.findIndex(({ label }) => label === item.name)} />;
+  // The tooltip every chart shares (ticket 26), for the row under the pointer.
+  const tooltip = <Tooltip content={rowTipContent(rows, (row) => answerTip(row, series, valueFormat))} />;
   // A legend for two or more series, in series order, its text in ink rather than the series colour.
   const legend =
     series.length > 1 ? (

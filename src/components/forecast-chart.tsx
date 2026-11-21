@@ -2,6 +2,7 @@
 
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCount, formatDecimal } from "@/domain/format";
+import { type ChartTipContent, rowTipContent } from "./chart-tip";
 import { BAND_OPACITY, CHART_INK, MARKS } from "./palette";
 
 /** One month on the chart: units ordered, or the forecast and its 95% range. */
@@ -16,13 +17,22 @@ const HEIGHT = 280;
 const TICK = { fill: CHART_INK.label, fontSize: 12 };
 const DEMAND = MARKS.onTime;
 
-/** "95.0", or "13.4–176.6" for the range. */
-function tooltipValue(value: unknown): string {
-  if (typeof value === "number") return formatDecimal(value);
-  if (Array.isArray(value) && typeof value[0] === "number" && typeof value[1] === "number") {
-    return `${formatDecimal(value[0])}–${formatDecimal(value[1])}`;
-  }
-  return String(value);
+/**
+ * A month's tooltip (ticket 26), in whole units as a plan is read: the units ordered, or the forecast
+ * and its 95% range, "13–177 units". The last month of history, where the forecast line starts, reads
+ * its units ordered once.
+ */
+export function forecastTip(row: ForecastChartRow): ChartTipContent {
+  const units = (value: number) => formatDecimal(value, 0);
+  const ordered = row.history === null ? [] : [{ value: `${formatCount(row.history)} units`, name: "ordered", color: DEMAND }];
+  const ahead =
+    row.range === null || row.forecast === null
+      ? []
+      : [
+          { value: `${units(row.forecast)} units`, name: "forecast", color: MARKS.forecastLine },
+          { value: `${units(row.range[0])}–${units(row.range[1])} units`, name: "95% range", color: MARKS.band },
+        ];
+  return { heading: row.label, rows: [...ordered, ...ahead] };
 }
 
 /** History, a dashed forecast from the last month, and the shaded 95% range (ADR 0003 §8, ADR 0011 §3). All values arrive computed. */
@@ -33,7 +43,7 @@ export function ForecastChart({ rows }: { rows: ForecastChartRow[] }) {
         <CartesianGrid stroke={CHART_INK.grid} vertical={false} />
         <XAxis dataKey="label" interval="preserveStartEnd" tick={TICK} stroke={CHART_INK.axis} />
         <YAxis allowDecimals={false} tickFormatter={formatCount} tick={TICK} stroke={CHART_INK.axis} />
-        <Tooltip formatter={tooltipValue} />
+        <Tooltip content={rowTipContent(rows, forecastTip)} />
         <Legend
           itemSorter={null}
           wrapperStyle={{ fontSize: 12 }}

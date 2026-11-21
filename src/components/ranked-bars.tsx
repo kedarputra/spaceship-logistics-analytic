@@ -42,7 +42,7 @@ export function RankedBars({ bars, tone, formatTick }: { bars: readonly RankedBa
           <li key={bar.label} className={`flex items-center gap-3 ${bar.link === undefined ? "" : "relative"}`}>
             <span className={`flex flex-col text-small ${NAME_COLUMN}`}>
               <span className="flex flex-wrap items-center gap-x-1.5">
-                {bar.link === undefined ? <span className="font-semibold">{bar.label}</span> : <RowLink name={bar.label} link={bar.link} />}
+                <RowLink name={bar.label} link={bar.link} />
                 {bar.n === undefined ? null : <span className="text-muted">{`n=${bar.n}`}</span>}
                 {bar.smallSample ? <Tag tone="warn">small sample</Tag> : null}
                 {bar.tag === undefined ? null : <Tag tone="neutral">{bar.tag}</Tag>}

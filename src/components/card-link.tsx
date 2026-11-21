@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatCount } from "@/domain/format";
-import type { OrdersView } from "@/tools/orders-view";
+import type { DateBasis, OrdersView } from "@/tools/orders-view";
+import { lowered } from "@/tools/words";
 import { Icon } from "./icons";
-import { type FilterValues, filteredOrdersHref } from "./orders-href";
+import { type FilterValues, filteredOrdersHref, monthOrdersHref } from "./orders-href";
 
 /**
  * Cards, bars and table rows that open what explains them (ticket 29): the orders behind a count in
@@ -16,14 +17,27 @@ export interface CardLink {
   text: string;
 }
 
-/** Orders in Raw data: the filters' orders, as many as `count` says, "View the 55 delayed orders". */
-export function ordersLink(count: number, words: string, filters: FilterValues, sort?: OrdersView["sort"]): CardLink {
-  return { href: filteredOrdersHref(filters, sort), text: `View the ${formatCount(count)} ${words}` };
+/**
+ * `count` orders at `href`, "View the 55 delayed orders"; no link when there are none, so nothing
+ * opens an empty view (ticket 26).
+ */
+export function countLink(count: number, words: string, href: string): CardLink | undefined {
+  return count === 0 ? undefined : { href, text: `View the ${formatCount(count)} ${words}` };
+}
+
+/** Orders in Raw data: the filters' orders, as many as `count` says; none when it is 0. */
+export function ordersLink(count: number, words: string, filters: FilterValues, sort?: OrdersView["sort"]): CardLink | undefined {
+  return countLink(count, words, filteredOrdersHref(filters, sort));
+}
+
+/** One month's orders in Raw data by order or delivery date, as many as `count` says; none when it is 0. */
+export function monthOrdersLink(count: number, words: string, monthStart: string, basis: DateBasis, filters: FilterValues = {}): CardLink | undefined {
+  return countLink(count, words, monthOrdersHref(monthStart, basis, filters));
 }
 
 /** "Delayed orders: view the 55 orders": what the link is on, then what it opens. */
 function linkName(name: string, link: CardLink): string {
-  return `${name}: ${link.text.charAt(0).toLowerCase()}${link.text.slice(1)}`;
+  return `${name}: ${lowered(link.text)}`;
 }
 
 /**
@@ -50,9 +64,10 @@ export function CardBox({ name, link, className, children }: { name: string; lin
 
 /**
  * A bar's or a table row's name as its link. The link stretches over the row, which must be
- * `relative`, so the whole row is its hit target.
+ * `relative`, so the whole row is its hit target. Without a link, the name alone.
  */
-export function RowLink({ name, link }: { name: string; link: CardLink }) {
+export function RowLink({ name, link }: { name: string; link: CardLink | undefined }) {
+  if (link === undefined) return <span className="font-semibold">{name}</span>;
   return (
     <Link href={link.href} aria-label={linkName(name, link)} className="font-semibold text-ink no-underline after:absolute after:inset-0 hover:underline">
       {name}

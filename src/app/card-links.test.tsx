@@ -187,6 +187,14 @@ describe("the Carriers page's highlights, bars and rows open their orders (ticke
     }
   });
 
+  it("a bar with no orders behind it is no link: DPD's 0 delayed orders (ticket 26)", () => {
+    // docs/design/README.md: DPD 0.0% delay rate, 0 of 18.
+    expect(links(carriers).some((link) => link.name.startsWith("DPD: view the 0"))).toBe(false);
+    expect(links(carriers).filter((link) => link.href === "/data?status=delayed&carrier=DPD")).toEqual([]);
+    const delayChart = carriers.slice(carriers.indexOf('id="delay-title"'), carriers.indexOf('id="table-title"'));
+    expect(visibleText(delayChart)).toContain("DPD n=18 small sample 0.0%");
+  });
+
   it("a table row opens that carrier's orders, as many as it has", async () => {
     // docs/data.md: orders per carrier.
     const counts = { FedEx: 89, UPS: 88, DHL: 63, USPS: 49, OnTrac: 29, LaserShip: 27, "Royal Mail": 26, DPD: 20, GLS: 9 };
@@ -236,6 +244,99 @@ describe("an Ask answer's link opens the orders it counts (ticket 29)", () => {
     // docs/data.md: 3 by delivery date.
     expect(answer.matchingOrders?.total).toBe(3);
     expect(await ordersShown(ordersHref(answer.ordersBehind.view))).toBe(3);
+  });
+});
+
+/** The month links of the chart whose plot is labelled starting with `plot`, in month order. */
+function monthLinks(html: string, plot: string): PageLink[] {
+  const start = html.indexOf(`aria-label="${plot}`);
+  if (start === -1) throw new Error(`no plot "${plot}"`);
+  return links(html.slice(start, html.indexOf("</figure>", start)));
+}
+
+/** The body rows of the Data table in the chart whose plot is labelled starting with `plot`, as cell texts. */
+function dataTableRows(html: string, plot: string): string[][] {
+  const start = html.indexOf(`aria-label="${plot}`);
+  const figure = html.slice(start, html.indexOf("</figure>", start));
+  const body = figure.slice(figure.indexOf("<tbody"), figure.indexOf("</tbody>"));
+  return [...body.matchAll(/<tr[^>]*>(.*?)<\/tr>/gs)].map(([, row = ""]) => [...row.matchAll(/<t[hd][^>]*>(.*?)<\/t[hd]>/gs)].map(([, cell = ""]) => visibleText(cell)));
+}
+
+/** The count a link's name ends with: "… View the 75 orders" → 75. */
+function viewCount(link: PageLink): number {
+  const count = / View the ([\d,]+) [a-z ]+$/.exec(link.name)?.[1];
+  if (count === undefined) throw new Error(`no count in "${link.name}"`);
+  return Number(count.replace(/,/g, ""));
+}
+
+describe("the month charts open each month's orders (ticket 26)", () => {
+  it("Orders per month: each month opens its orders by order date, as many as its bar and its Data table row", async () => {
+    const months = monthLinks(overview, "Orders per month");
+    expect(months).toHaveLength(12);
+    // docs/design/README.md: Jan 75 (the highest), Sep 18 (the lowest).
+    expect(months[0]).toEqual({ name: "Jan 2025: 75 orders. View the 75 orders", href: "/data?from=2025-01&to=2025-01" });
+    expect(months[8]?.name).toBe("Sep 2025: 18 orders. View the 18 orders");
+    const table = dataTableRows(overview, "Orders per month");
+    for (const [index, month] of months.entries()) {
+      expect(month.name.startsWith(`${table[index]?.[0]}: ${table[index]?.[1]} orders.`)).toBe(true);
+      expect(await ordersShown(month.href)).toBe(viewCount(month));
+    }
+  });
+
+  it("Delivery outcomes per month, on both pages: each month lists its Data table row in legend order and opens its delivered orders by delivery date, as many as the table's Delivered column", async () => {
+    for (const html of [overview, delivery]) {
+      const months = monthLinks(html, "Delivery outcomes per month");
+      expect(months).toHaveLength(12);
+      // docs/design/README.md and the Overview's Data table: Jan 54 on time, 11 delayed, 2 exception.
+      expect(months[0]).toEqual({
+        name: "Jan 2025: 54 on time, 11 delayed, 2 exception. View the 67 delivered orders",
+        href: `/data?${DELIVERED}&date=delivery&from=2025-01&to=2025-01`,
+      });
+      const table = dataTableRows(html, "Delivery outcomes per month");
+      for (const [index, month] of months.entries()) {
+        const [label, onTime, delayed, exception, delivered] = table[index] ?? [];
+        expect(month.name.startsWith(`${label}: ${onTime} on time, ${delayed} delayed, ${exception} exception.`)).toBe(true);
+        // The count comes from the delivered orders metric, which the table shows; the three outcomes add up to it.
+        expect(viewCount(month)).toBe(Number(delivered));
+        expect(viewCount(month)).toBe(Number(onTime) + Number(delayed) + Number(exception));
+        expect(await ordersShown(month.href)).toBe(viewCount(month));
+      }
+    }
+  });
+
+  it("On-time rate per month: each month gives its rate and ratio, small samples under 20 deliveries, and opens its delivered orders", async () => {
+    const months = monthLinks(delivery, "On-time delivery rate per month");
+    expect(months).toHaveLength(12);
+    // docs/design/README.md: Jun 15 of 18 and Nov 16 of 19 are the small samples.
+    expect(months[5]).toEqual({
+      name: "Jun 2025: 83.3% on time, 15 of 18 delivered on time, small sample. View the 18 delivered orders",
+      href: `/data?${DELIVERED}&date=delivery&from=2025-06&to=2025-06`,
+    });
+    expect(months[10]?.name).toBe("Nov 2025: 84.2% on time, 16 of 19 delivered on time, small sample. View the 19 delivered orders");
+    expect(months.filter((month) => month.name.includes("small sample")).map((month) => month.name.slice(0, 8))).toEqual(["Jun 2025", "Nov 2025"]);
+    const rates = ["80.6", "81.1", "84.2", "89.3", "72.7", "83.3", "80.0", "81.1", "85.7", "81.8", "84.2", "84.6"];
+    for (const [index, month] of months.entries()) {
+      expect(month.name).toContain(`: ${rates[index]}% on time, `);
+      const delivered = / of (\d+) delivered on time/.exec(month.name)?.[1];
+      expect(viewCount(month)).toBe(Number(delivered));
+      expect(await ordersShown(month.href)).toBe(viewCount(month));
+    }
+  });
+
+  it("each plot is one tab stop, keeps its label, and carries no native tooltip", () => {
+    for (const [html, plots] of [
+      [overview, ["Orders per month", "Delivery outcomes per month"]],
+      [delivery, ["Delivery outcomes per month", "On-time delivery rate per month"]],
+    ] as const) {
+      for (const plot of plots) {
+        const start = html.indexOf(`aria-label="${plot}`);
+        const figure = html.slice(html.lastIndexOf("<figure", start), html.indexOf("</figure>", start));
+        expect(figure).toMatch(new RegExp(`role="group" aria-label="${plot}[^"]*The data table lists every value\\." tabindex="0"`));
+        expect([...figure.matchAll(/tabindex="0"/g)]).toHaveLength(1);
+        expect([...figure.matchAll(/<a [^>]*tabindex="-1"/g)]).toHaveLength(12);
+        expect(figure).not.toMatch(/ title="/);
+      }
+    }
   });
 });
 

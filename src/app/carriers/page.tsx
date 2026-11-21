@@ -34,14 +34,14 @@ function overallOf(result: QueryResult): string {
 }
 
 /** A carrier's orders in Raw data, as many as the order count says it has (ticket 29). */
-function carrierOrders(counts: QueryResult, key: string): CardLink {
+function carrierOrders(counts: QueryResult, key: string): CardLink | undefined {
   const row = counts.rows.find((count) => count.key === key);
   if (row === undefined) throw new Error(`No order count for carrier ${key}`);
   return ordersLink(row.value ?? 0, "orders", { carrier: [key] });
 }
 
 /** The carriers with the most orders, in Raw data: "View the 89 FedEx orders", or tied carriers together. */
-function mostOrdersLink(tied: readonly ResultRow[]): CardLink {
+function mostOrdersLink(tied: readonly ResultRow[]): CardLink | undefined {
   const filters = { carrier: tied.map(({ key }) => key) };
   const [only] = tied;
   if (only !== undefined && tied.length === 1) return ordersLink(only.value ?? 0, `${only.label} orders`, filters);
