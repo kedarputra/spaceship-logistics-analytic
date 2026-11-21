@@ -38,6 +38,7 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
 ## Consequences
 
 - Four new routes and a shell. Overview becomes a summary that links to the detail pages.
+  _Amended 21 Nov 2026 (ticket 28): a fifth new route, Raw data `/data`, so six pages in all (§5). The title keeps the decision's original name._
 - The design files in `docs/design/` are references, not code. They need the design canvas's runtime to render, so read them as markup, styles and example data. Their numbers double as golden values for tests.
 - The README's screenshots (if any) and the Loom are recorded after the redesign.
 - Ticket 24 ships the tokens, the shell, Overview and Ask. Ticket 25 adds Delivery, Carriers and Forecast and can be cut if time runs out; the rail then lists only the pages that exist.
