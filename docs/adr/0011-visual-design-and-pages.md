@@ -59,6 +59,14 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **Shape:** a whole card is one link and one tab stop, named by what it opens ("Delayed orders: view the 55 orders"), with a line at its foot that says so. A bar's or row's name is its link and the row its hit target. A card that holds a button is not wrapped in a link.
 
    *Amended 21 Nov 2026 (ticket 26):* a count of 0 opens nothing. A card, bar, row or chart month with no orders behind it gets no link, arrow or "View" line, so no link leads to an empty table (DPD's 0 delayed orders on Carriers).
+
+   *Amended 21 Nov 2026 (ticket 31):* sign-in and roles (ADR 0012).
+   - **The rail** lists only the pages the role can open. A seventh, Users `/users`, is for admins: the accounts and their roles, read-only.
+   - **The rail's footer** ends with the username, a role chip and "Sign out". Collapsed, their icons stay in place, with the words as tooltips.
+   - **`/login`** stands alone on the ground, without the rail: a card with the product's mark and name, Username, Password and "Sign in". A refusal rises in under the fields, as new content does (§3).
+   - **The 403 page** is a card in place of the page: "Your role, Viewer, can't open Ask the data.", with Overview and "Sign in as someone else".
+   - **Links to Ask** (the Overview's ask box, the chips on Carriers and Forecast) and Raw data's "Download CSV" show only to roles that can use them.
+
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 

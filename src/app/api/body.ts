@@ -27,10 +27,21 @@ async function readText(request: Request, limit: number): Promise<string | null>
   return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
+/** Whether the body says, before it is read, that it is over the limit. */
+function declaredTooLarge(request: Request): boolean {
+  return Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES;
+}
+
+/** A form's fields (a plain HTML form post), under the same limit; a larger body reads as no fields. */
+export async function readFormBody(request: Request): Promise<URLSearchParams> {
+  if (declaredTooLarge(request)) return new URLSearchParams();
+  return new URLSearchParams((await readText(request, MAX_BODY_BYTES)) ?? "");
+}
+
 /** The parsed body, or the response that refuses it (413 too large, 400 not JSON). */
 export async function readJsonBody(request: Request): Promise<{ ok: true; body: unknown } | { ok: false; response: Response }> {
   const tooLarge = { ok: false as const, response: errorResponse(413, "The request body is over 16 KB.") };
-  if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return tooLarge;
+  if (declaredTooLarge(request)) return tooLarge;
   const text = await readText(request, MAX_BODY_BYTES);
   if (text === null) return tooLarge;
   try {

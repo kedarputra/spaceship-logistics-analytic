@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { ACTIONS, can, ROLES } from "@/auth/roles";
 
 // Ticket 19: the README is part of the submission (R12, R14). These checks keep the parts that
 // other documents fix, or that must never appear, from drifting as the README is edited.
@@ -63,6 +64,17 @@ describe("README.md", () => {
   it("lists the future improvements the ADRs name: a database, rolling-origin evaluation, follow-ups and Docker", () => {
     const future = (section("Future improvements") ?? "").toLowerCase();
     expect(["database", "rolling-origin", "follow-up", "docker"].filter((item) => !future.includes(item))).toEqual([]);
+  });
+
+  it("shows the roles matrix of src/auth/roles.ts row for row, and no password (ADR 0012)", () => {
+    const access = section("Access and roles") ?? "";
+    const rows = access
+      .split("\n")
+      .filter((line) => line.startsWith("| ") && !line.startsWith("| Action") && !line.startsWith("|---"))
+      .map((line) => line.split("|").slice(2, 5).map((cell) => cell.trim()));
+    expect(rows).toEqual(ACTIONS.map((action) => ROLES.map((role) => (can(role, action) ? "yes" : "no"))));
+    expect(access).toContain("submission email");
+    expect(readme).not.toMatch(/password:\s*\S/i);
   });
 
   it.each(SECTIONS)("has a filled-in %s section", (heading) => {

@@ -30,8 +30,11 @@ export function ipKey(headers: Headers): string {
   return ip === undefined || ip === "" ? "local" : ip;
 }
 
-/** At most `limit` requests per key in any `windowMs`, kept as each key's request times, oldest first. */
-function slidingWindow(limit: number, windowMs: number) {
+/**
+ * At most `limit` requests per key in any `windowMs`, kept as each key's request times, oldest first.
+ * The sign-in limits (ticket 31) use it too.
+ */
+export function slidingWindow(limit: number, windowMs: number) {
   const times = new Map<string, number[]>();
 
   function recent(key: string, now: number): number[] {
@@ -51,6 +54,12 @@ function slidingWindow(limit: number, windowMs: number) {
     record(key: string, now: number): void {
       if (times.size >= SWEEP_AT_KEYS) for (const known of times.keys()) recent(known, now);
       times.set(key, [...(times.get(key) ?? []), now]);
+    },
+    /** Takes back one request recorded at `time`, as if it had not been made. */
+    forget(key: string, time: number): void {
+      const kept = times.get(key) ?? [];
+      const at = kept.lastIndexOf(time);
+      if (at !== -1) kept.splice(at, 1);
     },
   };
 }

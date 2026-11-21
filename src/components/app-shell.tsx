@@ -1,25 +1,30 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { User } from "@/auth/users";
 import { formatCount } from "@/domain/format";
 import { DATASET_FILE, type Dataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod, formatYears } from "@/domain/periods";
 import { LiveRailAiStatus } from "./ai-status";
 import { Icon } from "./icons";
 import { Rail } from "./rail";
+import { RailAccount } from "./rail-account";
 import { RailNav } from "./rail-nav";
 
 /**
  * The shell of every page (ADR 0011 §5): a skip link, the dark rail with the product name, the menu,
  * the data and the AI status, then the page. Where the two fit side by side, the rail is 232 px wide,
  * or 64 px collapsed, and the page takes the rest up to its 1200 px; below that, the rail stacks above
- * the page (ticket 27).
+ * the page (ticket 27). The menu lists the pages the user's role can open, and the rail ends with who is
+ * signed in and Sign out (ticket 31).
  */
 export function AppShell({
+  user,
   dataset,
   modelName,
   railCollapsed,
   children,
 }: {
+  user: User;
   dataset: Dataset;
   modelName: string;
   /** The viewer's kept choice, from the rail cookie. */
@@ -71,8 +76,9 @@ export function AppShell({
               </div>
             </div>
           }
+          account={<RailAccount user={user} />}
         >
-          <RailNav />
+          <RailNav role={user.role} />
         </Rail>
         <main id="content" className="min-w-0 flex-1 px-4 pt-7 pb-16 sm:px-9">
           <div className="mx-auto flex max-w-[1200px] flex-col gap-5">{children}</div>

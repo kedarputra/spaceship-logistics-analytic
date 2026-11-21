@@ -62,6 +62,7 @@ export function Rail({
   initiallyCollapsed,
   brand,
   dataCard,
+  account,
   children,
 }: {
   initiallyCollapsed: boolean;
@@ -69,6 +70,8 @@ export function Rail({
   brand: ReactNode;
   /** The data and AI card at the bottom. */
   dataCard: ReactNode;
+  /** Who is signed in, and Sign out, under it (ticket 31). */
+  account?: ReactNode;
   /** The menu. */
   children: ReactNode;
 }) {
@@ -109,6 +112,7 @@ export function Rail({
       {children}
       <div className="grow" />
       {dataCard}
+      {account}
       {tooltip}
     </header>
   );

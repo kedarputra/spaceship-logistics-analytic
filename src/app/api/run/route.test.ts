@@ -1,10 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestAccounts } from "@/auth/testing";
 import type { Answer } from "@/tools/answer";
 import { handleRun } from "./handle-run";
 import { POST } from "./route";
 
+// /api/run is part of Ask, for analysts and admins (ticket 31); the roles are tested in app/access.test.tsx.
+const accounts = createTestAccounts();
+afterAll(() => accounts.remove());
+beforeEach(() => {
+  vi.stubEnv("AUTH_SECRET", accounts.env.AUTH_SECRET);
+  vi.stubEnv("AUTH_SECRET_FILE", "");
+  vi.stubEnv("AUTH_USERS_FILE", accounts.env.AUTH_USERS_FILE);
+});
+
 function post(body: string, headers: Record<string, string> = {}): Promise<Response> {
-  return POST(new Request("http://localhost/api/run", { method: "POST", body, headers }));
+  return POST(new Request("http://localhost/api/run", { method: "POST", body, headers: { cookie: accounts.cookie("analyst"), ...headers } }));
 }
 
 function isAnswer(body: unknown): body is Answer {

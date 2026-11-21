@@ -1,6 +1,6 @@
 # 0007: Hosting on paid Vercel Pro in Singapore, no login, rate limits and a spend budget
 
-Status: superseded by [ADR 0010](0010-self-hosted-deployment.md) (self-hosting on the home server)
+Status: superseded by [ADR 0010](0010-self-hosted-deployment.md) (self-hosting on the home server); §3 also by [ADR 0012](0012-sign-in-and-roles.md) (sign-in and roles)
 Date: 2026-11-20
 Resolves: D8 in docs/decisions-open.md
 
@@ -19,6 +19,8 @@ R11 asks for a public URL that stays up through the review, and the recruiter as
 1. **Vercel Pro as a paid subscription with a card from the start**, never through a Pro trial (a trial is the "free trial" the recruiter asked to avoid). Do not downgrade until Spaceship confirms the review is over.
 2. **Region `sin1`**, set with `"regions": ["sin1"]` in `vercel.json`.
 3. **No login.** No credentials to send; the rate limits and spend caps protect the API key instead.
+
+   _Superseded 21 Nov 2026 by ADR 0012: the user asked for sign-in with roles, and R11 allows a login when the submission gives test credentials._
 4. **Two WAF rate-limit rules**, per IP, returning 429:
    - `/api/ask`: 20 requests per 60 s. Several reviewers behind one office IP share the limit, so 10 would be too tight.
    - `/api/*`: 120 requests per 60 s, so abuse of `/api/run` cannot run the spend budget into a pause.

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { infoLines, visibleText } from "@/components/markup-text";
-import ForecastPage from "./page";
+import { ForecastPage } from "./forecast-page";
 
 function part(html: string, name: string): string {
   const start = html.search(new RegExp(`aria-label(?:ledby)?="${name}"`));
@@ -9,7 +9,7 @@ function part(html: string, name: string): string {
   return visibleText(html.slice(start, html.indexOf("</section>", start)));
 }
 
-const render = async (params: Record<string, string> = {}) => renderToStaticMarkup(await ForecastPage({ searchParams: Promise.resolve(params) }));
+const render = async (params: Record<string, string> = {}) => renderToStaticMarkup(await ForecastPage({ searchParams: Promise.resolve(params), role: "analyst" }));
 
 /** Which links of a control group are the current choice, by their text. */
 function pressed(html: string, group: string): string[] {

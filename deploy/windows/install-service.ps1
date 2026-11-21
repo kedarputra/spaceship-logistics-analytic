@@ -8,6 +8,7 @@
     - the portable Node in <DataRoot>\node
     - a built release behind the <DeployRoot>\current junction
     - the LLM key file in <DataRoot>
+    - the sign-in secret and the users file in <DataRoot> (ADR 0012; docs/runbook.md, "Accounts")
   Then it installs the service, grants LocalService the access it needs, gives the server
   account start and stop rights on this one service (so the non-admin watchdog can restart it),
   starts it, and checks /api/health.
@@ -36,6 +37,8 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 
 $node = Join-Path $DataRoot 'node\node.exe'
 $keyFile = Join-Path $DataRoot 'llm-api-key.txt'
+$secretFile = Join-Path $DataRoot 'auth-secret.txt'
+$usersFile = Join-Path $DataRoot 'users.json'
 $binDir = Join-Path $DataRoot 'service'
 $logDir = Join-Path $DataRoot 'logs'
 $releases = Join-Path $DeployRoot 'releases'
@@ -47,6 +50,8 @@ $missing = @()
 if (-not (Test-Path -LiteralPath $node)) { $missing += "portable Node: $node" }
 if (-not (Test-Path -LiteralPath (Join-Path $current '.next\BUILD_ID'))) { $missing += "a built release behind $current (no .next\BUILD_ID)" }
 if (-not (Test-Path -LiteralPath $keyFile)) { $missing += "LLM key file: $keyFile" }
+if (-not (Test-Path -LiteralPath $secretFile)) { $missing += "sign-in secret file: $secretFile" }
+if (-not (Test-Path -LiteralPath $usersFile)) { $missing += "users file (npm run users -- add ...): $usersFile" }
 if (-not (Test-Path -LiteralPath $template)) { $missing += "service template: $template" }
 if ($missing) { throw ("Not installing. Missing:`n  " + ($missing -join "`n  ")) }
 
@@ -89,18 +94,23 @@ $values = @{
     LLM_BASE_URL     = $LlmBaseUrl
     LLM_MODEL        = $LlmModel
     LLM_API_KEY_FILE = $keyFile
+    AUTH_SECRET_FILE = $secretFile
+    AUTH_USERS_FILE  = $usersFile
 }
 $xml = [IO.File]::ReadAllText($template)
 foreach ($name in $values.Keys) { $xml = $xml.Replace('{{' + $name + '}}', [Security.SecurityElement]::Escape($values[$name])) }
 if ($xml -match '\{\{\w+\}\}') { throw "The template uses $($Matches[0]), which this script does not fill." }
 [IO.File]::WriteAllText((Join-Path $binDir "$ServiceId.xml"), $xml, (New-Object Text.UTF8Encoding($false)))
 
-# Access for LocalService: run the wrapper, read releases and Node, write logs and .next\cache.
+# Access for LocalService: run the wrapper, read releases, Node, the key, the secret and the users file,
+# write logs and .next\cache. npm run users rewrites the users file in place, so its grant stays.
 icacls $binDir /grant "${LocalService}:(OI)(CI)RX" | Out-Null
 icacls $releases /grant "${LocalService}:(OI)(CI)RX" | Out-Null
 icacls $logDir /grant "${LocalService}:(OI)(CI)M" | Out-Null
 icacls (Join-Path $DataRoot 'node') /grant "${LocalService}:(OI)(CI)RX" | Out-Null
 icacls $keyFile /grant "${LocalService}:(R)" | Out-Null
+icacls $secretFile /grant "${LocalService}:(R)" | Out-Null
+icacls $usersFile /grant "${LocalService}:(R)" | Out-Null
 $cache = Join-Path $current '.next\cache'
 New-Item -ItemType Directory -Force $cache | Out-Null
 icacls $cache /grant "${LocalService}:(OI)(CI)M" | Out-Null

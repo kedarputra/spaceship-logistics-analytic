@@ -6,6 +6,7 @@ import { modelDisplayName } from "@/ai/config";
 import { AppShell } from "@/components/app-shell";
 import { isRailCollapsed, RAIL_COOKIE } from "@/components/rail-state";
 import { getDataset } from "@/domain/orders";
+import { currentUser } from "./auth";
 import "./globals.css";
 
 // Downloaded at build time and served from this app (ADR 0011 §4): no visitor's browser calls Google.
@@ -16,15 +17,26 @@ export const metadata: Metadata = {
   description: "KPIs, questions in plain language, and demand forecasts over one dataset of logistics orders.",
 };
 
+/**
+ * Every page. Signed in, the shell with the rail for the user's role; signed out, which only the
+ * sign-in page ever is, the page alone on the ground (ticket 31).
+ */
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   // The rail as the viewer last left it (ticket 27), so the first paint has the right width.
   const railCollapsed = isRailCollapsed((await cookies()).get(RAIL_COOKIE)?.value);
+  const user = await currentUser();
   return (
     <html lang="en" className={figtree.variable}>
       <body>
-        <AppShell dataset={getDataset()} modelName={modelDisplayName()} railCollapsed={railCollapsed}>
-          {children}
-        </AppShell>
+        {user === undefined ? (
+          <main id="content" className="grid min-h-dvh place-items-center px-4 py-10">
+            {children}
+          </main>
+        ) : (
+          <AppShell user={user} dataset={getDataset()} modelName={modelDisplayName()} railCollapsed={railCollapsed}>
+            {children}
+          </AppShell>
+        )}
       </body>
     </html>
   );

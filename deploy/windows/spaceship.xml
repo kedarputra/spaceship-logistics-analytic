@@ -19,8 +19,11 @@
   <env name="LLM_BASE_URL" value="{{LLM_BASE_URL}}" />
   <env name="LLM_MODEL" value="{{LLM_MODEL}}" />
   <env name="LLM_API_KEY_FILE" value="{{LLM_API_KEY_FILE}}" />
+  <!-- Sign-in (ADR 0012): the session secret and the accounts, both in files outside the repo. -->
+  <env name="AUTH_SECRET_FILE" value="{{AUTH_SECRET_FILE}}" />
+  <env name="AUTH_USERS_FILE" value="{{AUTH_USERS_FILE}}" />
 
-  <!-- Least privilege: reads the releases and the key file, writes only .next\cache and the logs. -->
+  <!-- Least privilege: reads the releases, the key file, the secret and the users file; writes only .next\cache and the logs. -->
   <serviceaccount>
     <domain>NT AUTHORITY</domain>
     <user>LocalService</user>

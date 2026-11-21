@@ -42,3 +42,7 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Pipeline trace** | The strip in the explanation panel showing R7's stages in order (question, interpretation, tool selected, computation, result, phrasing, chart), each with what happened and its time. A retry, a template fallback, a status rewrite and a rough forecast are flagged. It names why a sentence was dropped, never the model's own words. ADR 0008 §4. |
 | **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |
 | **Gross / net order value** | `order_value_usd` as given (gross), or after the promo discount (net). |
+| **Role** | What a signed-in account may do: Viewer, Analyst or Admin. One matrix in code (`can(role, action)` in `src/auth/roles.ts`) decides it for every page, API route and the rail, with the role the users file gives the account now. ADR 0012. |
+| **Viewer** | The role that reads the dashboards: Overview, Delivery, Carriers, Forecast and Raw data. It cannot ask the data or download. |
+| **Analyst** | The role that also asks the data (`/ask`, `/api/ask`, `/api/run`) and downloads (`/api/orders.csv`). |
+| **Admin** | The role that also imports data and sees the accounts and their roles (`/users`). |

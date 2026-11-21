@@ -3,6 +3,7 @@ import type { InputHTMLAttributes } from "react";
 import { MAX_QUESTION_LENGTH } from "@/tools/examples";
 import { CardTitle } from "./card-title";
 import { Icon } from "./icons";
+import { Spinner } from "./spinner";
 
 /** The Ask page with a question to ask on load. */
 export function askHref(question: string): string {
@@ -35,12 +36,7 @@ export function AskButton({ busy, disabled }: { busy: boolean; disabled: boolean
   return (
     <button type="submit" disabled={busy || disabled} className="button-primary relative h-12 px-6">
       <span className={busy ? "opacity-0" : undefined}>Ask</span>
-      {busy ? (
-        <svg data-spinner aria-hidden="true" viewBox="0 0 24 24" className="absolute inset-0 m-auto size-5 animate-spin" fill="none">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-          <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        </svg>
-      ) : null}
+      {busy ? <Spinner /> : null}
     </button>
   );
 }

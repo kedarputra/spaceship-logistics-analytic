@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { infoLines, visibleText as readerText } from "@/components/markup-text";
 import { METRICS } from "@/domain/definitions";
-import DataPage from "./page";
+import { DataPage } from "./data-page";
 
 // The filter form navigates with Next's router, which only exists inside a running app; the markup is what is under test.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
@@ -27,7 +27,7 @@ function checkboxes(html: string): { field: string; checked: boolean }[] {
   }));
 }
 
-const render = async (params: Record<string, string | string[]> = {}) => renderToStaticMarkup(await DataPage({ searchParams: Promise.resolve(params) }));
+const render = async (params: Record<string, string | string[]> = {}) => renderToStaticMarkup(await DataPage({ searchParams: Promise.resolve(params), role: "analyst" }));
 
 /** Each column heading's text, and its aria-sort when it has one. */
 function headings(html: string): string[] {

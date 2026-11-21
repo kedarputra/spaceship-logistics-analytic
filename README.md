@@ -2,7 +2,7 @@
 
 An AI-powered analytics dashboard for a logistics client, built as Spaceship's AI Engineer technical assessment. It shows KPIs and charts over one CSV of 400 orders, answers questions asked in plain language, and forecasts demand. The model reads the question and words the answer; code computes every number.
 
-- **Live app:** [wms.nalabs.ai](https://wms.nalabs.ai), no login
+- **Live app:** [wms.nalabs.ai](https://wms.nalabs.ai). Sign in with the test accounts in the submission email, one per role (see [Access and roles](#access-and-roles)).
 - **Loom walkthrough:** _added at submission_
 
 ## Setup
@@ -11,15 +11,20 @@ You need Node 22 or later and npm.
 
 ```bash
 npm ci
-npm run dev        # http://localhost:3000
+cp .env.example .env.local                 # set AUTH_SECRET and AUTH_USERS_FILE in it
+npm run users -- add me admin --generate   # prints the password once
+npm run dev                                # http://localhost:3000, sign in as "me"
 ```
 
-The dashboard pages (Overview, Delivery, Carriers, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
+Every page asks you to sign in (ADR 0012), so even a local run needs a session secret and an users file: the `AUTH_` variables below. The dashboard pages (Overview, Delivery, Carriers, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
 
-To turn the ask box on, copy `.env.example` to `.env.local` and set these variables:
+Copy `.env.example` to `.env.local` and set these variables:
 
 | Variable | Default | What it is |
 |---|---|---|
+| `AUTH_SECRET_FILE` | none | The path to a file that holds the key that signs sessions: 32 random bytes or more, base64. The server's way, like the LLM key file. |
+| `AUTH_SECRET` | none | The key itself, for local runs and CI. Set this or `AUTH_SECRET_FILE`, never both. Without a usable key, nothing but `/login` opens, and it says sign-in isn't configured. |
+| `AUTH_USERS_FILE` | none, required | The path to the users file, a JSON list of `{ username, role, passwordHash }` kept outside the repo. `npm run users` creates it. Without it, nobody can sign in. |
 | `LLM_BASE_URL` | `http://127.0.0.1:4000/v1` | An OpenAI-compatible chat-completions endpoint. |
 | `LLM_MODEL` | `chat` | The model name the endpoint expects. |
 | `LLM_API_KEY_FILE` | none, required | The path to a file that holds the key, so the key itself is never in an environment variable or the repo. For an endpoint without keys, any non-empty text works. |
@@ -34,25 +39,46 @@ The app was tested only with Gemma 4 12B behind our gateway. Another OpenAI-comp
 | `npm run build` then `npm start` | The production server. |
 | `npm run smoke:llm` | One call to the configured endpoint: does it answer, and does it enforce `json_schema`? |
 | `npm run eval` | Sends the questions in `eval/questions.json` through the model (see [AI approach](#ai-approach)). Needs the LLM. |
+| `npm run users -- add <username> <role>` | Adds an account to the `AUTH_USERS_FILE` file (or `--file <path>`), asking for its password twice without echo; `--generate` makes one and prints it once instead. `list` shows the accounts and roles, never a hash; `remove <username>` deletes one. |
 
 ## Deployment
 
 Self-hosted on our own server behind a Cloudflare Tunnel. Questions are answered by our own LLM on our own GPU, with no third-party AI provider, and the gateway stores no request bodies. Monitored with phone alerts.
 
-Details in ADR 0010 (hosting) and ADR 0009 (LLM). There is no login.
+Details in ADR 0010 (hosting), ADR 0009 (LLM) and ADR 0012 (sign-in).
 
 | Setting | Value |
 |---|---|
 | Public URL | `https://wms.nalabs.ai` → Cloudflare Tunnel → `next start` on `127.0.0.1:4800` |
 | Process | Windows service `spaceship` (WinSW, LocalService), starts at boot, restarts on crash |
 | Deploys | A watchdog checks `main` every 2 minutes, builds each new commit in its own folder (`npm ci`, `npm run check`), switches over, and rolls back if `/api/health` fails |
-| Environment variables | The ones under [Setup](#setup); the key itself lives in a file outside the repo |
+| Environment variables | The ones under [Setup](#setup); the LLM key, the session secret and the accounts live in files outside the repo |
+| Sign-in | A session cookie signed under the server's secret, for 8 hours; 5 tries a minute per IP and 10 wrong passwords an hour per username, then 429 |
 | Rate limit, `/api/ask` | 20 requests per IP per minute, then 429 ("Too many questions in a minute, try again shortly"); the IP is Cloudflare's `CF-Connecting-IP` |
 | Rate limit, `/api/*` | 120 requests per IP per minute, then 429 |
 | Health check | `GET /api/health` returns `{"rows":400,"anchor":"2025-12-31"}`; `?ai=1` also checks the LLM with a 1-token call, at most once a minute, and answers 503 when it is down |
-| Monitoring | UptimeRobot keyword check every 5 minutes with phone alerts; a daily GitHub Actions check (`.github/workflows/uptime.yml`, also runnable by hand) of the health, the AI and the dashboard page |
+| Monitoring | UptimeRobot keyword check every 5 minutes with phone alerts; a daily GitHub Actions check (`.github/workflows/uptime.yml`, also runnable by hand) of the health, the AI, the dashboard's redirect to `/login`, and the sign-in form |
 
-How the pieces start after a reboot, and the review-window checklist, are in `docs/runbook.md`.
+How the pieces start after a reboot, how to create the accounts, and the review-window checklist are in `docs/runbook.md`.
+
+## Access and roles
+
+Every page asks you to sign in. The test accounts, one per role, are in the submission email; this repository holds no password. What each role can do is one matrix in code (`can(role, action)` in `src/auth/roles.ts`), which pages, API routes and the menu all ask (ADR 0012):
+
+| Action | Viewer | Analyst | Admin |
+|---|---|---|---|
+| Dashboards: Overview, Delivery, Carriers, Forecast, Raw data | yes | yes | yes |
+| Ask the data: `/ask`, `/api/ask`, `/api/run` | no | yes | yes |
+| Downloads: `/api/orders.csv` | no | yes | yes |
+| Import data (planned) | no | no | yes |
+| Users: the accounts and their roles, read-only, at `/users` | no | no | yes |
+
+- **The menu** lists only the pages the role can open, and links to Ask or the CSV show only to roles that can use them.
+- **A page the role can't open** shows "Your role, Viewer, can't open Ask the data.", with links to the Overview and to sign in as someone else. An API route answers 403.
+- **A session** is an HttpOnly cookie signed with HMAC-SHA256, for 8 hours.
+- **Every request** reads the account's role from the users file, so a removed account or a changed role applies at once.
+- **Passwords** are scrypt hashes with a random salt.
+- **Sign-in** says "Wrong username or password." whichever was wrong, and is limited per IP and per username.
 
 ## Architecture
 
@@ -65,9 +91,10 @@ One Next.js 16 app (App Router): its route handlers are the backend, and there i
 | `src/domain/` | The orders and their row schema, the KPI and metric definitions, period resolution, number formats | nothing else in `src/` |
 | `src/tools/` | The query spec (the whitelist), the query tool, the forecast tool, chart choice, the template sentences, and the orders a Raw data view shows | `domain/` |
 | `src/ai/` | The model client, prompts, interpretation, phrasing, the number guard, the question cache | `tools/` |
-| `src/app/`, `src/components/` | Pages, route handlers, the rate-limit proxy, UI | everything above |
+| `src/auth/` | Sign-in and roles: the roles matrix, the session cookie, password hashes, the users file and its CLI | nothing else in `src/` |
+| `src/app/`, `src/components/` | Pages, route handlers, the proxy (rate limits and sessions), UI | everything above |
 
-Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → `domain/`. The AI layer never reads the CSV or computes a figure; it only gets results from the tools. `tests/architecture.test.ts` scans every import and fails on any other edge, so the rule runs inside `npm test` (ADR 0004). This is how the brief's separation of AI interpretation, computation and business logic (R10) is enforced rather than just intended.
+Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → `domain/`. `auth/` stands beside them: only `app/` and `components/` import it, so the data, the tools and the AI never know who is asking. The AI layer never reads the CSV or computes a figure; it only gets results from the tools. `tests/architecture.test.ts` scans every import and fails on any other edge, so the rule runs inside `npm test` (ADR 0004). This is how the brief's separation of AI interpretation, computation and business logic (R10) is enforced rather than just intended.
 
 ### Pages and endpoints
 
@@ -78,15 +105,19 @@ Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → 
 | `/delivery` | Delivery outcomes and the on-time delivery rate per month, and the average delivery time by region and by warehouse |
 | `/carriers` | All 9 carriers: the delay-rate chart, highlights, and a table with every metric |
 | `/forecast` | A forecast for the total or one category, warehouse or region, 1, 3 or 6 months ahead; the method comparison, the plan's arithmetic, and all 22 scopes side by side |
+| `/login` | Sign in: the product name, Username and Password. The only page that opens without a session |
+| `/users` | For admins: the accounts and their roles, read-only |
 | `/data` Raw data | The 400 orders as the file has them, read-only: filters by status, carrier, region, warehouse, category, promo, a month range by order or delivery date, and a search; a sort by any column, pages of 50, a summary of the rows shown, and a CSV download. Every view is a URL, such as `/data?status=delayed&carrier=FedEx` |
 
-The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. Raw data reads its filters with the query spec's schema and picks rows with the query tool's own matching, so it counts the same orders an answer with the same filters counts. A card, bar or table row that shows a count opens those orders in Raw data, and the view shows the same number; a rate with no orders of its own opens the page that breaks it down. An answer on the Ask page opens the orders it was computed over the same way, when every part of its spec is a Raw data filter. A count of 0 has no link. Pointing at a month on a month chart, or moving to it with the arrow keys, shows its values in a tooltip, and a click opens that month's orders. Cards and charts carry no explanatory subtext: a definition, a date basis or a note is in the info popover after the title, one hover, focus or tap away. The pages follow ADR 0011: a dark rail with the six routes, three brand colours, and chart colours checked for colour-blind separation.
+The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. Raw data reads its filters with the query spec's schema and picks rows with the query tool's own matching, so it counts the same orders an answer with the same filters counts. A card, bar or table row that shows a count opens those orders in Raw data, and the view shows the same number; a rate with no orders of its own opens the page that breaks it down. An answer on the Ask page opens the orders it was computed over the same way, when every part of its spec is a Raw data filter. A count of 0 has no link. Pointing at a month on a month chart, or moving to it with the arrow keys, shows its values in a tooltip, and a click opens that month's orders. Cards and charts carry no explanatory subtext: a definition, a date basis or a note is in the info popover after the title, one hover, focus or tap away. The pages follow ADR 0011: a dark rail with the pages the role can open and, at its foot, who is signed in; three brand colours; and chart colours checked for colour-blind separation.
 
 | Endpoint | Does |
 |---|---|
 | `POST /api/ask {question}` | The full flow below. Questions up to 300 characters. |
 | `POST /api/run {spec}` | Runs a spec without the model, validated by the same schema. Follow-up chips and re-runs from the history use it. |
-| `GET /api/health` | Row count and anchor date; with `?ai=1`, the LLM's state and the model name. |
+| `GET /api/health` | Row count and anchor date; with `?ai=1`, the LLM's state and the model name. Public, for the monitors. |
+| `POST /api/login {username, password, next}` | Signs in: the session cookie, and where to go next (only a path on this site). Public. |
+| `POST /api/logout` | Signs out: clears the cookie and returns to `/login`. Public. |
 | `GET /api/orders.csv?…` | The orders of a Raw data view, with the page's own parameters, as CSV: the file's header and raw values, all pages, in the view's sort. |
 
 ### From question to chart
@@ -133,6 +164,7 @@ While the model works, which can take 10 to 18 seconds on a busy GPU, the answer
 | Our own LLM behind our gateway; one structured output; sentences checked by code | 0009 |
 | Self-hosted as a Windows service behind a Cloudflare Tunnel, deployed by a watchdog | 0010 (replaces 0007) |
 | Six pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
+| Sign-in with three roles in one matrix; accounts in a file, sessions in a signed cookie | 0012 (replaces 0007 §3) |
 
 ### Bonus items
 
@@ -244,7 +276,7 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **`order_value_usd` is gross.** Net order value applies `promo_discount_pct`.
 - **Forecasts are monthly units by order date,** for one scope at a time. The candidates are the all-history average, the 3-month moving average, linear regression and Holt's linear trend with fixed parameters. Each is scored on Oct–Dec 2025 after fitting on Jan–Sep. The lowest error wins, a tie goes to the simpler method, and the winner is refit on all 12 months (ADR 0003).
 - **The plan is forecast demand plus safety stock,** rounded up: safety stock = 1.65 × σ × √months, a one-sided 95% service level, with σ from the chosen method's one-step-ahead errors from April 2025. For the total over 3 months: 285 + 119.05 = 404.05, so 405 units to plan for. The data has no stock on hand, so this is a plan, not a reorder quantity.
-- **One server instance.** The cache and the rate limits are in memory, which is reliable only because there is one instance.
+- **One server instance.** The cache, the rate limits and the sign-in limits are in memory, which is reliable only because there is one instance.
 
 ## Limitations and unsupported queries
 
@@ -255,7 +287,8 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **Many groups are small.** No destination reaches 20 deliveries, and only 5 of the 30 clients do, so those rankings are flagged as unreliable rather than named.
 - **The model can misread a question.** The explanation panel shows exactly how it was read, and the eval guards the readings we know about. A sentence that fails the number guard gives way to the plainer template fallback.
 - **One server.** Availability depends on the server's power and internet line. Other workloads share the GPU, so the ask box can answer "busy, try again shortly". After a reboot, the dashboard comes back at once and the ask box when the gateway is up.
-- **History stays in one browser,** and reviewers behind one office IP share the limit of 20 questions a minute.
+- **History stays in one browser,** and reviewers behind one office IP share the limit of 20 questions a minute, and of 5 sign-in tries a minute.
+- **Sessions are not stored on the server.** Removing an account ends its sessions at once, but a changed password does not end the old ones before their 8 hours; changing the secret signs everyone out. Ten wrong passwords in an hour lock a username for the rest of that hour, so someone guessing can lock a shared test account.
 - **Unsupported queries** are listed, with what each gets instead, under [Supported questions](#supported-questions).
 
 ## Future improvements

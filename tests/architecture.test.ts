@@ -5,15 +5,18 @@ import { describe, expect, it } from "vitest";
 // The one-way dependency rule of ADR 0004: app/ and components/ → ai/ → tools/ → domain/.
 // The dashboard in app/ calls domain/ directly; ai/ never imports domain/; nothing below the
 // presentation layer (app/ and components/) imports it, and no one imports app/ (its routes and pages).
-const LAYERS = ["domain", "tools", "ai", "components", "app"] as const;
+// auth/ (sign-in and roles, ADR 0012) stands beside them: it imports nothing else from src/, and only
+// the presentation layer imports it, so the data, the tools and the AI never know who is asking.
+const LAYERS = ["domain", "tools", "ai", "auth", "components", "app"] as const;
 type Layer = (typeof LAYERS)[number];
 
 const MAY_IMPORT: Record<Layer, readonly Layer[]> = {
   domain: ["domain"],
   tools: ["tools", "domain"],
   ai: ["ai", "tools"],
-  components: ["components", "ai", "tools", "domain"],
-  app: ["app", "components", "ai", "tools", "domain"],
+  auth: ["auth"],
+  components: ["components", "auth", "ai", "tools", "domain"],
+  app: ["app", "components", "auth", "ai", "tools", "domain"],
 };
 
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
@@ -131,6 +134,17 @@ describe("dependency rule (ADR 0004)", () => {
   it("treats Next's src/proxy.ts as part of app/: it may import app/, and nothing below may import it", () => {
     expect(findViolations([{ path: "src/proxy.ts", source: 'import { apiRateLimiter } from "@/app/api/rate-limit";' }])).toEqual([]);
     expect(findViolations([{ path: "src/tools/query.ts", source: 'import { proxy } from "@/proxy";' }])).toHaveLength(1);
+  });
+
+  it("keeps auth/ apart: it imports nothing else from src/, and the data, tools and AI never import it (ADR 0012)", () => {
+    expect(findViolations([{ path: "src/auth/users.ts", source: 'import { getDataset } from "@/domain/orders";' }])).toHaveLength(1);
+    expect(findViolations([{ path: "src/ai/interpret.ts", source: 'import { can } from "@/auth/roles";' }])).toHaveLength(1);
+    expect(findViolations([{ path: "src/tools/query.ts", source: 'import { can } from "../auth/roles";' }])).toHaveLength(1);
+    const allowed = [
+      { path: "src/components/rail-nav.tsx", source: 'import { can } from "@/auth/roles";' },
+      { path: "src/proxy.ts", source: 'import { verifySession } from "./auth/session";' },
+    ];
+    expect(findViolations(allowed)).toEqual([]);
   });
 
   it("flags a file outside the layer folders and an import that leaves src/", () => {

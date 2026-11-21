@@ -13,8 +13,8 @@ function links(html: string): [string, boolean][] {
 }
 
 describe("the rail's menu (ADR 0011 §5, ticket 24)", () => {
-  it("lists the six pages, Raw data after Forecast, marking the current one for assistive technology (tickets 25, 28)", () => {
-    expect(links(renderToStaticMarkup(<NavLinks pathname="/" />))).toEqual([
+  it("lists the six pages an analyst can open, Raw data after Forecast, marking the current one for assistive technology (tickets 25, 28)", () => {
+    expect(links(renderToStaticMarkup(<NavLinks pathname="/" role="analyst" />))).toEqual([
       ["Overview", true],
       ["Ask the data", false],
       ["Delivery", false],
@@ -22,8 +22,15 @@ describe("the rail's menu (ADR 0011 §5, ticket 24)", () => {
       ["Forecast", false],
       ["Raw data", false],
     ]);
-    expect(links(renderToStaticMarkup(<NavLinks pathname="/carriers" />)).filter(([, current]) => current)).toEqual([["Carriers", true]]);
-    expect(links(renderToStaticMarkup(<NavLinks pathname="/data" />)).filter(([, current]) => current)).toEqual([["Raw data", true]]);
+    expect(links(renderToStaticMarkup(<NavLinks pathname="/carriers" role="analyst" />)).filter(([, current]) => current)).toEqual([["Carriers", true]]);
+    expect(links(renderToStaticMarkup(<NavLinks pathname="/data" role="analyst" />)).filter(([, current]) => current)).toEqual([["Raw data", true]]);
+  });
+
+  it("lists only the pages the role can open: no Ask for a viewer, and Users for an admin (ticket 31)", () => {
+    const names = (role: "viewer" | "analyst" | "admin") => links(renderToStaticMarkup(<NavLinks pathname="/" role={role} />)).map(([name]) => name);
+    expect(names("viewer")).toEqual(["Overview", "Delivery", "Carriers", "Forecast", "Raw data"]);
+    expect(names("analyst")).toEqual(["Overview", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data"]);
+    expect(names("admin")).toEqual(["Overview", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data", "Users"]);
   });
 });
 
@@ -38,7 +45,7 @@ describe("the rail, collapsed and expanded (ticket 27)", () => {
   const rail = (initiallyCollapsed: boolean) =>
     renderToStaticMarkup(
       <Rail initiallyCollapsed={initiallyCollapsed} brand={<span>Logistics Analytics</span>} dataCard={<p>Data</p>}>
-        <NavLinks pathname="/delivery" />
+        <NavLinks pathname="/delivery" role="analyst" />
       </Rail>,
     );
 
@@ -68,14 +75,14 @@ describe("the rail, collapsed and expanded (ticket 27)", () => {
 
 describe("the shell around every page", () => {
   const html = renderToStaticMarkup(
-    <AppShell dataset={getDataset()} modelName="Gemma 4 12B" railCollapsed={false}>
+    <AppShell user={{ username: "dina", role: "analyst" }} dataset={getDataset()} modelName="Gemma 4 12B" railCollapsed={false}>
       <p>Page content</p>
     </AppShell>,
   );
 
   it("draws the rail as the viewer last left it, so a reload keeps the choice (ticket 27)", () => {
     const collapsed = renderToStaticMarkup(
-      <AppShell dataset={getDataset()} modelName="Gemma 4 12B" railCollapsed>
+      <AppShell user={{ username: "dina", role: "analyst" }} dataset={getDataset()} modelName="Gemma 4 12B" railCollapsed>
         <p>Page content</p>
       </AppShell>,
     );
@@ -98,5 +105,14 @@ describe("the shell around every page", () => {
 
   it("links the data file's name to the orders in Raw data (ticket 28)", () => {
     expect(html).toMatch(/<a [^>]*href="\/data"[^>]*>mock_logistics_data\.csv<\/a>/);
+  });
+
+  it("ends the rail with the username, a role chip and Sign out, a POST to /api/logout (ticket 31)", () => {
+    expect(text(html)).toMatch(/read-only .* dina Analyst Sign out Page content$/);
+    const form = /<form([^>]*)><button type="submit"[^>]*data-tip="Sign out"/.exec(html)?.[1] ?? "";
+    expect(form).toContain('action="/api/logout"');
+    expect(form).toContain('method="post"');
+    // Collapsed, the account's icon names who it is.
+    expect(html).toContain('data-tip="dina · Analyst"');
   });
 });

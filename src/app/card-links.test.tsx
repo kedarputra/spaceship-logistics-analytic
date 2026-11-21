@@ -4,11 +4,11 @@ import { ordersHref } from "@/components/orders-href";
 import { paramsRecord } from "@/components/orders-url";
 import { type Answer, answerQuery } from "@/tools/answer";
 import { querySpecSchema } from "@/tools/spec";
-import CarriersPage from "./carriers/page";
-import DataPage from "./data/page";
-import DeliveryPage from "./delivery/page";
-import ForecastPage from "./forecast/page";
-import OverviewPage from "./page";
+import { CarriersPage } from "./carriers/carriers-page";
+import { DataPage } from "./data/data-page";
+import { DeliveryPage } from "./delivery/delivery-page";
+import { ForecastPage } from "./forecast/forecast-page";
+import { OverviewPage } from "./overview-page";
 
 // Raw data's filter form navigates with Next's router, which only exists inside a running app; the markup is what is under test.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
@@ -50,7 +50,7 @@ function hrefNamed(html: string, name: string): string {
 async function ordersShown(href: string): Promise<number> {
   const url = new URL(href, "http://localhost");
   expect(url.pathname).toBe("/data");
-  const html = renderToStaticMarkup(await DataPage({ searchParams: Promise.resolve(paramsRecord(url.searchParams)) }));
+  const html = renderToStaticMarkup(await DataPage({ searchParams: Promise.resolve(paramsRecord(url.searchParams)), role: "analyst" }));
   expect(html).not.toContain('aria-label="Not applied"');
   const summary = visibleText(html.slice(html.indexOf('aria-label="Summary"'), html.indexOf("</section>", html.indexOf('aria-label="Summary"'))));
   const count = /Orders ([\d,]+) of/.exec(summary)?.[1];
@@ -65,10 +65,10 @@ function nestsInteractive(html: string): boolean {
 
 const DELIVERED = "status=delivered&status=delayed&status=exception";
 
-const overview = renderToStaticMarkup(<OverviewPage />);
+const overview = renderToStaticMarkup(<OverviewPage role="analyst" />);
 const delivery = renderToStaticMarkup(<DeliveryPage />);
-const carriers = renderToStaticMarkup(<CarriersPage />);
-const forecast = renderToStaticMarkup(await ForecastPage({ searchParams: Promise.resolve({}) }));
+const carriers = renderToStaticMarkup(<CarriersPage role="analyst" />);
+const forecast = renderToStaticMarkup(await ForecastPage({ searchParams: Promise.resolve({}), role: "analyst" }));
 
 // Expected figures: the ticket's table and docs/data.md. "Delivered" is status delivered, delayed or exception: the 370.
 describe("the Overview's cards open what explains them (ticket 29)", () => {
@@ -210,7 +210,7 @@ describe("the Forecast page's scope cards open their forecast (ticket 29)", () =
   it("a scope card opens the page with that scope chosen: BOOK, plan 53", async () => {
     const href = hrefNamed(forecast, "BOOK: view the forecast");
     expect(href).toBe("/forecast?scope=category&value=BOOK");
-    const chosen = renderToStaticMarkup(await ForecastPage({ searchParams: Promise.resolve(Object.fromEntries(new URL(href, "http://localhost").searchParams)) }));
+    const chosen = renderToStaticMarkup(await ForecastPage({ searchParams: Promise.resolve(Object.fromEntries(new URL(href, "http://localhost").searchParams)), role: "analyst" }));
     // docs/data.md: BOOK over 3 months, plan 53 (36 + 17).
     expect(visibleText(chosen)).toContain("Category BOOK · Jan–Mar 2026");
     expect(visibleText(chosen)).toMatch(/Units to plan for 53 Forecast demand 36 Safety stock 17/);

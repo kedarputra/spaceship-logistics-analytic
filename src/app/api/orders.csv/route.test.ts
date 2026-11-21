@@ -1,14 +1,24 @@
 import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestAccounts } from "@/auth/testing";
 import { proxy } from "@/proxy";
 import { GET } from "./route";
+
+// Downloads are for analysts and admins (ticket 31); the roles themselves are tested in app/access.test.tsx.
+const accounts = createTestAccounts();
+afterAll(() => accounts.remove());
+beforeEach(() => {
+  vi.stubEnv("AUTH_SECRET", accounts.env.AUTH_SECRET);
+  vi.stubEnv("AUTH_SECRET_FILE", "");
+  vi.stubEnv("AUTH_USERS_FILE", accounts.env.AUTH_USERS_FILE);
+});
 
 const FILE = readFileSync("data/mock_logistics_data.csv", "utf8");
 const [HEADER] = FILE.split("\n");
 
 function download(query = ""): Promise<Response> {
-  return Promise.resolve(GET(new NextRequest(`http://localhost/api/orders.csv${query}`)));
+  return Promise.resolve(GET(new NextRequest(`http://localhost/api/orders.csv${query}`, { headers: { cookie: accounts.cookie("analyst") } })));
 }
 
 const lines = (body: string) => body.split("\n").filter((line) => line !== "");
@@ -47,7 +57,7 @@ describe("GET /api/orders.csv: the Raw data view as a file (ticket 28)", () => {
   });
 
   it("counts toward the per-IP /api/* limit: 120 a minute, then 429", () => {
-    const request = () => proxy(new NextRequest("http://localhost/api/orders.csv", { headers: { "cf-connecting-ip": "203.0.113.28" } }));
+    const request = () => proxy(new NextRequest("http://localhost/api/orders.csv", { headers: { "cf-connecting-ip": "203.0.113.28", cookie: accounts.cookie("analyst") } }));
     const responses = Array.from({ length: 121 }, request);
     expect(responses.slice(0, 120).every((response) => response.headers.get("x-middleware-next") === "1")).toBe(true);
     expect(responses[120]?.status).toBe(429);

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { infoLines, visibleText } from "@/components/markup-text";
-import AskPage from "./page";
+import { AskPage } from "./ask-page";
 
 const render = async (q?: string | string[]) => renderToStaticMarkup(await AskPage({ searchParams: Promise.resolve(q === undefined ? {} : { q }) }));
 

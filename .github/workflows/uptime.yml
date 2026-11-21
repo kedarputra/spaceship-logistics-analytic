@@ -1,7 +1,7 @@
 name: Uptime
 
-# The daily outside check of the live app (ADR 0010 §6): the dataset health, the AI health and the
-# dashboard page on https://wms.nalabs.ai. It reads only public URLs and uses only the built-in
+# The daily outside check of the live app (ADR 0010 §6): the dataset health, the AI health, and the
+# dashboard's redirect to the sign-in page and that page's form (ticket 31) on https://wms.nalabs.ai. It reads only public URLs and uses only the built-in
 # token, so it needs no secrets. A failure opens an issue assigned to the repository owner (or
 # comments on the one already open), so the owner hears of it whoever last pushed this file.
 # UptimeRobot covers the minutes in between.
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   check:
-    name: health, AI and dashboard
+    name: health, AI and sign-in
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

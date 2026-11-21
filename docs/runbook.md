@@ -1,6 +1,6 @@
 # Runbook
 
-How the deployed app runs and comes back after a reboot. Decisions behind it: ADR 0009 (LLM) and ADR 0010 (hosting). Operator-only steps, such as remote access to the server, are in a private runbook that is not part of this repository.
+How the deployed app runs, comes back after a reboot, and gets its accounts. Decisions behind it: ADR 0009 (LLM), ADR 0010 (hosting) and ADR 0012 (sign-in). Operator-only steps, such as remote access to the server, are in a private runbook that is not part of this repository.
 
 ## What runs where
 
@@ -29,6 +29,7 @@ From submission until Spaceship confirms the review is over. If there is no word
 - [ ] Keep the gateway's active chat model at `gemma12` (Gemma 4 12B); do not switch models.
 - [ ] Keep heavy GPU work off the server, and hold long-running jobs. Other internal workloads' long generations (some allow 16,000 tokens) can hold all three GPU slots, and reviewers then get "busy, try again shortly".
 - [ ] Confirm UptimeRobot alerts reach the phone app and email.
+- [ ] Each of the three test accounts signs in on `https://wms.nalabs.ai`, and its password is in the submission email only.
 
 **Off (after Spaceship confirms, or the recruiter agrees):**
 - [ ] Resume Windows Update.
@@ -85,3 +86,65 @@ sc.exe start spaceship
 ```
 
 To retry a commit that failed for a passing reason, such as a network error during `npm ci`, delete its line from `.buruk`. `Disable-ScheduledTask 'Spaceship Deploy Watchdog'` pauses deploys and the health restarts with them; `Enable-ScheduledTask` resumes both.
+
+## Accounts
+
+Sign-in (ADR 0012) needs two files in the data root, outside the repository. They must exist, and the service must name them, before a release with sign-in goes live; otherwise nobody can sign in.
+
+| File | Holds | Variable in the service definition |
+|---|---|---|
+| `C:\ProgramData\spaceship\auth-secret.txt` | 32 random bytes, base64: the key that signs sessions | `AUTH_SECRET_FILE` |
+| `C:\ProgramData\spaceship\users.json` | The accounts, a JSON list of `{ username, role, passwordHash }` | `AUTH_USERS_FILE` |
+
+### First setup
+
+From an elevated PowerShell, in any checkout of this repository that has the sign-in commit and `npm ci` done (the CLI needs its `node_modules`):
+
+```powershell
+$env:Path = $env:Path.Replace('"','')
+$data = 'C:\ProgramData\spaceship'
+
+# 1. The secret, written straight to its file: it never shows on screen or in the history.
+$bytes = New-Object byte[] 32
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create(); $rng.GetBytes($bytes); $rng.Dispose()
+[IO.File]::WriteAllText("$data\auth-secret.txt", [Convert]::ToBase64String($bytes))
+
+# 2. One test account per role. Each prints its password once: copy it into the submission email draft, nowhere else.
+npm run users -- add viewer viewer --generate --file "$data\users.json"
+npm run users -- add analyst analyst --generate --file "$data\users.json"
+npm run users -- add admin admin --generate --file "$data\users.json"
+
+# 3. LocalService, which runs the app, may read both files.
+icacls "$data\auth-secret.txt" /grant '*S-1-5-19:(R)'
+icacls "$data\users.json" /grant '*S-1-5-19:(R)'
+```
+
+4. **The service definition.** `deploy\windows\install-service.ps1` fills in both variables on an install. For the live service, add these two lines beside `LLM_API_KEY_FILE` in `C:\ProgramData\spaceship\service\spaceship.xml`, then restart it (see "Forced restart" above):
+
+   ```xml
+   <env name="AUTH_SECRET_FILE" value="C:\ProgramData\spaceship\auth-secret.txt" />
+   <env name="AUTH_USERS_FILE" value="C:\ProgramData\spaceship\users.json" />
+   ```
+
+5. **Check it.** `http://127.0.0.1:4800/` redirects to `/login`, `/login` shows Username and Password, and each test account signs in. Then push.
+
+Without `--generate`, `npm run users -- add` asks for the password twice, without echo, so it lands in no history or log. It needs at least 12 characters.
+
+### Later changes
+
+- **Remove an account:** `npm run users -- remove <username> --file "$data\users.json"`. It is signed out on its next request.
+- **Change a role or a password:** remove the account, then add it again. A changed role applies on the next request.
+- **List the accounts:** `npm run users -- list --file "$data\users.json"`. It shows usernames and roles, never a hash.
+- **Sign everyone out:** write a new secret (step 1) and restart the service. A new password alone does not end the old sessions before their 8 hours.
+
+The CLI rewrites `users.json` in place, so LocalService's read grant stays. The app reads the file again whenever it changes; the secret is read once, so a new secret needs a restart.
+
+### When sign-in is broken
+
+If the secret file is missing, unreadable, empty or under 32 bytes, both variables are set, or `users.json` is missing, unreadable or not valid, the app fails closed:
+
+- `/login` says "Sign-in isn't configured on this server." and shows no form.
+- Every other page redirects to `/login`, and API routes answer 503.
+- The service's error log in `C:\ProgramData\spaceship\logs` has a line `Sign-in is off: <reason>.`, which never holds a secret.
+
+`/api/health` still answers `"rows":400`, so the watchdog keeps such a release live and UptimeRobot stays green. The daily GitHub Actions check fails on "sign-in page renders".

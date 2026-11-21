@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { infoLines, visibleText } from "@/components/markup-text";
-import OverviewPage from "./page";
+import { OverviewPage } from "./overview-page";
 
 /** The contents of the element whose aria-label or heading id is `name`, as text. */
 function section(html: string, name: string): string {
@@ -14,7 +14,7 @@ function section(html: string, name: string): string {
 /** A link to `href` whose text starts with `text`. */
 const linkTo = (href: string, text: string) => new RegExp(`<a[^>]*href="${href}"[^>]*>${text}`);
 
-const html = renderToStaticMarkup(<OverviewPage />);
+const html = renderToStaticMarkup(<OverviewPage role="analyst" />);
 const text = visibleText(html);
 
 describe("the Overview page (ticket 24, figures from docs/design/README.md)", () => {

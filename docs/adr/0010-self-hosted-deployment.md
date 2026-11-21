@@ -22,6 +22,8 @@ The direction changed on 20 Nov: the app runs on our own home server (Windows 11
 ## Decision
 
 1. **Hosting.** `next start` on `127.0.0.1:4800`, published at `https://wms.nalabs.ai` through the existing named tunnel. No Cloudflare Access and no login, so reviewers get straight in. Only the app is public; the gateway never is.
+
+   _Amended 21 Nov 2026 (ticket 31): the "no login" part is superseded by ADR 0012. The app now has its own sign-in with three roles, and the submission email gives one test account per role. There is still no Cloudflare Access. The service also gets `AUTH_SECRET_FILE` and `AUTH_USERS_FILE` (§3), and LocalService reads both files. `/api/health` stays public for the monitors (§6), and the GitHub Actions check now looks for the redirect to `/login` and the sign-in form instead of the dashboard page._
 2. **Node.** A pinned portable Node 24 (the official zip, SHA-256 checked) in `C:\ProgramData\spaceship\node`, with read and execute granted to LocalService. The service and the watchdog's builds both use that `node.exe`. The machine and user PATH are not changed.
 3. **Windows service** (WinSW, id `spaceship`), mirroring our other services.
    - **Account and startup:** LocalService; automatic start, delayed; below-normal priority.

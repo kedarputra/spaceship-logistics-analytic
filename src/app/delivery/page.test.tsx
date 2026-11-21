@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { infoLines, visibleText } from "@/components/markup-text";
 import { METRICS } from "@/domain/definitions";
-import DeliveryPage from "./page";
+import { DeliveryPage } from "./delivery-page";
 
 /** The text of the element labelled `name` (aria-label or the id of its heading), up to its end. */
 function part(html: string, name: string, end = "</section>"): string {

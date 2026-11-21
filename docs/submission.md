@@ -12,7 +12,7 @@
 
 ## Checklist before sending
 
-- [ ] Deployed URL works in a private window on another device, with no login.
+- [ ] Deployed URL works in a private window on another device: `/` goes to the sign-in page, and each of the three test accounts signs in and sees what its role allows (ADR 0012).
 - [ ] `GET /api/health` on the deployed URL returns `{"rows":400,"anchor":"2025-12-31"}` (ADR 0005).
 - [ ] `GET /api/health?ai=1` reports the AI as up and the model as Gemma 4 12B (`ACTIVE = gemma12`).
 - [ ] The `spaceship` Windows service survives a reboot test: after a restart, the dashboard answers without anyone logging in (ADR 0010).
@@ -29,7 +29,24 @@
 - [ ] No secrets in the repository or its git history.
 - [ ] Reviewers can open the repository: public, or access granted to the addresses in Spaceship's email.
 - [ ] The Loom is set to "anyone with the link can view".
-- [ ] Reply-all to Spaceship's email: repository link, deployed URL, credentials if any, Loom link.
+- [ ] Reply-all to Spaceship's email: repository link, deployed URL, the three test accounts, Loom link (see [The email](#the-email)).
+
+## The email
+
+Reply-all to Spaceship's email with:
+
+- **Repository:** the link.
+- **Live app:** `https://wms.nalabs.ai`, with the hosting sentence of ADR 0010 §9.
+- **Test accounts,** one per role (ADR 0012). The passwords are made on the server with `npm run users -- add <username> <role> --generate` (`docs/runbook.md`, "Accounts"). They go in the email only, never in this repository.
+
+  | Username | Role | Can |
+  |---|---|---|
+  | `viewer` | Viewer | the dashboards: Overview, Delivery, Carriers, Forecast, Raw data |
+  | `analyst` | Analyst | also Ask the data and the CSV download |
+  | `admin` | Admin | also the list of accounts and their roles |
+
+  Each line of the email adds the password after the username.
+- **Loom:** the link.
 
 ## Loom script (about 5 minutes)
 
