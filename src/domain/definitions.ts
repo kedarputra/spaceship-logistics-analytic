@@ -1,5 +1,5 @@
 import type { Order } from "./orders";
-import { type Bucket, type BucketUnit, daysBetween, groupByBucket, type Period } from "./periods";
+import { type Bucket, type BucketUnit, daysBetween, groupByBucket, isInPeriod, type Period } from "./periods";
 
 /**
  * The one home of the KPI definitions (ADR 0001, Reading B). The dashboard and the query tool
@@ -343,6 +343,11 @@ export function orderCountOverTime(orders: readonly Order[], period: Period, uni
   return perBucket(orders, (order) => order.order_date, period, unit, (items) => items.length);
 }
 
+/** Delivered orders per week or month, dated by delivery_date (ADR 0002 §5): a bucket's count, never its outcomes summed (ADR 0011 §3). */
+export function deliveredOrdersOverTime(orders: readonly Order[], period: Period, unit: BucketUnit): BucketValue<number>[] {
+  return perBucket(orders, (order) => order.delivery_date, period, unit, (items) => deliveredOrders(items).length);
+}
+
 /** Delivery outcomes per week or month, dated by delivery_date (ADR 0002 §5). */
 export function deliveryOutcomesOverTime(
   orders: readonly Order[],
@@ -541,4 +546,38 @@ export function groupFigures(orders: readonly Order[]): GroupFigures {
 /** A group's gross value as a share of the gross value of `all` (ticket 33). */
 export function shareOfValue(group: readonly Order[], all: readonly Order[]): Ratio {
   return ratio(grossOrderValue(group), grossOrderValue(all));
+}
+
+/**
+ * The orders whose `dateField` falls in a period (ADR 0002 §5): the orders placed in it by order date,
+ * the orders delivered in it by delivery date. An order not delivered is in no period by delivery date.
+ */
+export function ordersDatedIn(orders: readonly Order[], period: Period, dateField: DateField): Order[] {
+  return orders.filter((order) => isInPeriod(order[dateField], period));
+}
+
+/**
+ * A group's figures over a period, each on its own date (ticket 34, ADR 0002 §5): its orders, units and
+ * gross value from the orders placed in the period, its delivered orders, rates, average and small-sample
+ * flag from the orders delivered in it. Over all the data both are every order, and it is groupFigures.
+ */
+export function periodFigures(placed: readonly Order[], delivered: readonly Order[]): GroupFigures {
+  const { orders, units, grossValue } = groupFigures(placed);
+  return { ...groupFigures(delivered), orders, units, grossValue };
+}
+
+/** How far a figure moved from the period before (ticket 34): current − previous; null when either has no value. */
+export function change(current: number | null, previous: number | null): number | null {
+  return current === null || previous === null ? null : current - previous;
+}
+
+/** How far a rate moved from the period before, in percentage points (ticket 34): 84.2% after 81.8% is +2.4. */
+export function pointsChange(current: Ratio, previous: Ratio): number | null {
+  const moved = change(current.value, previous.value);
+  return moved === null ? null : moved * 100;
+}
+
+/** How far a gross value moved, to the cent, so floating point leaves no 688.9599… (ticket 34). */
+export function valueChange(current: number, previous: number): number {
+  return (cents(current) - cents(previous)) / 100;
 }

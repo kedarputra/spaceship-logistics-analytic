@@ -69,6 +69,30 @@ export function formatDays(value: number | null): string {
   return formatMetricValue(value, "days");
 }
 
+/** The unit a change is shown in: a rate's change in percentage points, the rest in their own unit. */
+export type ChangeUnit = Exclude<MetricDefinition["unit"], "percent"> | "points";
+
+/** How each unit's change is rounded and written, from its size. */
+const CHANGE_UNITS: Record<ChangeUnit, { decimals: number; write: (size: number) => string }> = {
+  orders: { decimals: 0, write: formatCount },
+  units: { decimals: 0, write: formatCount },
+  USD: { decimals: 2, write: formatUsd },
+  points: { decimals: 1, write: (size) => `${size.toFixed(1)} points` },
+  days: { decimals: 1, write: (size) => `${size.toFixed(1)} days` },
+};
+
+/**
+ * A change against the period before (ticket 34), signed, with a minus sign for a fall: "+2.4 points",
+ * "−2", "+$688.96", "+0.4 days". Its size is rounded as the figure itself is shown, an exact half away
+ * from zero either way, and a change that rounds to nothing has no sign. "n/a" with nothing to compare.
+ */
+export function formatChange(value: number | null, unit: ChangeUnit): string {
+  if (value === null) return NOT_AVAILABLE;
+  const { decimals, write } = CHANGE_UNITS[unit];
+  const size = Number(toFixedHalfUp(Math.abs(value), decimals));
+  return size === 0 ? write(size) : `${value > 0 ? "+" : "−"}${write(size)}`;
+}
+
 /** A rate's numerator and denominator in words: "304 of 370". */
 export function formatOf({ numerator, denominator }: Pick<Ratio, "numerator" | "denominator">): string {
   return `${formatCount(numerator)} of ${formatCount(denominator)}`;

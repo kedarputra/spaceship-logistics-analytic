@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   abcClasses,
   averageDeliveryDays,
+  cents,
+  change,
   dashboardKpis,
   deliveredOrders,
+  deliveredOrdersOverTime,
   deliveryOutcomes,
   deliveryOutcomesOverTime,
   exceptionRate,
   groupFigures,
+  grossOrderValue,
   isRateOrAverage,
   longestCompletedDelivery,
   type MetricDefinition,
@@ -17,11 +21,15 @@ import {
   type MetricId,
   onTimeRate,
   orderCountOverTime,
+  ordersDatedIn,
   overdueInTransit,
+  periodFigures,
+  pointsChange,
   ratio,
   shareOfValue,
   transitAge,
   transitAgeBuckets,
+  valueChange,
 } from "./definitions";
 import { getDataset, type Order } from "./orders";
 
@@ -521,5 +529,59 @@ describe("what a group of orders adds up to: a warehouse, a lane, a client or a 
     expect(ewr).toMatchObject({ orders: 49, units: 183, delivered: 46, onTimeRate: { numerator: 37, denominator: 46 }, smallSample: false });
     expect(ewr.grossValue).toBeCloseTo(2252.69, 2);
     expect(ewr.averageDeliveryDays.value ?? Number.NaN).toBeCloseTo(3.57, 2);
+  });
+});
+
+describe("a month and the month before (ticket 34)", () => {
+  const { orders } = getDataset();
+  const november = { from: "2025-11-01", to: "2025-11-30" };
+  const october = { from: "2025-10-01", to: "2025-10-31" };
+
+  it("dates each order by its own field: 24 placed in Nov 2025 by order date, 19 delivered by delivery date", () => {
+    expect(ordersDatedIn(orders, november, "order_date")).toHaveLength(24);
+    expect(ordersDatedIn(orders, november, "delivery_date")).toHaveLength(19);
+    // An order not delivered has no delivery date, so no period by delivery date holds it.
+    expect(ordersDatedIn([order("in_transit", "2025-11-03", null)], november, "delivery_date")).toEqual([]);
+  });
+
+  it("adds up a period with each figure on its own date (ADR 0002 §5): orders, units and value placed, rates delivered", () => {
+    const figures = periodFigures(ordersDatedIn(orders, november, "order_date"), ordersDatedIn(orders, november, "delivery_date"));
+    expect(figures).toMatchObject({ orders: 24, units: 113, delivered: 19, onTimeRate: { numerator: 16, denominator: 19 }, delayRate: { numerator: 3, denominator: 19 }, smallSample: true });
+    expect(cents(figures.grossValue)).toBe(160098);
+    expect(figures.averageDeliveryDays.value ?? Number.NaN).toBeCloseTo(3.7368, 4);
+    // Over all the data both sets are every order, and it is groupFigures.
+    expect(periodFigures(orders, orders)).toEqual(groupFigures(orders));
+  });
+
+  it("gives how far a figure moved: Nov's 24 orders placed against Oct's 26 is −2, and nothing to compare is no change", () => {
+    expect(change(24, 26)).toBe(-2);
+    expect(change(113, 79)).toBe(34);
+    expect(change(null, 26)).toBeNull();
+    expect(change(24, null)).toBeNull();
+  });
+
+  it("gives a rate's move in percentage points: Nov's on-time rate is +2.39 against Oct's (16 of 19 against 18 of 22)", () => {
+    expect(pointsChange(ratio(16, 19), ratio(18, 22)) ?? Number.NaN).toBeCloseTo(2.3923, 4);
+    expect(pointsChange(ratio(22, 26), ratio(16, 19)) ?? Number.NaN).toBeCloseTo(0.4049, 4);
+    expect(pointsChange(ratio(3, 19), ratio(0, 0))).toBeNull();
+  });
+
+  it("counts the deliveries completed in each week of Nov 2025, by delivery date: 1, 4, 3, 8 and 3", () => {
+    const weeks = deliveredOrdersOverTime(orders, november, "week");
+    expect(weeks.map(({ bucket, value }) => [bucket.label, value])).toEqual([
+      ["w/c 27 Oct", 1],
+      ["w/c 3 Nov", 4],
+      ["w/c 10 Nov", 3],
+      ["w/c 17 Nov", 8],
+      ["w/c 24 Nov", 3],
+    ]);
+    // An order not delivered has no week of delivery.
+    expect(deliveredOrdersOverTime([order("in_transit", "2025-11-03", null)], november, "week").every(({ value }) => value === 0)).toBe(true);
+  });
+
+  it("gives a gross value's move to the cent: USD 1,600.98 against 912.02 is exactly 688.96", () => {
+    const placed = (period: typeof november) => grossOrderValue(ordersDatedIn(orders, period, "order_date"));
+    expect(valueChange(placed(november), placed(october))).toBe(688.96);
+    expect(valueChange(0.1 + 0.2, 0.3)).toBe(0);
   });
 });

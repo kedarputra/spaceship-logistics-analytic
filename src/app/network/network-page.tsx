@@ -5,6 +5,7 @@ import { Icon } from "@/components/icons";
 import type { FilterValues } from "@/components/orders-href";
 import type { SearchParams } from "@/components/orders-url";
 import { PageHeader } from "@/components/page-header";
+import { SCORECARD_HEADERS, scorecardCells } from "@/components/scorecard-cells";
 import { Tag } from "@/components/tag";
 import { Table } from "@/components/text-table";
 import { type GroupFigures, SMALL_SAMPLE_MIN_DELIVERED } from "@/domain/definitions";
@@ -23,17 +24,6 @@ import {
 } from "@/tools/network";
 
 const NETWORK_PATH = "/network";
-
-const SCORECARD_HEADERS: Record<ScorecardColumn, string> = {
-  warehouse: "Warehouse",
-  order_count: "Orders",
-  units: "Units",
-  gross_order_value: "Gross value",
-  delivered_orders: "Delivered",
-  on_time_rate: "On-time rate",
-  delay_rate: "Delay rate",
-  average_delivery_time: "Avg delivery time",
-};
 
 const RATES_NOTE = "Rates and the average delivery time are over delivered orders.";
 
@@ -82,19 +72,6 @@ function SmallSample({ figures }: { figures: GroupFigures }) {
       <Tag tone="warn">small sample</Tag>
     </span>
   ) : null;
-}
-
-/** A row's figures in the scorecard's columns after the name. */
-function scorecardCells(figures: GroupFigures): string[] {
-  return [
-    formatCount(figures.orders),
-    formatCount(figures.units),
-    formatUsd(figures.grossValue),
-    formatCount(figures.delivered),
-    formatPercent(figures.onTimeRate.value),
-    formatPercent(figures.delayRate.value),
-    formatDays(figures.averageDeliveryDays.value),
-  ];
 }
 
 /**

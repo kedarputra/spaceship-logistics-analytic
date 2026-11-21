@@ -75,6 +75,20 @@ const PATHS = {
     </>
   ),
   download: <path d="M12 4v11M7 10.5l5 4.5 5-4.5M5 20h14" />,
+  /** A page of a report, with lines of text (ticket 34). */
+  report: (
+    <>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5M9 13h6M9 17h4" />
+    </>
+  ),
+  /** A download the role may not make (ticket 34). */
+  lock: (
+    <>
+      <rect x="5" y="11" width="14" height="9.5" rx="2" />
+      <path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" />
+    </>
+  ),
   alert: (
     <>
       <path d="M10.3 4.2a2 2 0 0 1 3.4 0l7.4 12.8a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3z" />

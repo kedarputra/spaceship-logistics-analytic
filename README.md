@@ -16,7 +16,7 @@ npm run users -- add me admin --generate   # prints the password once
 npm run dev                                # http://localhost:3000, sign in as "me"
 ```
 
-Every page asks you to sign in (ADR 0012), so even a local run needs a session secret and an users file: the `AUTH_` variables below. The dashboard pages (Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
+Every page asks you to sign in (ADR 0012), so even a local run needs a session secret and an users file: the `AUTH_` variables below. The dashboard pages (Overview, Needs attention, Delivery, Carriers, Inventory, Network, Reports, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
 
 Copy `.env.example` to `.env.local` and set these variables:
 
@@ -67,13 +67,13 @@ Every page asks you to sign in. The test accounts, one per role, are in the subm
 
 | Action | Viewer | Analyst | Admin |
 |---|---|---|---|
-| Dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast, Raw data | yes | yes | yes |
+| Dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Reports, Forecast, Raw data | yes | yes | yes |
 | Ask the data: `/ask`, `/api/ask`, `/api/run` | no | yes | yes |
-| Downloads: `/api/orders.csv` | no | yes | yes |
+| Downloads: `/api/orders.csv`, and the monthly report as `/api/reports/<YYYY-MM>.pdf` and `.csv` | no | yes | yes |
 | Import data (planned) | no | no | yes |
 | Users: the accounts and their roles, read-only, at `/users` | no | no | yes |
 
-- **The menu** lists only the pages the role can open, and links to Ask or the CSV show only to roles that can use them.
+- **The menu** lists only the pages the role can open, and links to Ask or the CSV show only to roles that can use them. On Reports, a viewer sees the three downloads disabled, with a lock and "Analyst role needed".
 - **A page the role can't open** shows "Your role, Viewer, can't open Ask the data.", with links to the Overview and to sign in as someone else. An API route answers 403.
 - **A session** is an HttpOnly cookie signed with HMAC-SHA256, for 8 hours.
 - **Every request** reads the account's role from the users file, so a removed account or a changed role applies at once.
@@ -82,14 +82,14 @@ Every page asks you to sign in. The test accounts, one per role, are in the subm
 
 ## Architecture
 
-One Next.js 16 app (App Router): its route handlers are the backend, and there is no separate service. React 19, TypeScript 7 in strict mode, Tailwind 4, Recharts 3 and Zod 4, tested with Vitest 5. There is no database and no SQL: the 400 orders are parsed from the CSV once per server instance, validated row by row, and kept in memory (ADR 0005). The LLM is called with plain `fetch`, without an SDK.
+One Next.js 16 app (App Router): its route handlers are the backend, and there is no separate service. React 19, TypeScript 7 in strict mode, Tailwind 4, Recharts 3 and Zod 4, tested with Vitest 5. The monthly report's PDF is drawn on the server with pdfkit 0.20, pinned: a long-maintained, pure-JavaScript library with no headless browser, no native build and no install script in its dependency tree, which embeds the repository's own Figtree file (OFL, in `assets/fonts/figtree/`), so a report needs no network call and nothing in it leaves the server. Next takes it from `node_modules` as it is (`serverExternalPackages`). There is no database and no SQL: the 400 orders are parsed from the CSV once per server instance, validated row by row, and kept in memory (ADR 0005). The LLM is called with plain `fetch`, without an SDK.
 
 ### Layers
 
 | Folder | Holds | May import |
 |---|---|---|
 | `src/domain/` | The orders and their row schema, the KPI and metric definitions, period resolution, number formats | nothing else in `src/` |
-| `src/tools/` | The query spec (the whitelist), the query tool, the forecast tool, chart choice, the template sentences, the orders a Raw data view shows, and the groupings of the Needs attention, Inventory and Network pages | `domain/` |
+| `src/tools/` | The query spec (the whitelist), the query tool, the forecast tool, chart choice, the template sentences, the orders a Raw data view shows, the groupings of the Needs attention, Inventory and Network pages, and the monthly report and its CSV | `domain/` |
 | `src/ai/` | The model client, prompts, interpretation, phrasing, the number guard, the question cache | `tools/` |
 | `src/auth/` | Sign-in and roles: the roles matrix, the session cookie, password hashes, the users file and its CLI | nothing else in `src/` |
 | `src/app/`, `src/components/` | Pages, route handlers, the proxy (rate limits and sessions), UI | everything above |
@@ -107,6 +107,7 @@ Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → 
 | `/carriers` | All 9 carriers: the delay-rate chart, highlights, and a table with every metric |
 | `/inventory` | The 355 SKUs in ABC classes by gross value (A 174 SKUs make 80% of the value, B 103 the next 15%, C 78 the rest), the Pareto curve with the 80% and 95% limits, the top 10 SKUs, and the 8 categories with their share of value. A SKU opens its orders in Raw data; a category its orders and its forecast |
 | `/network` | The warehouse scorecard (orders, units, gross value, delivered, on-time and delay rates, average delivery time), sortable by any column, with the best and worst on-time rate marked; the 47 lanes from origin to destination, all small samples; and the 30 clients by value, the way a 3PL reports per customer. Every row opens its orders in Raw data |
+| `/reports` Reports | The monthly WMS report for any month of the data, the anchor's month first: orders placed (by order date) and deliveries completed (by delivery date), each beside the month before with the change, rates in points; the delivery outcomes, and per week as a chart; the carriers; Network's warehouse scorecard for the month; the top 5 categories and SKUs by gross value; and the orders placed that month still in transit on the anchor date, or canceled. The same report downloads as a PDF (A4, one or two pages) or a CSV, and every order as CSV; an admin also gets the link to import data |
 | `/forecast` | A forecast for the total or one category, warehouse or region, 1, 3 or 6 months ahead; the method comparison, the plan's arithmetic, and all 22 scopes side by side |
 | `/login` | Sign in: the product name, Username and Password. The only page that opens without a session |
 | `/users` | For admins: the accounts and their roles, read-only |
@@ -122,6 +123,10 @@ The dashboard pages call `domain/` and the tools directly, without the LLM, so t
 | `POST /api/login {username, password, next}` | Signs in: the session cookie, and where to go next (only a path on this site). Public. |
 | `POST /api/logout` | Signs out: clears the cookie and returns to `/login`. Public. |
 | `GET /api/orders.csv?…` | The orders of a Raw data view, with the page's own parameters, as CSV: the file's header and raw values, all pages, in the view's sort. |
+| `GET /api/reports/<YYYY-MM>.pdf` | The monthly report for a month of the data as a PDF, `wms-report-2025-11.pdf`; 404 for any other month. |
+| `GET /api/reports/<YYYY-MM>.csv` | The same report as CSV: `section, item, metric, value, previous_month`, a row per figure, the values as computed numbers (rates as fractions, money to the cent). |
+
+Every CSV cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`, so a spreadsheet never runs it as a formula.
 
 ### From question to chart
 
@@ -166,7 +171,7 @@ While the model works, which can take 10 to 18 seconds on a busy GPU, the answer
 | Bonus scope: history, cache, tests, ambiguity handling and a pipeline trace; Docker only if time is left | 0008 |
 | Our own LLM behind our gateway; one structured output; sentences checked by code | 0009 |
 | Self-hosted as a Windows service behind a Cloudflare Tunnel, deployed by a watchdog | 0010 (replaces 0007) |
-| Nine pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
+| Ten pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
 | Sign-in with three roles in one matrix; accounts in a file, sessions in a signed cookie | 0012 (replaces 0007 §3) |
 
 ### Bonus items
@@ -279,6 +284,7 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **`order_value_usd` is gross.** Net order value applies `promo_discount_pct`.
 - **Forecasts are monthly units by order date,** for one scope at a time. The candidates are the all-history average, the 3-month moving average, linear regression and Holt's linear trend with fixed parameters. Each is scored on Oct–Dec 2025 after fitting on Jan–Sep. The lowest error wins, a tie goes to the simpler method, and the winner is refit on all 12 months (ADR 0003).
 - **The plan is forecast demand plus safety stock,** rounded up: safety stock = 1.65 × σ × √months, a one-sided 95% service level, with σ from the chosen method's one-step-ahead errors from April 2025. For the total over 3 months: 285 + 119.05 = 404.05, so 405 units to plan for. The data has no stock on hand, so this is a plan, not a reorder quantity.
+- **A month's report reads each figure by its own date.** Orders, units and value count the orders placed in the month; deliveries, rates and delivery time the orders delivered in it, so a month on Reports counts what the same month counts elsewhere. The orders it lists as still in transit are in transit on the anchor date, 31 Dec 2025: the data has no history of statuses, so it cannot say what was in transit at the end of a past month, and the report says "still in transit on 31 Dec 2025".
 - **One server instance.** The cache, the rate limits and the sign-in limits are in memory, which is reliable only because there is one instance.
 
 ## Limitations and unsupported queries

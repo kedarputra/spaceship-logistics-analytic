@@ -1,4 +1,4 @@
-import { cents, type GroupFigures, groupFigures, type MetricId, ordersBy } from "@/domain/definitions";
+import { cents, type GroupFigures, groupFigures, type MetricId, ordersBy, periodFigures } from "@/domain/definitions";
 import type { Order } from "@/domain/orders";
 import type { SortDirection } from "./orders-view";
 
@@ -104,8 +104,20 @@ function extremes(rows: readonly WarehouseRow[]): Pick<Scorecard, "best" | "wors
 
 /** The warehouse scorecard: one row per warehouse, in the order asked for, highest on-time rate first by default. */
 export function warehouseScorecard(orders: readonly Order[], sort: ScorecardSort = DEFAULT_SCORECARD_SORT): Scorecard {
-  const rows = [...ordersBy(orders, (order) => order.warehouse)].map(([warehouse, warehouseOrders]) => ({ warehouse, figures: groupFigures(warehouseOrders) }));
-  return { rows: sortRows(rows, sort), total: groupFigures(orders), ...extremes(rows) };
+  return periodScorecard(orders, orders, sort);
+}
+
+/**
+ * The scorecard over a period, such as a month of the monthly report (ticket 34): each warehouse's orders,
+ * units and value from the orders placed in it, its deliveries from the orders delivered in it
+ * (periodFigures, ADR 0002 §5). A warehouse with either has a row.
+ */
+export function periodScorecard(placed: readonly Order[], delivered: readonly Order[], sort: ScorecardSort = DEFAULT_SCORECARD_SORT): Scorecard {
+  const placedBy = ordersBy(placed, (order) => order.warehouse);
+  const deliveredBy = ordersBy(delivered, (order) => order.warehouse);
+  const warehouses = new Set([...placedBy.keys(), ...deliveredBy.keys()]);
+  const rows = [...warehouses].map((warehouse) => ({ warehouse, figures: periodFigures(placedBy.get(warehouse) ?? [], deliveredBy.get(warehouse) ?? []) }));
+  return { rows: sortRows(rows, sort), total: periodFigures(placed, delivered), ...extremes(rows) };
 }
 
 export interface LaneRow {

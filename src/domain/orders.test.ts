@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDataset, orderRowSchema, parseOrders } from "./orders";
+import { getDataset, orderRowSchema, ordersCsv, parseOrders } from "./orders";
 
 const HEADER =
   "client_id,order_id,order_date,delivery_date,carrier,origin_city,destination_city,status,sku,product_category,quantity,unit_price_usd,order_value_usd,is_promo,promo_discount_pct,region,warehouse";
@@ -100,6 +100,15 @@ describe("parseOrders", () => {
   it("throws on an invalid row and names its row number", () => {
     const csv = [HEADER, csvLine(validRow), csvLine(validRow), csvLine({ ...validRow, quantity: "1x5" })].join("\n");
     expect(() => parseOrders(csv)).toThrow(/row 3\b.*quantity/);
+  });
+});
+
+describe("ordersCsv", () => {
+  it("writes an order back as the file has it, and a value that could start a formula with a leading ' (ticket 34)", () => {
+    const [order] = parseOrders(`${HEADER}\n${csvLine(validRow)}\n`);
+    if (order === undefined) throw new Error("no order");
+    expect(ordersCsv([order])).toBe(`${HEADER}\n${csvLine(validRow)}\n`);
+    expect(ordersCsv([{ ...order, client_id: "=cmd|' /C calc'!A0" }]).split("\n")[1]).toMatch(/^'=cmd\|' \/C calc'!A0,ORD-2026-267300-0001,/);
   });
 });
 

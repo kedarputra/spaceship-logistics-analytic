@@ -41,6 +41,20 @@ export const STATUS_MARKS = {
   canceled: "#d27bae",
 } as const;
 
+/**
+ * The monthly report's PDF (ticket 34): pdfkit draws with values, not classes. The same values as the
+ * tokens of globals.css: ink, muted, line, grid and inset, and the small-sample tag's warn tint and ink.
+ */
+export const PRINT_INK = {
+  ink: "#17201c",
+  muted: "#5e6b64",
+  line: "#e1e6e0",
+  grid: "#edf1ec",
+  inset: "#f7f9f6",
+  warnTint: "#fbead2",
+  warnInk: "#7a4e10",
+} as const;
+
 export const CHART_INK = {
   grid: "#edf1ec",
   axis: "#c9d1cb",

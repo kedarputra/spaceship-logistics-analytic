@@ -8,6 +8,7 @@ import { visibleText } from "@/components/markup-text";
 import { proxy } from "@/proxy";
 import { POST as askRoute } from "./api/ask/route";
 import { GET as csvRoute } from "./api/orders.csv/route";
+import { GET as reportRoute } from "./api/reports/[file]/route";
 import { POST as runRoute } from "./api/run/route";
 import AskRoute from "./ask/page";
 import AttentionRoute from "./attention/page";
@@ -19,6 +20,7 @@ import InventoryRoute from "./inventory/page";
 import LoginRoute from "./login/page";
 import NetworkRoute from "./network/page";
 import OverviewRoute from "./page";
+import ReportsRoute from "./reports/page";
 import UsersRoute from "./users/page";
 
 // The request's cookies, which Next gives a page through next/headers.
@@ -52,6 +54,7 @@ const PAGES: Record<string, Page> = {
   "/carriers": CarriersRoute,
   "/inventory": InventoryRoute,
   "/network": NetworkRoute,
+  "/reports": ReportsRoute,
   "/forecast": ForecastRoute,
   "/data": DataRoute,
   "/ask": AskRoute,
@@ -63,6 +66,8 @@ const API: Record<string, { method: string; body?: string; route: (request: Next
   "/api/ask": { method: "POST", body: JSON.stringify({ question: "" }), route: askRoute },
   "/api/run": { method: "POST", body: JSON.stringify({ spec: { tool: "query", metric: "order_count" } }), route: runRoute },
   "/api/orders.csv": { method: "GET", route: csvRoute },
+  "/api/reports/2025-11.pdf": { method: "GET", route: reportRoute },
+  "/api/reports/2025-11.csv": { method: "GET", route: reportRoute },
 };
 
 /** A digest like NEXT_REDIRECT;replace;/login;307;, which redirect() throws. */
@@ -109,6 +114,7 @@ const EXPECTED: Record<string, Record<Who, Outcome>> = {
   "/carriers": EVERYONE,
   "/inventory": EVERYONE,
   "/network": EVERYONE,
+  "/reports": EVERYONE,
   "/forecast": EVERYONE,
   "/data": EVERYONE,
   "/ask": { nobody: "sign-in", viewer: "403", analyst: "allowed", admin: "allowed" },
@@ -116,6 +122,8 @@ const EXPECTED: Record<string, Record<Who, Outcome>> = {
   "/api/ask": ASKERS_API,
   "/api/run": ASKERS_API,
   "/api/orders.csv": ASKERS_API,
+  "/api/reports/2025-11.pdf": ASKERS_API,
+  "/api/reports/2025-11.csv": ASKERS_API,
 };
 
 describe("every route for every role (ticket 31): allowed, sent to sign in, or refused", () => {
@@ -161,6 +169,19 @@ describe("links to Ask and the CSV show only for roles that can use them (ticket
     const offered: boolean[] = [];
     for (const role of ROLES) offered.push((await openPage("/data", role)).html.includes("Download CSV"));
     expect(offered).toEqual([false, true, true]);
+  });
+
+  it("links the report files from Reports for analysts and admins, locks them for a viewer, and offers import to admins (ticket 34)", async () => {
+    const seen: { downloads: number; locked: boolean; importLink: boolean }[] = [];
+    for (const role of ROLES) {
+      const { html } = await openPage("/reports", role);
+      seen.push({ downloads: (html.match(/href="\/api\/(?:reports\/[^"]+|orders\.csv)"/g) ?? []).length, locked: html.includes("Analyst role needed"), importLink: html.includes('href="/import"') });
+    }
+    expect(seen).toEqual([
+      { downloads: 0, locked: true, importLink: false },
+      { downloads: 3, locked: false, importLink: false },
+      { downloads: 3, locked: false, importLink: true },
+    ]);
   });
 });
 

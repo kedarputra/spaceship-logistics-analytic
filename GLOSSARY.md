@@ -31,6 +31,8 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Client** | The customer an order is for (`client_id`), as a 3PL reports per customer. 30 in the file. Ticket 33. |
 | **Lane** | An origin city and a destination city: the orders shipped from one to the other, shown as "London, UK → Leeds, UK". 47 in the file, none with 20 delivered orders, so every lane is a small sample. Ticket 33. |
 | **Warehouse scorecard** | Network's table of the warehouses: orders, units, gross value, delivered orders, on-time rate, delay rate and average delivery time. The best and worst on-time rates among warehouses with at least 20 delivered orders are marked. Ticket 33. |
+| **Monthly report** | One month of the data in a warehouse report's sections, on `/reports` and as a PDF and a CSV: orders placed (by order date) and deliveries completed (by delivery date) beside the month before, the delivery outcomes, the carriers, the warehouse scorecard, the top categories and SKUs, and the orders placed in the month still in transit on the anchor date, or canceled. Each figure reads its own date (ADR 0002 §5). Ticket 34. |
+| **Change against the month before** | A figure of the monthly report less the same figure a month earlier: a count, units, USD or days as a difference, a rate in percentage points ("+2.4 points"). None for the data's first month. Ticket 34. |
 | **Demand** | Units ordered (`quantity`) per period, by `order_date`. |
 | **Forecast scope** | The series a forecast covers: the total, one product category, one warehouse, or one region. Never a single SKU: a question about one SKU gets its order history and its category's forecast. ADR 0003 §1, §9. |
 | **Forecast horizon** | How many future months are forecast: 1 to 6, and 3 when the question does not say. ADR 0003. |
@@ -52,6 +54,6 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |
 | **Gross / net order value** | `order_value_usd` as given (gross), or after the promo discount (net). |
 | **Role** | What a signed-in account may do: Viewer, Analyst or Admin. One matrix in code (`can(role, action)` in `src/auth/roles.ts`) decides it for every page, API route and the rail, with the role the users file gives the account now. ADR 0012. |
-| **Viewer** | The role that reads the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast and Raw data. It cannot ask the data or download. |
-| **Analyst** | The role that also asks the data (`/ask`, `/api/ask`, `/api/run`) and downloads (`/api/orders.csv`). |
+| **Viewer** | The role that reads the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Reports, Forecast and Raw data. It cannot ask the data or download. |
+| **Analyst** | The role that also asks the data (`/ask`, `/api/ask`, `/api/run`) and downloads (`/api/orders.csv` and the monthly report's files). |
 | **Admin** | The role that also imports data and sees the accounts and their roles (`/users`). |

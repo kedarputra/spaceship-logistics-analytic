@@ -81,7 +81,7 @@ Only transform, opacity and a collapsible's height move, and nothing moves on fi
 **Rail.** It is 232 px wide on desktop and stacks above the content on narrow screens. From top to bottom:
 
 1. **Product name:** "Logistics Analytics", with "Order data, 2025" below it.
-2. **Menu:** Overview, Ask the data, Delivery, Carriers, Forecast. The active item gets a 3 px amber bar at the rail's edge, the amber at 14% as background, amber text, and `aria-current="page"`. _Ticket 32: Needs attention under Overview, with a badge of the orders overdue in transit (26) on the warn tint; collapsed, a dot on its icon. Ticket 33: Inventory and Network after Carriers._
+2. **Menu:** Overview, Ask the data, Delivery, Carriers, Forecast. The active item gets a 3 px amber bar at the rail's edge, the amber at 14% as background, amber text, and `aria-current="page"`. _Ticket 32: Needs attention under Overview, with a badge of the orders overdue in transit (26) on the warn tint; collapsed, a dot on its icon. Ticket 33: Inventory and Network after Carriers. Ticket 34: Reports after Network._
 3. **Data block:** `mock_logistics_data.csv`, "400 orders · 1 Jan–31 Dec 2025 · read-only".
 4. **AI status:** online, busy or unavailable, from `/api/health?ai=1`. The rail reads "Gemma 4 12B on this server. The AI routes and explains; code computes every number."
 
@@ -315,6 +315,37 @@ The page shows the columns below; the on-time count in brackets is the rate's nu
 | CL-1001 | 35 | 116 | $1,058.90 | 31 | 87.1% | 4.2 days |
 
 **Raw data** (ticket 33) also reads `origin`, `destination`, `client` and `sku`: London, UK 54 orders; London, UK → Leeds, UK 15; CL-1004 46 (43 delivered); MARKER-0138 2. Origin and Client are menus; destination and SKU show as chips only.
+
+### Reports (`/reports`, ticket 34)
+
+No canvas file: it reuses the cards and tables above. The rail lists Reports after Network, for every role.
+
+- **The month:** a menu of the data's months (Jan–Dec 2025), the anchor's month first; every month is a URL, `/reports?month=2025-11`. A month the data does not cover shows the anchor's.
+- **Exports:** "Monthly report (PDF)", "Monthly report (CSV)" and "All orders (CSV)". A viewer sees them disabled with a lock and "Analyst role needed"; the routes answer 403 too. An admin also gets "Import data".
+- **Sections,** each with its period basis once, under its title ("Nov 2025 · by delivery date"), and its definitions in the info popover: orders placed and deliveries completed beside the month before with the change (rates in points); the delivery outcomes, and per week as stacked bars with a Data table; the carriers, most deliveries first; Network's warehouse scorecard for the month; the top 5 categories and SKUs by gross value; and needs attention, the orders placed in the month still in transit on 31 Dec 2025, or canceled.
+- **The page and the PDF** draw the same sections (`src/components/report-sections.ts`) from one report (`src/tools/report.ts`), so they say the same thing.
+
+**Definitions** (`src/domain/definitions.ts`): `ordersDatedIn` (the orders placed in a period, or delivered in it), `periodFigures` (a group's orders, units and value placed in the period with its deliveries completed in it, ADR 0002 §5), and the changes against the month before: `change`, `pointsChange` (rates, in percentage points) and `valueChange` (to the cent).
+
+**Golden numbers,** recomputed from the file:
+
+| Month | Placed | Units | Gross USD | Completed | On time | Delayed | Exception | Avg days | Still in transit (placed in M) |
+|---|---|---|---|---|---|---|---|---|---|
+| Oct 2025 | 26 | 79 | 912.02 | 22 | 18 (81.8%) | 3 (13.6%) | 1 | 3.32 | 2 |
+| Nov 2025 | 24 | 113 | 1,600.98 | 19 | 16 (84.2%) | 3 (15.8%) | 0 | 3.74 | 4 |
+| Dec 2025 | 24 | 93 | 1,120.32 | 26 | 22 (84.6%) | 4 (15.4%) | 0 | 3.38 | 1 |
+
+- **Changes:** Nov against Oct: orders −2, units +34, gross value +$688.96, completed −3, on-time rate +2.4 points (2.39), delay rate +2.2 points, delivery time +0.4 days. Dec against Nov: on-time rate +0.4 points (0.40).
+- **Nov carriers** (completed, on time, delayed), most first and ties by name: USPS 5, 3, 2; FedEx 4, 4, 0; UPS 4, 3, 1; Royal Mail 2, 2, 0; DPD, GLS, LaserShip and OnTrac 1, 1, 0. All small samples.
+- **Nov per week of delivery:** w/c 27 Oct (1–2 Nov only) 1 on time; w/c 3 Nov 3 and 1 delayed; w/c 10 Nov 3; w/c 17 Nov 6 and 2 delayed; w/c 24 Nov 3.
+- **Nov warehouses:** EWR-DC1 8 orders, 45 units, $833.57, 7 delivered, all on time; SFO-DC2 placed none but delivered 1; AMS-FC1 placed 2 and delivered none, so its rates are n/a and it comes last. None has 20 deliveries, so none is marked best or worst.
+- **Nov's top categories:** PAINT $406.92 (25.4%), MARKER $285.69 (17.8%), PAPER $272.44 (17.0%). Top SKU PAINT-0037, $298.87.
+- **Nov's needs attention:** ORD-2026-542610-0082 (3 Nov, 58 days in transit), ORD-2026-571946-0024 (48), ORD-2026-108980-0325 (42), ORD-2026-682573-0181 (40). Mar 2025 has the one canceled order of the quarter, ORD-2026-975697-0193.
+- **Nov's delayed count, 3,** equals the Ask answer to "How many orders were delivered late last month?".
+
+**PDF** (`/api/reports/2025-11.pdf`): A4 portrait, two pages, about 27 KB, Figtree Regular and Bold embedded from `assets/fonts/figtree/`. A header (the app's name, "Monthly WMS report · Nov 2025", the dataset, "Data as of 31 Dec 2025" and the day it was made), the sections as tables, and the outcomes per week as stacked bars with each week's total above it and a row per outcome under the weeks, so the amber marks keep their values. The footer has the report's name and "Page 1 of 2".
+
+**CSV** (`/api/reports/2025-11.csv`): `section, item, metric, value, previous_month`, a row per figure: `summary,all,order_count,24,26`; `carriers,GLS,on_time_rate,1,` (no rate in Oct to compare); `top_categories,PAINT,gross_order_value,406.92,64.6`; `needs_attention,in_transit,order_count,4,2`. Metrics are named as in `METRICS`; rates are fractions, money is to the cent.
 
 ### Forecast (`/forecast`)
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ratio } from "./definitions";
-import { formatCount, formatDays, formatDecimal, formatFraction, formatMetricValue, formatOf, formatPercent, formatPercentPlain } from "./format";
+import { formatChange, formatCount, formatDays, formatDecimal, formatFraction, formatMetricValue, formatOf, formatPercent, formatPercentPlain } from "./format";
 
 // Display precision from ADR 0001 §7: rates and days to 1 decimal; computation keeps full precision.
 describe("display formatting (ADR 0001)", () => {
@@ -65,5 +65,29 @@ describe("display formatting (ADR 0001)", () => {
     expect(formatPercent(null)).toBe("n/a");
     expect(formatDays(null)).toBe("n/a");
     expect(formatFraction(ratio(0, 0))).toBe("0 / 0");
+  });
+});
+
+describe("a change against the month before (ticket 34)", () => {
+  it("signs it, a minus sign for a fall, in the figure's own unit: rates in points, days and money as shown elsewhere", () => {
+    expect(formatChange(2.3923, "points")).toBe("+2.4 points");
+    expect(formatChange(0.4049, "points")).toBe("+0.4 points");
+    expect(formatChange(-2, "orders")).toBe("−2");
+    expect(formatChange(34, "units")).toBe("+34");
+    expect(formatChange(1234, "units")).toBe("+1,234");
+    expect(formatChange(688.96, "USD")).toBe("+$688.96");
+    expect(formatChange(-480.66, "USD")).toBe("−$480.66");
+    expect(formatChange(0.4187, "days")).toBe("+0.4 days");
+  });
+
+  it("rounds an exact half away from zero either way, and shows no sign where it rounds to nothing", () => {
+    expect(formatChange(0.25, "points")).toBe("+0.3 points");
+    expect(formatChange(-0.25, "points")).toBe("−0.3 points");
+    expect(formatChange(-0.04, "points")).toBe("0.0 points");
+    expect(formatChange(0, "orders")).toBe("0");
+  });
+
+  it('is "n/a" with nothing to compare', () => {
+    expect(formatChange(null, "points")).toBe("n/a");
   });
 });

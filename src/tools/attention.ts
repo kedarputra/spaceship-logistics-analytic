@@ -56,8 +56,8 @@ function rowOf(order: Order, anchor: string): AttentionRow {
   return { order, transitAge: transitAge(order, anchor), deliveryDays: deliveryDaysOf(order) };
 }
 
-/** Oldest first, by order date. Array.prototype.sort is stable, so ties keep file order. */
-function oldestFirst(orders: readonly Order[], anchor: string): AttentionRow[] {
+/** Oldest first, by order date. Array.prototype.sort is stable, so ties keep file order. The monthly report lists its orders so too (ticket 34). */
+export function oldestFirst(orders: readonly Order[], anchor: string): AttentionRow[] {
   return [...orders].sort((a, b) => a.order_date.localeCompare(b.order_date)).map((order) => rowOf(order, anchor));
 }
 

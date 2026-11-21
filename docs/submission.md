@@ -41,8 +41,8 @@ Reply-all to Spaceship's email with:
 
   | Username | Role | Can |
   |---|---|---|
-  | `viewer` | Viewer | the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast, Raw data |
-  | `analyst` | Analyst | also Ask the data and the CSV download |
+  | `viewer` | Viewer | the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Reports, Forecast, Raw data |
+  | `analyst` | Analyst | also Ask the data and the downloads: the orders CSV and the monthly report's PDF and CSV |
   | `admin` | Admin | also the list of accounts and their roles |
 
   Each line of the email adds the password after the username.

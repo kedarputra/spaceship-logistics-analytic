@@ -91,6 +91,18 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **Raw data** reads `origin`, `destination`, `client` and `sku` too, with the spec's own schema and `matchesFilters`, as ticket 28's filters are read. Origin and Client are menus; the clients come from the values the spec checks against the data. Destination (47 cities) and SKU (355) have too many values for a menu: a link or the URL sets them, a chip removes them, and the form carries them over as hidden fields, so a change elsewhere keeps them.
    - **Ask links** (ticket 29, above): origin, destination, client and SKU are Raw data filters now, so an answer filtered by them opens its orders too. Only a limit, a minimum of deliveries or a period that is not whole months leaves an answer without the link.
 
+   *Amended 21 Nov 2026 (ticket 34):* Reports, the monthly WMS report as a page, a PDF and a CSV.
+   - **The rail** lists Reports `/reports` after Network, for every role, with a page icon.
+   - **The month:** one menu of the data's months, the anchor's month first. It opens the month picked; every month is a URL (`/reports?month=2025-11`). A month the data does not cover shows the anchor's.
+   - **Exports:** "Monthly report (PDF)", "Monthly report (CSV)" and "All orders (CSV)" beside the menu. Downloads need the `download` action (ADR 0012): a viewer sees the three disabled, each with a lock, and one line, "Analyst role needed". An admin also gets "Import data" (ticket 35).
+   - **The sections:** orders placed and deliveries completed, each beside the month before with the change, rates in points; the delivery outcomes, and per week as stacked bars with a Data table; the carriers; the warehouse scorecard of §5 for the month; the top 5 categories and SKUs by gross value; and needs attention, the orders placed in the month that are in transit or canceled.
+   - **The period basis** of each section is stated once, as the line under its title ("Nov 2025 · by delivery date"), as an Ask answer's chips state it. The warehouse scorecard has two: "orders by order date, deliveries by delivery date". This is the one exception to §2's "no subtext": the ticket asks for the basis in the section header, because a report read on paper has no popover, and one month mixes two date fields. It is data (a period and a date field), never a definition; the definitions stay in the popovers. The weekly chart sits inside the outcomes card, so it shares that card's line.
+   - **Rates** of the outcomes are headed "Rate" (the on-time, delay and exception rates), never "Share", which the glossary keeps for the share of orders.
+   - **Status is a snapshot** as of the anchor date. Needs attention says "still in transit on 31 Dec 2025", never "at the end of November": the data has no history of statuses.
+   - **Small samples:** every carrier and warehouse under 20 delivered orders in the month carries the tag, as on Carriers and Network. In a single month of this file that is all of them.
+   - **The PDF** draws the page's sections from the same source (`components/report-sections.ts`) on A4 in one or two pages, with Figtree embedded from the repository and the chart marks of §3 (`PRINT_INK` in `palette.ts` for its text and rules). Its one chart, the outcomes per week, has each week's total above the bar and a row per outcome under the weeks, so the amber marks keep their values.
+   - **Every figure** is a definition's or a tool's (§6): `periodFigures`, `change`, `pointsChange` and `valueChange` in `definitions.ts`, and the report in `tools/report.ts` over the same groupings as Inventory, Network and Needs attention, so a month here counts what the same month counts there.
+
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 
@@ -100,6 +112,7 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
   _Amended 21 Nov 2026 (ticket 28): a fifth new route, Raw data `/data`, so six pages in all (§5). The title keeps the decision's original name._
   _Amended 21 Nov 2026 (ticket 32): a sixth, Needs attention `/attention`, so seven pages, and Users for admins (§5)._
   _Amended 21 Nov 2026 (ticket 33): Inventory `/inventory` and Network `/network`, so nine pages, and Users for admins (§5)._
+  _Amended 21 Nov 2026 (ticket 34): Reports `/reports`, so ten pages, and Users for admins (§5)._
 - The design files in `docs/design/` are references, not code. They need the design canvas's runtime to render, so read them as markup, styles and example data. Their numbers double as golden values for tests.
 - The README's screenshots (if any) and the Loom are recorded after the redesign.
 - Ticket 24 ships the tokens, the shell, Overview and Ask. Ticket 25 adds Delivery, Carriers and Forecast and can be cut if time runs out; the rail then lists only the pages that exist.

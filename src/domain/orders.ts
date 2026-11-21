@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
+import { csvLine } from "./csv";
 import { anchorDate } from "./periods";
 
 export const ORDER_STATUSES = ["delivered", "delayed", "in_transit", "exception", "canceled"] as const;
@@ -76,14 +77,13 @@ function rawValue(order: Order, column: keyof Order): string {
   return String(value);
 }
 
-/** A CSV field, quoted only when it holds a comma, a quote or a line break, as the file quotes its cities. */
-function csvField(value: string): string {
-  return /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
-}
-
-/** Orders as CSV in the file's own form: its header, then each order's raw values. The way back from parseOrders. */
+/**
+ * Orders as CSV in the file's own form: its header, then each order's raw values, quoted only where the
+ * file quotes its cities. The way back from parseOrders, except that a value that could start a
+ * spreadsheet formula gets a leading ' (csvField).
+ */
 export function ordersCsv(orders: readonly Order[]): string {
-  const lines = [ORDER_COLUMNS.join(","), ...orders.map((order) => ORDER_COLUMNS.map((column) => csvField(rawValue(order, column))).join(","))];
+  const lines = [csvLine(ORDER_COLUMNS), ...orders.map((order) => csvLine(ORDER_COLUMNS.map((column) => rawValue(order, column))))];
   return `${lines.join("\n")}\n`;
 }
 
