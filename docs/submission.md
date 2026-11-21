@@ -43,7 +43,7 @@ Reply-all to Spaceship's email with:
   |---|---|---|
   | `viewer` | Viewer | the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Reports, Forecast, Raw data |
   | `analyst` | Analyst | also Ask the data and the downloads: the orders CSV and the monthly report's PDF and CSV |
-  | `admin` | Admin | also the list of accounts and their roles |
+  | `admin` | Admin | also importing an orders CSV for their own session (ADR 0013), and the list of accounts and their roles |
 
   Each line of the email adds the password after the username.
 - **Loom:** the link.
@@ -52,11 +52,14 @@ Reply-all to Spaceship's email with:
 
 | Time | Show |
 |---|---|
-| 0:00–0:30 | Who you are, the problem, and the stack in one sentence. |
-| 0:30–1:30 | Dashboard: the five KPIs with their definitions, and the charts. Mention the anchor date. |
-| 1:30–3:00 | The three R3 questions live. Open the explanation panel on one: resolved dates, filters, spec, data table. |
-| 3:00–4:00 | A forecast: history plus forecast chart, the inventory recommendation, how the method was chosen, and what happens when you ask about a single SKU. |
-| 4:00–5:00 | Architecture: the AI routes, code computes, nothing the LLM writes is executed. How accuracy is ensured (one definition module, tests with golden numbers, validation). Key trade-offs, and what you would build next. |
+| 0:00–0:30 | Sign in as Admin. Who you are, the problem, the stack and the three roles in one breath. |
+| 0:30–1:20 | Overview: the five KPIs, one definition from its info popover, the anchor date, the overdue alert, and a card opening its orders. |
+| 1:20–2:35 | The three R3 questions live, with the working state. Open "How this was computed" on one: resolved dates, spec, trace; then the orders behind the answer. |
+| 2:35–3:20 | A forecast: the inventory recommendation, how the method was chosen, and what happens when you ask about a single SKU. |
+| 3:20–4:20 | The WMS pages: Needs attention (the exception queue), Inventory (ABC), and the monthly report with its PDF; mention import. |
+| 4:20–5:20 | Architecture: the AI routes, code computes, nothing the LLM writes is executed. How accuracy is ensured (one definition module, tests with golden numbers, the eval). Key trade-offs, and what you would build next. |
+
+The full script with the live numbers is kept outside the repository, as a timed prompter.
 
 Tips: record at 1080p, keep the browser zoom readable, rehearse once with the questions already typed, and never show API keys or the hosting dashboard's secrets.
 
