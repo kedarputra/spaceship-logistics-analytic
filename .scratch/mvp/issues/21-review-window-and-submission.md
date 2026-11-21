@@ -2,8 +2,8 @@
 
 **What to build:** The app is held stable for the review, and Spaceship receives the repository, the URL, and the Loom (R13, R15, `docs/submission.md`).
 
-**Blocked by:** 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 19, 20, 24
-_Every never-cut ticket. The cuttable ones (16, 17, 18, 25) do not block submission. The Loom is recorded after the redesign (24)._
+**Blocked by:** 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 19, 20, 24, 30, 31, 32, 33, 34, 35
+_Every never-cut ticket. The cuttable ones (16, 17, 18, 25, 36) do not block submission. The Loom is recorded after the redesign (24) and after the user's 21 Nov additions (30–35). Feature freeze: Mon 23 Nov 2026, 12:00 WIB; any of 30–36 not live by then is closed as cut and listed under Future improvements._
 
 **Status:** ready-for-human
 
