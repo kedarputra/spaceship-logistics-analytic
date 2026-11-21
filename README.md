@@ -16,7 +16,7 @@ npm run users -- add me admin --generate   # prints the password once
 npm run dev                                # http://localhost:3000, sign in as "me"
 ```
 
-Every page asks you to sign in (ADR 0012), so even a local run needs a session secret and an users file: the `AUTH_` variables below. The dashboard pages (Overview, Needs attention, Delivery, Carriers, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
+Every page asks you to sign in (ADR 0012), so even a local run needs a session secret and an users file: the `AUTH_` variables below. The dashboard pages (Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
 
 Copy `.env.example` to `.env.local` and set these variables:
 
@@ -67,7 +67,7 @@ Every page asks you to sign in. The test accounts, one per role, are in the subm
 
 | Action | Viewer | Analyst | Admin |
 |---|---|---|---|
-| Dashboards: Overview, Needs attention, Delivery, Carriers, Forecast, Raw data | yes | yes | yes |
+| Dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast, Raw data | yes | yes | yes |
 | Ask the data: `/ask`, `/api/ask`, `/api/run` | no | yes | yes |
 | Downloads: `/api/orders.csv` | no | yes | yes |
 | Import data (planned) | no | no | yes |
@@ -89,7 +89,7 @@ One Next.js 16 app (App Router): its route handlers are the backend, and there i
 | Folder | Holds | May import |
 |---|---|---|
 | `src/domain/` | The orders and their row schema, the KPI and metric definitions, period resolution, number formats | nothing else in `src/` |
-| `src/tools/` | The query spec (the whitelist), the query tool, the forecast tool, chart choice, the template sentences, and the orders a Raw data view shows | `domain/` |
+| `src/tools/` | The query spec (the whitelist), the query tool, the forecast tool, chart choice, the template sentences, the orders a Raw data view shows, and the groupings of the Needs attention, Inventory and Network pages | `domain/` |
 | `src/ai/` | The model client, prompts, interpretation, phrasing, the number guard, the question cache | `tools/` |
 | `src/auth/` | Sign-in and roles: the roles matrix, the session cookie, password hashes, the users file and its CLI | nothing else in `src/` |
 | `src/app/`, `src/components/` | Pages, route handlers, the proxy (rate limits and sessions), UI | everything above |
@@ -105,10 +105,12 @@ Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → 
 | `/ask` Ask the data | The ask box, the answer with its chart and explanation panel, suggested questions, and the recent questions of this browser |
 | `/delivery` | Delivery outcomes and the on-time delivery rate per month, and the average delivery time by region and by warehouse |
 | `/carriers` | All 9 carriers: the delay-rate chart, highlights, and a table with every metric |
+| `/inventory` | The 355 SKUs in ABC classes by gross value (A 174 SKUs make 80% of the value, B 103 the next 15%, C 78 the rest), the Pareto curve with the 80% and 95% limits, the top 10 SKUs, and the 8 categories with their share of value. A SKU opens its orders in Raw data; a category its orders and its forecast |
+| `/network` | The warehouse scorecard (orders, units, gross value, delivered, on-time and delay rates, average delivery time), sortable by any column, with the best and worst on-time rate marked; the 47 lanes from origin to destination, all small samples; and the 30 clients by value, the way a 3PL reports per customer. Every row opens its orders in Raw data |
 | `/forecast` | A forecast for the total or one category, warehouse or region, 1, 3 or 6 months ahead; the method comparison, the plan's arithmetic, and all 22 scopes side by side |
 | `/login` | Sign in: the product name, Username and Password. The only page that opens without a session |
 | `/users` | For admins: the accounts and their roles, read-only |
-| `/data` Raw data | The 400 orders as the file has them, read-only: filters by status, carrier, region, warehouse, category, promo, a month range by order or delivery date, and a search; a sort by any column, pages of 50, a summary of the rows shown, and a CSV download. An order in transit shows its days in transit. Every view is a URL, such as `/data?status=delayed&carrier=FedEx` |
+| `/data` Raw data | The 400 orders as the file has them, read-only: filters by status, carrier, region, warehouse, origin, category, client, promo, a month range by order or delivery date, and a search; destination and SKU as filters from a link or the URL; a sort by any column, pages of 50, a summary of the rows shown, and a CSV download. An order in transit shows its days in transit. Every view is a URL, such as `/data?status=delayed&carrier=FedEx` |
 
 The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. Raw data reads its filters with the query spec's schema and picks rows with the query tool's own matching, so it counts the same orders an answer with the same filters counts. A card, bar or table row that shows a count opens those orders in Raw data, and the view shows the same number; a rate with no orders of its own opens the page that breaks it down. An answer on the Ask page opens the orders it was computed over the same way, when every part of its spec is a Raw data filter. A count of 0 has no link. Pointing at a month on a month chart, or moving to it with the arrow keys, shows its values in a tooltip, and a click opens that month's orders. Cards and charts carry no explanatory subtext: a definition, a date basis or a note is in the info popover after the title, one hover, focus or tap away. The pages follow ADR 0011: a dark rail with the pages the role can open and, at its foot, who is signed in; three brand colours; and chart colours checked for colour-blind separation.
 
@@ -164,7 +166,7 @@ While the model works, which can take 10 to 18 seconds on a busy GPU, the answer
 | Bonus scope: history, cache, tests, ambiguity handling and a pipeline trace; Docker only if time is left | 0008 |
 | Our own LLM behind our gateway; one structured output; sentences checked by code | 0009 |
 | Self-hosted as a Windows service behind a Cloudflare Tunnel, deployed by a watchdog | 0010 (replaces 0007) |
-| Seven pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
+| Nine pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
 | Sign-in with three roles in one matrix; accounts in a file, sessions in a signed cookie | 0012 (replaces 0007 §3) |
 
 ### Bonus items
@@ -285,12 +287,12 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **No seasonality.** January 2025 is a spike (233 units against a Feb–Dec average of 98), and one year cannot show whether it repeats. Every forecast that includes January says how its method treats the spike.
 - **The method choice rests on 3 months.** A 3-month holdout is a noisy basis for picking a method.
 - **No per-SKU forecasts.** Each of the 355 SKUs has at most 3 orders.
-- **Many groups are small.** No destination reaches 20 deliveries, and only 5 of the 30 clients do, so those rankings are flagged as unreliable rather than named.
+- **Many groups are small.** No destination or lane reaches 20 deliveries, and only 5 of the 30 clients do, so those rankings are flagged as unreliable rather than named, and Network tags all 47 lanes and 25 clients as small samples.
 - **The model can misread a question.** The explanation panel shows exactly how it was read, and the eval guards the readings we know about. A sentence that fails the number guard gives way to the plainer template fallback.
 - **One server.** Availability depends on the server's power and internet line. Other workloads share the GPU, so the ask box can answer "busy, try again shortly". After a reboot, the dashboard comes back at once and the ask box when the gateway is up.
 - **History stays in one browser,** and reviewers behind one office IP share the limit of 20 questions a minute, and of 5 sign-in tries a minute.
 - **Sessions are not stored on the server.** Removing an account ends its sessions at once, but a changed password does not end the old ones before their 8 hours; changing the secret signs everyone out. Ten wrong passwords in an hour lock a username for the rest of that hour, so someone guessing can lock a shared test account.
-- **What a WMS has that this data can't support.** There is no stock on hand, no bin locations, no receiving and no pick or pack tasks, so putaway, slotting, picking, cycle counts and labour reports are out of reach. Needs attention is the part the data can carry: an exception queue of orders.
+- **What a WMS has that this data can't support.** There is no stock on hand, no bin locations, no receiving and no pick or pack tasks, so putaway, slotting, picking, cycle counts and labour reports are out of reach. What the data can carry is here: an exception queue of orders (Needs attention), an ABC classification by value (Inventory), and a scorecard per warehouse, lane and client (Network). Value is gross: the file's order value before promo discounts.
 - **Unsupported queries** are listed, with what each gets instead, under [Supported questions](#supported-questions).
 
 ## Future improvements

@@ -41,7 +41,7 @@ Reply-all to Spaceship's email with:
 
   | Username | Role | Can |
   |---|---|---|
-  | `viewer` | Viewer | the dashboards: Overview, Needs attention, Delivery, Carriers, Forecast, Raw data |
+  | `viewer` | Viewer | the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast, Raw data |
   | `analyst` | Analyst | also Ask the data and the CSV download |
   | `admin` | Admin | also the list of accounts and their roles |
 

@@ -23,6 +23,7 @@ import { type DashboardKpis, dashboardKpis, METRICS } from "@/domain/definitions
 import { formatCount, formatDays, formatFraction, formatPercent } from "@/domain/format";
 import { DATASET_FILE, getDataset } from "@/domain/orders";
 import { formatDate } from "@/domain/periods";
+import { URL_ONLY_FILTERS } from "@/tools/list-filters";
 import { type OrdersPage, type OrdersView, ordersInView, pageOf } from "@/tools/orders-view";
 
 /** Each active filter as a chip that removes it, then Clear all. */
@@ -170,7 +171,7 @@ export async function DataPage({ searchParams, role }: DataPageProps & { role: R
     <>
       <PageHeader label="Data" title="Raw data" asOf={anchor} />
       <section aria-label="Filters" className="card flex flex-col gap-3 p-3.5">
-        <DataFilters path={DATA_PAGE_PATH} query={filterQuery(view)} lists={filterLists()} months={dataMonths(orders)} />
+        <DataFilters path={DATA_PAGE_PATH} query={filterQuery(view)} lists={filterLists()} months={dataMonths(orders)} carried={URL_ONLY_FILTERS} />
         {chips.length === 0 ? null : <ActiveFilters chips={chips} clearHref={clearAllHref(view)} />}
       </section>
       {ignored.length === 0 ? null : <IgnoredNote ignored={ignored} />}

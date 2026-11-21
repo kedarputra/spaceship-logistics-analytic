@@ -40,15 +40,15 @@ function monthRange(period: Period, coverage: Period): { from: string; to: strin
 }
 
 /**
- * The view of the orders behind an answer, and how many there are. Undefined when a part of the spec
- * has no Raw data filter (origin, destination, client or SKU; a limit or a minimum of deliveries,
- * which leave groups out; a period that is not whole months), or when no order is behind it.
+ * The view of the orders behind an answer, and how many there are. Every spec filter is a Raw data filter
+ * (origin, destination, client and SKU too since ticket 33). Undefined when a part of the spec has none (a
+ * limit or a minimum of deliveries, which leave groups out; a period that is not whole months), or when no
+ * order is behind it.
  */
 export function ordersBehind(result: QueryResult, orders: readonly Order[]): OrdersBehind | undefined {
   const { spec, period, coverage } = result;
   if (spec.limit !== undefined || spec.minDelivered !== undefined) return undefined;
-  const { origin, destination, client, sku, status, ...lists } = spec.filters ?? {};
-  if ([origin, destination, client, sku].some((values) => values !== undefined)) return undefined;
+  const { status, ...lists } = spec.filters ?? {};
   if (!isWholeMonths(period, coverage)) return undefined;
   const statuses = statusesOf(status, METRIC_STATUSES[spec.metric]);
   if (statuses?.length === 0) return undefined;

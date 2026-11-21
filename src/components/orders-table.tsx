@@ -7,6 +7,7 @@ import { formatDate } from "@/domain/periods";
 import { deliveryDaysOf, type OrdersView, VIEW_COLUMNS, type ViewColumn } from "@/tools/orders-view";
 import { STATUS_LABELS } from "@/tools/words";
 import { sortHref } from "./orders-url";
+import { ARIA_SORT, ARROW } from "./text-table";
 
 interface Column {
   heading: string;
@@ -77,8 +78,6 @@ const PINNED = "sticky left-0 border-r bg-panel";
 /** The heading row stays in view while the rows scroll; its link fills the cell. */
 const HEADING = "sticky top-0 border-b border-line bg-inset font-semibold whitespace-nowrap";
 
-const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
-const ARROW = { asc: "↑", desc: "↓" } as const;
 
 /**
  * The orders of one page of a Raw data view (ticket 28). It scrolls inside its card both ways: the

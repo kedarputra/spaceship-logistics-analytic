@@ -15,7 +15,9 @@ import CarriersRoute from "./carriers/page";
 import DataRoute from "./data/page";
 import DeliveryRoute from "./delivery/page";
 import ForecastRoute from "./forecast/page";
+import InventoryRoute from "./inventory/page";
 import LoginRoute from "./login/page";
+import NetworkRoute from "./network/page";
 import OverviewRoute from "./page";
 import UsersRoute from "./users/page";
 
@@ -48,6 +50,8 @@ const PAGES: Record<string, Page> = {
   "/attention": AttentionRoute,
   "/delivery": DeliveryRoute,
   "/carriers": CarriersRoute,
+  "/inventory": InventoryRoute,
+  "/network": NetworkRoute,
   "/forecast": ForecastRoute,
   "/data": DataRoute,
   "/ask": AskRoute,
@@ -103,6 +107,8 @@ const EXPECTED: Record<string, Record<Who, Outcome>> = {
   "/attention": EVERYONE,
   "/delivery": EVERYONE,
   "/carriers": EVERYONE,
+  "/inventory": EVERYONE,
+  "/network": EVERYONE,
   "/forecast": EVERYONE,
   "/data": EVERYONE,
   "/ask": { nobody: "sign-in", viewer: "403", analyst: "allowed", admin: "allowed" },

@@ -8,6 +8,8 @@ import { CarriersPage } from "./carriers/carriers-page";
 import { DataPage } from "./data/data-page";
 import { DeliveryPage } from "./delivery/delivery-page";
 import { ForecastPage } from "./forecast/forecast-page";
+import { InventoryPage } from "./inventory/inventory-page";
+import { NetworkPage } from "./network/network-page";
 import { OverviewPage } from "./overview-page";
 
 // Raw data's filter form navigates with Next's router, which only exists inside a running app; the markup is what is under test.
@@ -69,6 +71,8 @@ const overview = renderToStaticMarkup(<OverviewPage role="analyst" />);
 const delivery = renderToStaticMarkup(<DeliveryPage />);
 const carriers = renderToStaticMarkup(<CarriersPage role="analyst" />);
 const forecast = renderToStaticMarkup(await ForecastPage({ searchParams: Promise.resolve({}), role: "analyst" }));
+const inventory = renderToStaticMarkup(<InventoryPage />);
+const network = renderToStaticMarkup(await NetworkPage({ searchParams: Promise.resolve({}) }));
 
 // Expected figures: the ticket's table and docs/data.md. "Delivered" is status delivered, delayed or exception: the 370.
 describe("the Overview's cards open what explains them (ticket 29)", () => {
@@ -340,8 +344,56 @@ describe("the month charts open each month's orders (ticket 26)", () => {
   });
 });
 
+/** The links named "<name>: view the N order(s)", and N. */
+function orderLinks(html: string): (PageLink & { count: number })[] {
+  return links(html).flatMap((link) => {
+    const count = /: view the ([\d,]+) orders?$/.exec(link.name)?.[1];
+    return count === undefined ? [] : [{ ...link, count: Number(count.replace(/,/g, "")) }];
+  });
+}
+
+describe("the Inventory and Network rows open their orders in Raw data, as many as they name (ticket 33)", () => {
+  it("each top SKU and each category: MARKER-0138 2, PAINT 49", async () => {
+    const opened = orderLinks(inventory);
+    expect(opened).toHaveLength(10 + 8);
+    expect(opened.find((link) => link.name.startsWith("MARKER-0138:"))).toMatchObject({ href: "/data?sku=MARKER-0138", count: 2 });
+    expect(opened.find((link) => link.name.startsWith("PAINT:"))).toMatchObject({ href: "/data?category=PAINT", count: 49 });
+    for (const { href, count } of opened) expect(await ordersShown(href)).toBe(count);
+  });
+
+  it("each warehouse, lane and client: LON-FC1 54, London → Leeds 15, CL-1004 46", async () => {
+    const opened = orderLinks(network);
+    expect(opened).toHaveLength(9 + 47 + 30);
+    expect(opened.find((link) => link.name.startsWith("LON-FC1:"))).toMatchObject({ href: "/data?warehouse=LON-FC1", count: 54 });
+    expect(opened.find((link) => link.name.startsWith("London, UK → Leeds, UK:"))).toMatchObject({ href: "/data?origin=London%2C+UK&destination=Leeds%2C+UK", count: 15 });
+    expect(opened.find((link) => link.name.startsWith("CL-1004:"))).toMatchObject({ href: "/data?client=CL-1004", count: 46 });
+    for (const { href, count } of opened) expect(await ordersShown(href)).toBe(count);
+  });
+
+  it("each category opens its forecast", () => {
+    expect(hrefNamed(inventory, "PAINT: view the forecast")).toBe("/forecast?scope=category&value=PAINT");
+    expect(links(inventory).filter((link) => /^[A-Z]+: view the forecast$/.test(link.name))).toHaveLength(8);
+  });
+});
+
+describe("an Ask answer filtered by origin, destination, client or SKU opens its orders too (ticket 33)", () => {
+  it("CL-1004's on-time rate, 33 of 43, opens the 43 delivered orders it divides by", async () => {
+    const answer = answerFor({ metric: "on_time_rate", filters: { client: ["CL-1004"] } });
+    expect(answer.rows[0]).toMatchObject({ numerator: 33, denominator: 43 });
+    expect(answer.ordersBehind.count).toBe(43);
+    expect(await ordersShown(ordersHref(answer.ordersBehind.view))).toBe(43);
+  });
+
+  it("orders from London to Leeds, and of SKU CRAYON-0008, open the 15 and the 3 they count", async () => {
+    const lane = answerFor({ metric: "order_count", filters: { origin: ["London, UK"], destination: ["Leeds, UK"] } });
+    expect(await ordersShown(ordersHref(lane.ordersBehind.view))).toBe(15);
+    const sku = answerFor({ metric: "order_count", filters: { sku: ["CRAYON-0008"] } });
+    expect(await ordersShown(ordersHref(sku.ordersBehind.view))).toBe(3);
+  });
+});
+
 describe("links never hold links (ticket 29)", () => {
-  it("no link on the four pages holds another link or a button", () => {
-    for (const html of [overview, delivery, carriers, forecast]) expect(nestsInteractive(html)).toBe(false);
+  it("no link on the six pages holds another link or a button", () => {
+    for (const html of [overview, delivery, carriers, forecast, inventory, network]) expect(nestsInteractive(html)).toBe(false);
   });
 });

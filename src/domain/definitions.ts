@@ -423,3 +423,122 @@ export function dashboardKpis(orders: readonly Order[]): DashboardKpis {
     averageDeliveryDays: averageDeliveryDays(orders),
   };
 }
+
+/** The ABC classes of SKUs by value (ticket 33): A the few that make most of it, C the long tail. */
+export const ABC_CLASSES = ["A", "B", "C"] as const;
+export type AbcClass = (typeof ABC_CLASSES)[number];
+
+/**
+ * Where A and B end, as percentages of all value: a SKU is A while the value ranked before it is under
+ * 80%, B while it is under 95%, and C after.
+ */
+export const ABC_LIMITS = { A: 80, B: 95 } as const satisfies Record<Exclude<AbcClass, "C">, number>;
+
+/** One SKU's orders, units and gross value, its rank by value and its ABC class. */
+export interface SkuValue {
+  sku: string;
+  /** The SKU's product category, from its first order. */
+  category: string;
+  orders: number;
+  units: number;
+  /** order_value_usd summed as given, before promo discounts (docs/data.md trap 6). */
+  grossValue: number;
+  /** 1 for the SKU with the most value. */
+  rank: number;
+  /** The value of the SKUs ranked before it, as a share of all value: 0 for the first. */
+  shareBefore: number;
+  /** The same share with its own value added: 1 for the last. */
+  cumulativeShare: number;
+  abcClass: AbcClass;
+}
+
+/** Orders grouped by a key, the groups in order of their first order. */
+export function ordersBy(orders: readonly Order[], keyOf: (order: Order) => string): Map<string, Order[]> {
+  const groups = new Map<string, Order[]>();
+  for (const order of orders) {
+    const key = keyOf(order);
+    const group = groups.get(key);
+    if (group === undefined) groups.set(key, [order]);
+    else group.push(order);
+  }
+  return groups;
+}
+
+/** A value in whole cents, so sums in floating point compare and add up exactly (ticket 33). */
+export function cents(value: number): number {
+  return Math.round(value * 100);
+}
+
+function abcClassOf(centsBefore: number, totalCents: number): AbcClass {
+  // In whole cents and percentages, both sides are exact: 80% of 100.00 is 80.00, never 79.999….
+  if (centsBefore * 100 < ABC_LIMITS.A * totalCents) return "A";
+  if (centsBefore * 100 < ABC_LIMITS.B * totalCents) return "B";
+  return "C";
+}
+
+/**
+ * The ABC classification (ticket 33): SKUs by gross value, highest first, ties by SKU ascending, each
+ * with its class. Values compare and add up to the cent, so the order orders were summed in never breaks
+ * a tie or moves a SKU across a limit.
+ */
+export function abcClasses(orders: readonly Order[]): SkuValue[] {
+  const skus = [...ordersBy(orders, (order) => order.sku)].map(([sku, skuOrders]) => ({
+    sku,
+    category: skuOrders[0]?.product_category ?? "",
+    orders: skuOrders.length,
+    units: units(skuOrders),
+    grossValue: grossOrderValue(skuOrders),
+  }));
+  skus.sort((a, b) => cents(b.grossValue) - cents(a.grossValue) || a.sku.localeCompare(b.sku, "en"));
+  const totalCents = skus.reduce((sum, { grossValue }) => sum + cents(grossValue), 0);
+  let centsBefore = 0;
+  return skus.map((sku, index) => {
+    const before = centsBefore;
+    centsBefore += cents(sku.grossValue);
+    return {
+      ...sku,
+      rank: index + 1,
+      shareBefore: totalCents === 0 ? 0 : before / totalCents,
+      cumulativeShare: totalCents === 0 ? 0 : centsBefore / totalCents,
+      abcClass: abcClassOf(before, totalCents),
+    };
+  });
+}
+
+/**
+ * What a group of orders adds up to (ticket 33): a row of the warehouse scorecard, a lane, a client or a
+ * category. Counts and sums are over every order; the rates and the average are over its delivered
+ * orders, as the KPI cards define them (ADR 0001), with the small-sample flag of §6.
+ */
+export interface GroupFigures {
+  orders: number;
+  units: number;
+  /** order_value_usd as given, before promo discounts (docs/data.md trap 6). */
+  grossValue: number;
+  /** Delivered orders: the n of the rates and the average. */
+  delivered: number;
+  onTimeRate: Ratio;
+  delayRate: Ratio;
+  averageDeliveryDays: Ratio;
+  /** Fewer than 20 delivered orders (ADR 0001 §6). */
+  smallSample: boolean;
+}
+
+export function groupFigures(orders: readonly Order[]): GroupFigures {
+  const delivered = deliveredOrders(orders).length;
+  return {
+    orders: orders.length,
+    units: units(orders),
+    grossValue: grossOrderValue(orders),
+    delivered,
+    onTimeRate: onTimeRate(orders),
+    delayRate: delayRate(orders),
+    averageDeliveryDays: averageDeliveryDays(orders),
+    smallSample: delivered < SMALL_SAMPLE_MIN_DELIVERED,
+  };
+}
+
+/** A group's gross value as a share of the gross value of `all` (ticket 33). */
+export function shareOfValue(group: readonly Order[], all: readonly Order[]): Ratio {
+  return ratio(grossOrderValue(group), grossOrderValue(all));
+}

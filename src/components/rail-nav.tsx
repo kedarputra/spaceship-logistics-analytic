@@ -13,6 +13,8 @@ const PAGES: readonly { href: string; label: string; icon: IconName; action: Act
   { href: "/ask", label: "Ask the data", icon: "ask", action: "ask" },
   { href: "/delivery", label: "Delivery", icon: "truck", action: "dashboards" },
   { href: "/carriers", label: "Carriers", icon: "bars", action: "dashboards" },
+  { href: "/inventory", label: "Inventory", icon: "box", action: "dashboards" },
+  { href: "/network", label: "Network", icon: "route", action: "dashboards" },
   { href: "/forecast", label: "Forecast", icon: "trend", action: "dashboards" },
   { href: "/data", label: "Raw data", icon: "table", action: "dashboards" },
   { href: "/users", label: "Users", icon: "users", action: "users" },

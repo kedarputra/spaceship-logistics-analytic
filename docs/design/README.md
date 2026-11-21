@@ -81,7 +81,7 @@ Only transform, opacity and a collapsible's height move, and nothing moves on fi
 **Rail.** It is 232 px wide on desktop and stacks above the content on narrow screens. From top to bottom:
 
 1. **Product name:** "Logistics Analytics", with "Order data, 2025" below it.
-2. **Menu:** Overview, Ask the data, Delivery, Carriers, Forecast. The active item gets a 3 px amber bar at the rail's edge, the amber at 14% as background, amber text, and `aria-current="page"`. _Ticket 32: Needs attention under Overview, with a badge of the orders overdue in transit (26) on the warn tint; collapsed, a dot on its icon._
+2. **Menu:** Overview, Ask the data, Delivery, Carriers, Forecast. The active item gets a 3 px amber bar at the rail's edge, the amber at 14% as background, amber text, and `aria-current="page"`. _Ticket 32: Needs attention under Overview, with a badge of the orders overdue in transit (26) on the warn tint; collapsed, a dot on its icon. Ticket 33: Inventory and Network after Carriers._
 3. **Data block:** `mock_logistics_data.csv`, "400 orders · 1 Jan–31 Dec 2025 · read-only".
 4. **AI status:** online, busy or unavailable, from `/api/health?ai=1`. The rail reads "Gemma 4 12B on this server. The AI routes and explains; code computes every number."
 
@@ -218,6 +218,103 @@ No canvas file: it reuses the cards, tables and tiles above. Four cards, each a 
 | DHL | 63 | 15.8% | 58 | 93.1% | 5.2% | 1 | 3.5 days |
 | DPD | 20 | 5.0% | 18 | 88.9% | 0.0% | 2 | 3.4 days |
 | All carriers | 400 | 100% | 370 | 82.2% | 14.9% | 11 | 3.8 days |
+
+### Inventory (`/inventory`, ticket 33)
+
+No canvas file: it reuses the tiles, chart card and tables above. Value is the file's gross `order_value_usd` (`docs/data.md` trap 6), and every card that shows it says so in its info popover.
+
+**Definitions** (`src/domain/definitions.ts`):
+- **ABC classes:** SKUs ranked by gross value, highest first, ties by SKU ascending. A SKU is A while the value ranked before it is under 80% of all value, B under 95%, and C after. Values compare and add up in whole cents, so floating point never breaks a tie or moves a SKU across a limit.
+- **The catalogue's shape** (`tools/inventory.ts`): flat when class A holds more than a fifth of the SKUs (the Pareto rule's 80/20), concentrated otherwise.
+
+**Golden numbers:**
+
+- **SKUs:** 355, total gross value USD 13,695.87.
+- **ABC tiles:**
+
+  | Class | SKUs | Gross value | Share of value |
+  |---|---|---|---|
+  | A | 174 | $10,961.89 | 80.0% |
+  | B | 103 | $2,054.36 | 15.0% |
+  | C | 78 | $679.62 | 5.0% |
+
+  The line under them: "The catalogue is flat: 174 of 355 SKUs (49.0%) make 80% of the value."
+- **Pareto chart:** the class marks are on time `#2A8763` (A), delayed `#E39A2E` (B) and exception `#B4533A` (C), validated in that order (worst colour-blind ΔE 14.6, normal-vision ΔE 20.2). The 80% and 95% limits are dashed grey-green. The first point is MARKER-0138 at 2.5%; SKU 174 is the last A, SKU 175 the first B.
+- **Top 10 SKUs** (class, category, orders, units, value), each opening `/data?sku=`:
+
+  | SKU | Class | Category | Orders | Units | Gross value |
+  |---|---|---|---|---|---|
+  | MARKER-0138 | A | MARKER | 2 | 16 | $345.49 |
+  | PAINT-0037 | A | PAINT | 1 | 11 | $298.87 |
+  | MARKER-0047 | A | MARKER | 2 | 11 | $204.76 |
+  | PAPER-0041 | A | PAPER | 2 | 17 | $193.77 |
+  | PAPER-0075 | A | PAPER | 2 | 17 | $177.42 |
+  | BOOK-0040 | A | BOOK | 1 | 9 | $168.03 |
+  | PAINT-0122 | A | PAINT | 1 | 6 | $166.14 |
+  | BOOK-0072 | A | BOOK | 1 | 10 | $165.70 |
+  | PAINT-0176 | A | PAINT | 1 | 7 | $158.83 |
+  | BOOK-0117 | A | BOOK | 1 | 7 | $154.98 |
+
+- **Categories,** by value, each opening `/data?category=` and `/forecast?scope=category&value=`:
+
+  | Category | Orders | Units | Gross value | Share of value |
+  |---|---|---|---|---|
+  | PAINT | 49 | 105 | $2,288.10 | 16.7% |
+  | PAPER | 43 | 196 | $2,023.30 | 14.8% |
+  | BRUSH | 49 | 169 | $1,903.85 | 13.9% |
+  | MARKER | 51 | 122 | $1,873.70 | 13.7% |
+  | CRAYON | 69 | 229 | $1,841.30 | 13.4% |
+  | BOOK | 42 | 95 | $1,649.84 | 12.0% |
+  | STICKER | 52 | 222 | $1,164.99 | 8.5% |
+  | PENCIL | 45 | 172 | $950.79 | 6.9% |
+  | All categories | 400 | 1,310 | $13,695.87 | 100.0% |
+
+### Network (`/network`, ticket 33)
+
+No canvas file. Rates and the average are over delivered orders, as on Carriers. A row under 20 delivered orders carries the small-sample tag beside its name.
+
+**Definitions** (`src/domain/definitions.ts`): `groupFigures`, a group's orders, units, gross value, delivered orders, on-time rate, delay rate, average delivery time and small-sample flag, from the KPI definitions.
+
+**Warehouse scorecard,** highest on-time rate first by default; ties go by name. Every heading sorts by its column (`/network?sort=order_count&dir=desc`), figures highest first and names A to Z, and a second click reverses. Each row opens `/data?warehouse=`.
+
+The page shows the columns below; the on-time count in brackets is the rate's numerator, which the tests assert, over the Delivered column.
+
+| Warehouse | Orders | Units | Gross value | Delivered | On-time rate | Delay rate | Avg delivery time |
+|---|---|---|---|---|---|---|---|
+| SFO-DC2 (best on time) | 46 | 156 | $1,397.57 | 44 | 88.6% (39) | 11.4% | 3.4 days (3.39) |
+| LAX-DC1 | 46 | 132 | $1,407.88 | 44 | 84.1% (37) | 13.6% | 3.3 days (3.25) |
+| AMS-FC1 | 43 | 161 | $1,422.57 | 40 | 82.5% (33) | 15.0% | 4.2 days (4.22) |
+| DFW-DC1 | 42 | 131 | $1,419.56 | 39 | 82.1% (32) | 15.4% | 4.6 days (4.62) |
+| LON-FC1 (most orders) | 54 | 172 | $1,725.45 | 49 | 81.6% (40) | 16.3% | 3.7 days (3.71) |
+| BER-FC1 | 38 | 129 | $1,458.01 | 32 | 81.3% (26; 81.25%) | 15.6% | 4.1 days (4.06) |
+| CHI-DC1 | 36 | 96 | $1,062.84 | 32 | 81.3% (26; 81.25%) | 12.5% | 4.5 days (4.50) |
+| EWR-DC1 (highest value) | 49 | 183 | $2,252.69 | 46 | 80.4% (37) | 13.0% | 3.6 days (3.57) |
+| ATL-DC1 (worst on time) | 46 | 150 | $1,549.30 | 44 | 77.3% (34) | 20.5% | 3.5 days (3.55) |
+| All warehouses | 400 | 1,310 | $13,695.87 | 370 | 82.2% (304) | 14.9% | 3.8 days |
+
+26 of 32 is exactly 81.25%, which the app rounds half up to 81.3%, as the Delivery page does; the ticket's 81.2% rounded it to even.
+
+**Lanes:** 47, most orders first, ties by origin, then destination. None has 20 delivered orders (the most is 14), so every lane carries the small-sample tag and the popover says the rates per lane are indicative only. Each opens `/data?origin=&destination=`.
+
+| Lane | Orders | Delivered | On-time rate | Avg delivery time |
+|---|---|---|---|---|
+| London, UK → Leeds, UK | 15 | 14 | 78.6% | 3.6 days (3.64) |
+| Newark, NJ → Boston, MA | 15 | 14 | 78.6% | 3.4 days (3.36) |
+| Atlanta, GA → Orlando, FL | 13 | 13 | 76.9% | 4.0 days |
+| Berlin, DE → Zurich, CH | 13 | 12 | 91.7% | 3.4 days (3.42) |
+| London, UK → Edinburgh, UK | 13 | 11 | 72.7% | 4.4 days (4.36) |
+
+**Clients:** 30, by gross value, ties by client. Only 5 have 20 delivered orders; the other 25 carry the small-sample tag. Each opens `/data?client=`.
+
+| Client | Orders | Units | Gross value | Delivered | On-time rate | Avg delivery time |
+|---|---|---|---|---|---|---|
+| CL-1004 | 46 | 135 | $1,755.34 | 43 | 76.7% (33 of 43) | 3.7 days |
+| CL-1005 | 36 | 128 | $1,403.02 | 33 | 84.8% | 3.5 days |
+| CL-1002 | 31 | 120 | $1,124.72 | 28 | 71.4% | 3.9 days |
+| CL-1003 | 33 | 143 | $1,109.36 | 29 | 86.2% | 4.0 days |
+| CL-1001 | 35 | 116 | $1,058.90 | 31 | 87.1% | 4.2 days |
+
+**Raw data** (ticket 33) also reads `origin`, `destination`, `client` and `sku`: London, UK 54 orders; London, UK → Leeds, UK 15; CL-1004 46 (43 delivered); MARKER-0138 2. Origin and Client are menus; destination and SKU show as chips only.
 
 ### Forecast (`/forecast`)
 

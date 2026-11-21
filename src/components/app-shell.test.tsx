@@ -13,25 +13,28 @@ function links(html: string): [string, boolean][] {
 }
 
 describe("the rail's menu (ADR 0011 §5, ticket 24)", () => {
-  it("lists the seven pages an analyst can open, Needs attention under Overview and Raw data after Forecast, marking the current one for assistive technology (tickets 25, 28, 32)", () => {
+  it("lists the nine pages an analyst can open, Needs attention under Overview, Inventory and Network after Carriers and Raw data after Forecast, marking the current one for assistive technology (tickets 25, 28, 32, 33)", () => {
     expect(links(renderToStaticMarkup(<NavLinks pathname="/" role="analyst" />))).toEqual([
       ["Overview", true],
       ["Needs attention", false],
       ["Ask the data", false],
       ["Delivery", false],
       ["Carriers", false],
+      ["Inventory", false],
+      ["Network", false],
       ["Forecast", false],
       ["Raw data", false],
     ]);
+    expect(links(renderToStaticMarkup(<NavLinks pathname="/network" role="analyst" />)).filter(([, current]) => current)).toEqual([["Network", true]]);
     expect(links(renderToStaticMarkup(<NavLinks pathname="/carriers" role="analyst" />)).filter(([, current]) => current)).toEqual([["Carriers", true]]);
     expect(links(renderToStaticMarkup(<NavLinks pathname="/data" role="analyst" />)).filter(([, current]) => current)).toEqual([["Raw data", true]]);
   });
 
   it("lists only the pages the role can open: no Ask for a viewer, and Users for an admin (ticket 31)", () => {
     const names = (role: "viewer" | "analyst" | "admin") => links(renderToStaticMarkup(<NavLinks pathname="/" role={role} />)).map(([name]) => name);
-    expect(names("viewer")).toEqual(["Overview", "Needs attention", "Delivery", "Carriers", "Forecast", "Raw data"]);
-    expect(names("analyst")).toEqual(["Overview", "Needs attention", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data"]);
-    expect(names("admin")).toEqual(["Overview", "Needs attention", "Ask the data", "Delivery", "Carriers", "Forecast", "Raw data", "Users"]);
+    expect(names("viewer")).toEqual(["Overview", "Needs attention", "Delivery", "Carriers", "Inventory", "Network", "Forecast", "Raw data"]);
+    expect(names("analyst")).toEqual(["Overview", "Needs attention", "Ask the data", "Delivery", "Carriers", "Inventory", "Network", "Forecast", "Raw data"]);
+    expect(names("admin")).toEqual(["Overview", "Needs attention", "Ask the data", "Delivery", "Carriers", "Inventory", "Network", "Forecast", "Raw data", "Users"]);
   });
 
   it("badges Needs attention with its count, named for assistive technology and kept in the collapsed rail's tooltip (ticket 32)", () => {
@@ -67,6 +70,8 @@ describe("the rail, collapsed and expanded (ticket 27)", () => {
       ["Ask the data", false],
       ["Delivery", true],
       ["Carriers", false],
+      ["Inventory", false],
+      ["Network", false],
       ["Forecast", false],
       ["Raw data", false],
     ]);

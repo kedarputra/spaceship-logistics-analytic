@@ -205,7 +205,13 @@ describe("the orders behind an answer (ticket 29)", () => {
     );
   });
 
-  it("has no link when a part of the spec has no Raw data filter", () => {
-    expect(render(answerFor({ metric: "order_count", filters: { sku: ["CRAYON-0008"] } }))).not.toContain("behind this answer");
+  it("links an answer filtered by SKU, now a Raw data filter (ticket 33): CRAYON-0008's 3 orders", () => {
+    expect(render(answerFor({ metric: "order_count", filters: { sku: ["CRAYON-0008"] } }))).toMatch(
+      /<a[^>]*href="\/data\?sku=CRAYON-0008"[^>]*>Open the 3 orders behind this answer/,
+    );
+  });
+
+  it("has no link when a part of the spec has no Raw data filter: a limit leaves groups out", () => {
+    expect(render(answerFor({ metric: "delay_rate", groupBy: "carrier", limit: 3 }))).not.toContain("behind this answer");
   });
 });

@@ -77,9 +77,25 @@ describe("the orders behind a query answer, as a Raw data view (ticket 29)", () 
     });
   });
 
+  it("opens an answer filtered by origin, destination, client or SKU too, now that Raw data has those filters (ticket 33)", () => {
+    // Golden numbers: docs/data.md and ticket 33, recomputed from the CSV.
+    expect(behind({ metric: "order_count", filters: { sku: ["CRAYON-0008"] } })).toEqual({
+      view: { filters: { sku: ["CRAYON-0008"] }, dates: { basis: "order" }, search: "", page: 1 },
+      count: 3,
+    });
+    expect(behind({ metric: "order_count", filters: { origin: ["London, UK"], destination: ["Leeds, UK"] } })).toMatchObject({
+      view: { filters: { origin: ["London, UK"], destination: ["Leeds, UK"] } },
+      count: 15,
+    });
+    // CL-1004's on-time rate, 33 of 43: its link opens the 43 delivered orders it divides by.
+    expect(behind({ metric: "on_time_rate", filters: { client: ["CL-1004"] } })).toEqual({
+      view: { filters: { client: ["CL-1004"], status: DELIVERED }, dates: { basis: "delivery" }, search: "", page: 1 },
+      count: 43,
+    });
+    expect(behind({ metric: "order_count", filters: { origin: ["London, UK"] } })?.count).toBe(54);
+  });
+
   it("has nothing to open when a part of the spec has no Raw data filter, or no order is behind it", () => {
-    expect(behind({ metric: "order_count", filters: { sku: ["CRAYON-0008"] } })).toBeUndefined();
-    expect(behind({ metric: "order_count", filters: { origin: ["London, UK"] } })).toBeUndefined();
     expect(behind({ metric: "delay_rate", groupBy: "carrier", limit: 3 })).toBeUndefined();
     expect(behind({ metric: "delay_rate", groupBy: "carrier", minDelivered: 20 })).toBeUndefined();
     expect(behind({ metric: "delayed_orders", period: { type: "last_days", days: 30 } })).toBeUndefined();

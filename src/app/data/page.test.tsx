@@ -171,11 +171,13 @@ describe("the Raw data page (ticket 28)", () => {
     expect(html).toMatch(/<form[^>]*action="\/data"[^>]*method="get"|<form[^>]*method="get"[^>]*action="\/data"/);
     expect(checkboxes(form).filter(({ checked }) => checked).map(({ field }) => field)).toEqual(["status=delayed", "status=exception"]);
     expect(form).toMatch(/<input[^>]*name="q"[^>]*value="Leeds"/);
-    // The lists offer the query spec's values: 5 statuses, 9 carriers, 5 regions, 9 warehouses, 8 categories.
+    // The lists offer the query spec's values: 5 statuses, 9 carriers, 5 regions, 9 warehouses, 9 origins, 8 categories, 30 clients (ticket 33).
     const fields = checkboxes(form).map(({ field }) => field.split("=")[0]);
-    for (const [name, count] of [["status", 5], ["carrier", 9], ["region", 5], ["warehouse", 9], ["category", 8]] as const) {
+    for (const [name, count] of [["status", 5], ["carrier", 9], ["region", 5], ["warehouse", 9], ["origin", 9], ["category", 8], ["client", 30]] as const) {
       expect(fields.filter((field) => field === name), name).toHaveLength(count);
     }
+    expect([...new Set(fields)]).toEqual(["status", "carrier", "region", "warehouse", "origin", "category", "client"]);
+    expect(checkboxes(form).filter(({ field }) => field.startsWith("client=")).slice(0, 2).map(({ field }) => field)).toEqual(["client=CL-1001", "client=CL-1002"]);
     expect(checkboxes(form).slice(0, 5).map(({ field }) => field)).toEqual([
       "status=delivered",
       "status=delayed",
@@ -183,6 +185,26 @@ describe("the Raw data page (ticket 28)", () => {
       "status=exception",
       "status=canceled",
     ]);
+  });
+
+  it("offers Origin and Client as menus, and keeps a destination or SKU from the URL when another filter changes (ticket 33)", async () => {
+    const html = await render({ origin: "London, UK", destination: "Leeds, UK", sku: ["PAPER-0197", "CRAYON-0008"] });
+    const form = part(html, "Filter orders", "</form>");
+    expect(checkboxes(form).filter(({ checked }) => checked).map(({ field }) => field)).toEqual(["origin=London, UK"]);
+    // No menu for 47 destinations or 355 SKUs: the form carries them over as hidden fields, so a change elsewhere keeps them.
+    const hidden = [...form.matchAll(/<input type="hidden" name="([^"]*)" value="([^"]*)"/g)].map(([, name, value]) => `${name}=${value}`);
+    expect(hidden).toEqual(["destination=Leeds, UK", "sku=PAPER-0197", "sku=CRAYON-0008"]);
+    expect(form).not.toMatch(/type="checkbox" name="(destination|sku)"/);
+  });
+
+  it("shows origin, destination, client and SKU as chips, each removable (ticket 33)", async () => {
+    const html = await render({ origin: "london", destination: "Leeds", client: "CL-1023", sku: "PAPER-0197" });
+    const chips = part(html, "Active filters", "</ul>");
+    expect(visibleText(chips)).toBe("Origin: London, UK × Destination: Leeds, UK × Client: CL-1023 × SKU: PAPER-0197 × Clear all");
+    expect(hrefOf(chips, "SKU: PAPER-0197 ×")).toBe("/data?origin=London%2C+UK&destination=Leeds%2C+UK&client=CL-1023");
+    expect(hrefOf(chips, "Destination: Leeds, UK ×")).toBe("/data?origin=London%2C+UK&client=CL-1023&sku=PAPER-0197");
+    // The file's first order: CL-1023, London to Leeds, PAPER-0197.
+    expect(visibleText(part(html, "Summary"))).toMatch(/^Orders 1 of 400 /);
   });
 
   it("shows each active filter as a chip that removes it, and Clear all", async () => {
@@ -196,9 +218,9 @@ describe("the Raw data page (ticket 28)", () => {
   });
 
   it("names a parameter it does not support, or a value it does not know, and leaves it out", async () => {
-    const html = await render({ origin: "Berlin", carrier: ["FedEx", "Foo"] });
+    const html = await render({ limit: "3", carrier: ["FedEx", "Foo"] });
     const note = visibleText(part(html, "Not applied", "</div>"));
-    expect(note).toMatch(/origin ?: not a filter on this page/);
+    expect(note).toMatch(/limit ?: not a filter on this page/);
     expect(note).toMatch(/carrier=Foo ?: Unknown carrier "Foo"\./);
     expect(visibleText(part(html, "Summary"))).toContain("Orders 89 of 400");
     expect(await render()).not.toContain('aria-label="Not applied"');

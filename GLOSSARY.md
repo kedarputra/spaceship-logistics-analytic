@@ -26,6 +26,11 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Carrier** | The shipping company on the order. |
 | **Region / warehouse** | Fulfilment region (US-E, US-W, US-C, EU, UK) and the warehouse code that shipped the order. |
 | **SKU / product category** | Product identifier and its category (CRAYON, PAPER, ...). |
+| **ABC class** | A SKU's class by gross order value. SKUs are ranked by value, highest first, ties by SKU. A SKU is A while the value ranked before it is under 80% of all value, B while it is under 95%, and C after. In the file, 174 of the 355 SKUs are A, 103 B and 78 C. Ticket 33. |
+| **Catalogue shape** | How the value spreads over the SKUs, from the ABC classes: concentrated when class A holds a fifth of the SKUs or fewer, as in the Pareto rule's 80/20, and flat when it needs more. The file's catalogue is flat: 174 of 355 SKUs (49.0%) make 80% of the value. Ticket 33. |
+| **Client** | The customer an order is for (`client_id`), as a 3PL reports per customer. 30 in the file. Ticket 33. |
+| **Lane** | An origin city and a destination city: the orders shipped from one to the other, shown as "London, UK → Leeds, UK". 47 in the file, none with 20 delivered orders, so every lane is a small sample. Ticket 33. |
+| **Warehouse scorecard** | Network's table of the warehouses: orders, units, gross value, delivered orders, on-time rate, delay rate and average delivery time. The best and worst on-time rates among warehouses with at least 20 delivered orders are marked. Ticket 33. |
 | **Demand** | Units ordered (`quantity`) per period, by `order_date`. |
 | **Forecast scope** | The series a forecast covers: the total, one product category, one warehouse, or one region. Never a single SKU: a question about one SKU gets its order history and its category's forecast. ADR 0003 §1, §9. |
 | **Forecast horizon** | How many future months are forecast: 1 to 6, and 3 when the question does not say. ADR 0003. |
@@ -47,6 +52,6 @@ Terms marked *(proposed)* are candidates until an ADR in `docs/adr/` settles the
 | **Review window** | From submission until Spaceship confirms the review is over. The server is held stable during it: no Windows Update, no model switch, no heavy GPU work. ADR 0010. |
 | **Gross / net order value** | `order_value_usd` as given (gross), or after the promo discount (net). |
 | **Role** | What a signed-in account may do: Viewer, Analyst or Admin. One matrix in code (`can(role, action)` in `src/auth/roles.ts`) decides it for every page, API route and the rail, with the role the users file gives the account now. ADR 0012. |
-| **Viewer** | The role that reads the dashboards: Overview, Needs attention, Delivery, Carriers, Forecast and Raw data. It cannot ask the data or download. |
+| **Viewer** | The role that reads the dashboards: Overview, Needs attention, Delivery, Carriers, Inventory, Network, Forecast and Raw data. It cannot ask the data or download. |
 | **Analyst** | The role that also asks the data (`/ask`, `/api/ask`, `/api/run`) and downloads (`/api/orders.csv`). |
 | **Admin** | The role that also imports data and sees the accounts and their roles (`/users`). |

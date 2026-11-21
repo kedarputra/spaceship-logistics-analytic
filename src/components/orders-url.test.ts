@@ -55,8 +55,33 @@ describe("Raw data: the orders a URL asks for (ticket 28)", () => {
       [{ region: "UK", status: "delayed" }, { region: ["UK"], status: ["delayed"] }],
       [{ category: "CRAYON", warehouse: "LON-FC1" }, { category: ["CRAYON"], warehouse: ["LON-FC1"] }],
       [{ status: ["in_transit", "canceled"], region: "US-W" }, { status: ["in_transit", "canceled"], region: ["US-W"] }],
+      [{ origin: "London, UK", destination: "Leeds, UK" }, { origin: ["London, UK"], destination: ["Leeds, UK"] }],
+      [{ client: "CL-1004", category: "PAINT" }, { client: ["CL-1004"], category: ["PAINT"] }],
+      [{ sku: "CRAYON-0008" }, { sku: ["CRAYON-0008"] }],
     ];
     for (const [params, filters] of cases) expect(ids(rows(params)), JSON.stringify(params)).toEqual(ids(queryToolOrders(filters)));
+  });
+
+  it("filters by origin, destination, client and SKU, values matched as the query spec matches them (ticket 33)", () => {
+    // Golden numbers: ticket 33, recomputed from the CSV.
+    expect(read({ origin: "london" }).view.filters.origin).toEqual(["London, UK"]);
+    expect(rows({ origin: "London, UK" })).toHaveLength(54);
+    expect(read({ destination: "leeds" }).view.filters.destination).toEqual(["Leeds, UK"]);
+    expect(rows({ origin: "London, UK", destination: "Leeds, UK" })).toHaveLength(15);
+    expect(read({ client: "cl-1004" }).view.filters.client).toEqual(["CL-1004"]);
+    expect(rows({ client: "CL-1004" })).toHaveLength(46);
+    expect(rows({ client: "CL-1004", status: ["delivered", "delayed", "exception"] })).toHaveLength(43);
+    expect(rows({ sku: "MARKER-0138" })).toHaveLength(2);
+    expect(rows({ sku: ["MARKER-0138", "CRAYON-0008"] })).toHaveLength(5);
+    expect(read({ origin: "London", client: "CL-1004", sku: "MARKER-0138", destination: "Leeds" }).ignored).toEqual([]);
+  });
+
+  it("ignores a client, SKU or city it does not know, and says why", () => {
+    const { view, ignored } = read({ client: "CL-9999", sku: "PAPER-9999", destination: "Atlantis", origin: "Londn" });
+    expect(view.filters).toEqual({});
+    expect(ignored.map(({ parameter }) => parameter)).toEqual(["client=CL-9999", "sku=PAPER-9999", "destination=Atlantis", "origin=Londn"]);
+    expect(ignored[0]?.reason).toContain('Unknown client "CL-9999"');
+    expect(ignored[3]?.reason).toContain('Did you mean "London, UK"?');
   });
 
   it("filters promo orders: yes 22, no 378, and both is any", () => {
@@ -89,7 +114,7 @@ describe("Raw data: the orders a URL asks for (ticket 28)", () => {
 
   it("ignores a parameter it does not support, or a value it does not know, and says which", () => {
     const { view, ignored } = read({
-      origin: "Berlin",
+      limit: "3",
       foo: "1",
       carrier: ["FedEx", "Foo"],
       date: "shipped",
@@ -98,7 +123,7 @@ describe("Raw data: the orders a URL asks for (ticket 28)", () => {
       page: "two",
     });
     expect(view.filters).toEqual({ carrier: ["FedEx"] });
-    expect(ignored.map(({ parameter }) => parameter)).toEqual(["origin", "foo", "carrier=Foo", "date=shipped", "from=2024-01", "sort=price", "page=two"]);
+    expect(ignored.map(({ parameter }) => parameter)).toEqual(["limit", "foo", "carrier=Foo", "date=shipped", "from=2024-01", "sort=price", "page=two"]);
     expect(ignored.find(({ parameter }) => parameter === "carrier=Foo")?.reason).toContain('Unknown carrier "Foo"');
     expect(ordersInView(orders, view)).toHaveLength(89);
   });

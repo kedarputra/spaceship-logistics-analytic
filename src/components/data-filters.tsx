@@ -76,9 +76,23 @@ const SELECT = "field h-[34px] px-2.5 text-small";
 /**
  * The Raw data filters (ticket 28): a GET form whose fields are named as the URL's parameters, so it
  * works without script. With script, each change applies at once as a client-side navigation to a
- * short URL; the search applies on Enter. The page reads the URL and draws the view.
+ * short URL; the search applies on Enter. The page reads the URL and draws the view. `carried` names the
+ * parameters with no field of their own, such as a destination or a SKU (ticket 33): the form keeps their
+ * values as hidden fields, so a change elsewhere does not drop them.
  */
-export function DataFilters({ path, query, lists, months }: { path: string; query: string; lists: FilterList[]; months: Option[] }) {
+export function DataFilters({
+  path,
+  query,
+  lists,
+  months,
+  carried,
+}: {
+  path: string;
+  query: string;
+  lists: FilterList[];
+  months: Option[];
+  carried: readonly string[];
+}) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   // The fields show the view being navigated to until the page for it arrives.
@@ -231,6 +245,7 @@ export function DataFilters({ path, query, lists, months }: { path: string; quer
           </select>
         </label>
       </Menu>
+      {carried.flatMap((name) => fields.getAll(name).map((value) => <input key={`${name}=${value}`} type="hidden" name={name} value={value} />))}
       {sort === null ? null : <input type="hidden" name="sort" value={sort} />}
       {direction === null ? null : <input type="hidden" name="dir" value={direction} />}
       <noscript>

@@ -1,8 +1,8 @@
 import type { Order } from "@/domain/orders";
 import { buckets, dataPeriod, formatMonths } from "@/domain/periods";
-import { LIST_FILTERS, type ListFilter } from "@/tools/list-filters";
+import { LIST_FILTERS, type ListFilter, MENU_FILTERS, type MenuFilter } from "@/tools/list-filters";
 import { type DateBasis, type OrdersView, VIEW_COLUMNS, type ViewColumn } from "@/tools/orders-view";
-import { DIMENSION_VALUES, filtersSchema } from "@/tools/spec";
+import { DIMENSION_VALUES, filtersSchema, valuesInData } from "@/tools/spec";
 import { valueLabel } from "@/tools/words";
 import type { FilterList, Option } from "./data-filters";
 import { DATA_PAGE_PATH, hrefOf, ordersHref, viewParams } from "./orders-href";
@@ -15,7 +15,17 @@ import { DATA_PAGE_PATH, hrefOf, ordersHref, viewParams } from "./orders-href";
 
 const CSV_PATH = "/api/orders.csv";
 
-const LIST_LABELS: Record<ListFilter, string> = { status: "Status", carrier: "Carrier", region: "Region", warehouse: "Warehouse", category: "Category" };
+const LIST_LABELS: Record<ListFilter, string> = {
+  status: "Status",
+  carrier: "Carrier",
+  region: "Region",
+  warehouse: "Warehouse",
+  origin: "Origin",
+  destination: "Destination",
+  category: "Category",
+  client: "Client",
+  sku: "SKU",
+};
 
 /** The parameters that take one value; a second one is not read. */
 const SINGLE_VALUED = ["date", "from", "to", "q", "sort", "dir", "page"] as const;
@@ -152,12 +162,17 @@ function readPage(page: string | undefined, ignored: IgnoredParameter[]): number
   return 1;
 }
 
-/** The lists the filter form offers: the query spec's values, statuses in words. */
+/** A menu's values: the query spec's own, or for clients those in the data, as the spec checks them (ticket 33). */
+function menuValues(filter: MenuFilter): readonly string[] {
+  return filter === "client" ? valuesInData("client_id") : DIMENSION_VALUES[filter];
+}
+
+/** The lists the filter form offers as menus: the query spec's values, statuses in words. */
 export function filterLists(): FilterList[] {
-  return LIST_FILTERS.map((filter) => ({
+  return MENU_FILTERS.map((filter) => ({
     name: filter,
     label: LIST_LABELS[filter],
-    options: DIMENSION_VALUES[filter].map((value) => ({ value, label: valueLabel(filter, value) })),
+    options: menuValues(filter).map((value) => ({ value, label: valueLabel(filter, value) })),
   }));
 }
 

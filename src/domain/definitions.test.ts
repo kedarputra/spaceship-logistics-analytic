@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  abcClasses,
   averageDeliveryDays,
   dashboardKpis,
   deliveredOrders,
   deliveryOutcomes,
   deliveryOutcomesOverTime,
   exceptionRate,
+  groupFigures,
   isRateOrAverage,
   longestCompletedDelivery,
   type MetricDefinition,
@@ -17,6 +19,7 @@ import {
   orderCountOverTime,
   overdueInTransit,
   ratio,
+  shareOfValue,
   transitAge,
   transitAgeBuckets,
 } from "./definitions";
@@ -386,5 +389,137 @@ describe("transit age buckets (ticket 32)", () => {
     const orders = [0, 7, 8, 14, 15, 30, 31, 300].map(daysOld);
     orders.push(order("delivered", "2025-01-01", "2025-01-03"), order("canceled", "2025-01-01", null));
     expect(transitAgeBuckets(orders, "2025-12-31").map(({ count }) => count)).toEqual([2, 2, 2, 2]);
+  });
+});
+
+// Ticket 33: the ABC classification of SKUs by gross value. Golden numbers recomputed from the CSV.
+describe("ABC classes of SKUs by gross value (ticket 33)", () => {
+  /** One order of `sku` worth `value`, `units` units. */
+  const sold = (sku: string, value: number, units = 1): Order => ({ ...order("delivered", "2025-05-01", "2025-05-03"), sku, order_value_usd: value, quantity: units });
+
+  it("ranks SKUs by gross value, highest first, summing their orders", () => {
+    const ranked = abcClasses([sold("PAPER-0002", 10, 2), sold("PAPER-0001", 30, 1), sold("PAPER-0002", 25, 3)]);
+    expect(ranked.map(({ sku, orders, units, grossValue }) => [sku, orders, units, grossValue])).toEqual([
+      ["PAPER-0002", 2, 5, 35],
+      ["PAPER-0001", 1, 1, 30],
+    ]);
+    expect(ranked.map(({ rank }) => rank)).toEqual([1, 2]);
+  });
+
+  it("breaks a tie in value by SKU, ascending", () => {
+    const ranked = abcClasses([sold("PAPER-0009", 20), sold("PAPER-0003", 20), sold("PAPER-0005", 20)]);
+    expect(ranked.map(({ sku }) => sku)).toEqual(["PAPER-0003", "PAPER-0005", "PAPER-0009"]);
+  });
+
+  it("compares values to the cent, so the order they were summed in never breaks a tie", () => {
+    // 0.1 + 0.2 is 0.30000000000000004 in floating point.
+    const ranked = abcClasses([sold("PAPER-0002", 0.1), sold("PAPER-0002", 0.2), sold("PAPER-0001", 0.3)]);
+    expect(ranked.map(({ sku }) => sku)).toEqual(["PAPER-0001", "PAPER-0002"]);
+  });
+
+  it("makes a SKU A while the share of value before it is under 80%, B under 95%, and C after: a share of exactly 80% or 95% moves on", () => {
+    const ranked = abcClasses([sold("A-1", 50), sold("A-2", 30), sold("B-1", 15), sold("C-1", 5)]);
+    expect(ranked.map(({ sku, abcClass, shareBefore }) => [sku, abcClass, shareBefore])).toEqual([
+      ["A-1", "A", 0],
+      ["A-2", "A", 0.5],
+      ["B-1", "B", 0.8],
+      ["C-1", "C", 0.95],
+    ]);
+    expect(ranked.map(({ cumulativeShare }) => cumulativeShare)).toEqual([0.5, 0.8, 0.95, 1]);
+  });
+
+  it("keeps a SKU just under a limit in the class before it", () => {
+    const ranked = abcClasses([sold("A-1", 79.99), sold("A-2", 15), sold("B-1", 5.01)]);
+    expect(ranked.map(({ abcClass }) => abcClass)).toEqual(["A", "A", "B"]);
+  });
+
+  it("classifies nothing when there are no orders", () => {
+    expect(abcClasses([])).toEqual([]);
+  });
+
+  it("classifies the file's 355 SKUs, USD 13,695.87: A 174, B 103, C 78", () => {
+    const ranked = abcClasses(getDataset().orders);
+    expect(ranked).toHaveLength(355);
+    const count = (abcClass: string) => ranked.filter((sku) => sku.abcClass === abcClass).length;
+    expect([count("A"), count("B"), count("C")]).toEqual([174, 103, 78]);
+    expect(ranked.at(-1)?.cumulativeShare).toBeCloseTo(1, 12);
+    // The 174th SKU starts under 80% of the value, the 175th at or past it.
+    expect(ranked[173]?.shareBefore).toBeLessThan(0.8);
+    expect(ranked[174]?.shareBefore).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it("ranks MARKER-0138 first at USD 345.49, then PAINT-0037, MARKER-0047, PAPER-0041 and PAPER-0075", () => {
+    const top = abcClasses(getDataset().orders).slice(0, 5);
+    expect(top.map(({ sku, grossValue }) => [sku, Number(grossValue.toFixed(2))])).toEqual([
+      ["MARKER-0138", 345.49],
+      ["PAINT-0037", 298.87],
+      ["MARKER-0047", 204.76],
+      ["PAPER-0041", 193.77],
+      ["PAPER-0075", 177.42],
+    ]);
+    expect(top[0]).toMatchObject({ category: "MARKER", orders: 2, units: 16, abcClass: "A" });
+  });
+});
+
+describe("what a group of orders adds up to: a warehouse, a lane, a client or a category (ticket 33)", () => {
+  const worth = (status: Order["status"], deliveryDate: string | null, value: number, units: number): Order => ({
+    ...order(status, "2025-05-01", deliveryDate),
+    order_value_usd: value,
+    quantity: units,
+  });
+  const group = [
+    worth("delivered", "2025-05-03", 10, 1),
+    worth("delayed", "2025-05-08", 20, 2),
+    worth("exception", "2025-05-11", 30, 3),
+    worth("in_transit", null, 40, 4),
+    worth("canceled", null, 50, 5),
+  ];
+
+  it("counts every order, unit and dollar of gross value, and rates the delivered ones over delivered orders", () => {
+    expect(groupFigures(group)).toEqual({
+      orders: 5,
+      units: 15,
+      grossValue: 150,
+      delivered: 3,
+      onTimeRate: { numerator: 1, denominator: 3, value: 1 / 3 },
+      delayRate: { numerator: 1, denominator: 3, value: 1 / 3 },
+      averageDeliveryDays: { numerator: 2 + 7 + 10, denominator: 3, value: 19 / 3 },
+      smallSample: true,
+    });
+  });
+
+  it("is a small sample under 20 delivered orders, and not at 20", () => {
+    const delivered = (count: number) => Array.from({ length: count }, () => worth("delivered", "2025-05-03", 1, 1));
+    expect(groupFigures(delivered(19)).smallSample).toBe(true);
+    expect(groupFigures([...delivered(19), worth("in_transit", null, 1, 1)]).smallSample).toBe(true);
+    expect(groupFigures(delivered(20)).smallSample).toBe(false);
+  });
+
+  it("has no rates for a group with nothing delivered", () => {
+    expect(groupFigures([worth("in_transit", null, 40, 4)])).toMatchObject({
+      delivered: 0,
+      onTimeRate: { value: null },
+      averageDeliveryDays: { value: null },
+      smallSample: true,
+    });
+  });
+
+  it("gives a group's share of all gross value: PAINT is USD 2,288.10 of 13,695.87, 16.7%", () => {
+    const { orders } = getDataset();
+    const share = shareOfValue(
+      orders.filter((each) => each.product_category === "PAINT"),
+      orders,
+    );
+    expect(share.numerator).toBeCloseTo(2288.1, 2);
+    expect(share.denominator).toBeCloseTo(13695.87, 2);
+    expect((share.value ?? Number.NaN) * 100).toBeCloseTo(16.71, 2);
+    expect(shareOfValue([], []).value).toBeNull();
+  });
+
+  it("adds up the file's EWR-DC1 orders: 49 orders, 183 units, USD 2,252.69, 46 delivered, 37 on time, 3.57 days", () => {
+    const ewr = groupFigures(getDataset().orders.filter((each) => each.warehouse === "EWR-DC1"));
+    expect(ewr).toMatchObject({ orders: 49, units: 183, delivered: 46, onTimeRate: { numerator: 37, denominator: 46 }, smallSample: false });
+    expect(ewr.grossValue).toBeCloseTo(2252.69, 2);
+    expect(ewr.averageDeliveryDays.value ?? Number.NaN).toBeCloseTo(3.57, 2);
   });
 });

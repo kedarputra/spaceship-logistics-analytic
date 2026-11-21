@@ -55,7 +55,7 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    *Amended 21 Nov 2026 (ticket 29):* cards, bars and table rows open what explains them.
    - **Counts** open their orders in Raw data, filtered by the statuses `METRIC_STATUSES` in `definitions.ts` gives each metric, so the view shows the card's number. A rate or an average with no orders of its own opens the page that breaks it down: the Overview's on-time rate and average delivery time open Delivery.
    - **Rates on the detail pages** follow the ticket's table: a delay rate opens its delayed orders (the numerator), the highest on-time rate its delivered orders.
-   - **An Ask answer** opens every order it was computed over: for a rate or an average, the delivered orders it divides by, and its link says "delivered orders". The link appears only when every part of the spec is a Raw data filter: no origin, destination, client or SKU filter, no limit or minimum of deliveries, and a period of whole months. A forecast answer opens the Forecast page with its scope, a SKU question its category.
+   - **An Ask answer** opens every order it was computed over: for a rate or an average, the delivered orders it divides by, and its link says "delivered orders". The link appears only when every part of the spec is a Raw data filter: no origin, destination, client or SKU filter, no limit or minimum of deliveries, and a period of whole months. (Ticket 33 made origin, destination, client and SKU Raw data filters; see its amendment below.) A forecast answer opens the Forecast page with its scope, a SKU question its category.
    - **Shape:** a whole card is one link and one tab stop, named by what it opens ("Delayed orders: view the 55 orders"), with a line at its foot that says so. A bar's or row's name is its link and the row its hit target. A card that holds a button is not wrapped in a link.
 
    *Amended 21 Nov 2026 (ticket 26):* a count of 0 opens nothing. A card, bar, row or chart month with no orders behind it gets no link, arrow or "View" line, so no link leads to an empty table (DPD's 0 delayed orders on Carriers).
@@ -74,6 +74,23 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **The Overview** shows one line above the KPI cards while any order is overdue: the warning icon and "26 orders in transit longer than any completed delivery (12 days)" on the warn tint. The whole line opens `/attention`.
    - **Raw data** gains "Days in transit", the transit age of an order in transit, which sorts like any other column (`sort=age`).
 
+   *Amended 21 Nov 2026 (ticket 33):* Inventory and Network, and four more Raw data filters.
+   - **The rail** lists Inventory `/inventory` and Network `/network` after Carriers, for every role.
+   - **Value** on both pages is the file's gross `order_value_usd` (docs/data.md trap 6). Every card that shows value says so in its info popover.
+   - **Inventory:**
+     - three tiles, one per ABC class (its SKUs, gross value and share of value), and one line under them that says the catalogue's shape, computed: "The catalogue is flat: 174 of 355 SKUs (49.0%) make 80% of the value". It is flat when class A holds more than a fifth of the SKUs, the Pareto rule's 80/20, and concentrated otherwise;
+     - the Pareto curve: the share of all value against the SKUs ranked by value, each class's stretch in one of the three outcome marks (A on time's green, B delayed's amber, C exception's rust) with a 10% wash under it and its letter at its foot. The 80% and 95% limits are dashed lines. Its tooltip is the shared one; its Data table lists all 355 SKUs;
+     - the top 10 SKUs, each opening `/data?sku=`;
+     - the categories by value, each opening its orders and its Forecast scope.
+   - **Network:**
+     - the warehouse scorecard, highest on-time rate first. Every heading sorts by its column through the URL (`/network?sort=order_count&dir=desc`, the columns named as their metrics): figures highest first, names A to Z, and a second click reverses. The best and worst on-time rates among warehouses with at least 20 delivered orders carry an icon and a word, "best on time" and "worst on time";
+     - the lanes, origin → destination, most orders first;
+     - the clients, by gross value.
+     - Rows under 20 delivered orders carry the small-sample tag beside their name, as on Carriers: all 47 lanes, and 25 of the 30 clients. The Lanes popover says the rates per lane are indicative only.
+     - Each row opens its orders: `/data?warehouse=`, `?origin=&destination=`, `?client=`.
+   - **Raw data** reads `origin`, `destination`, `client` and `sku` too, with the spec's own schema and `matchesFilters`, as ticket 28's filters are read. Origin and Client are menus; the clients come from the values the spec checks against the data. Destination (47 cities) and SKU (355) have too many values for a menu: a link or the URL sets them, a chip removes them, and the form carries them over as hidden fields, so a change elsewhere keeps them.
+   - **Ask links** (ticket 29, above): origin, destination, client and SKU are Raw data filters now, so an answer filtered by them opens its orders too. Only a limit, a minimum of deliveries or a period that is not whole months leaves an answer without the link.
+
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 
@@ -82,6 +99,7 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
 - Four new routes and a shell. Overview becomes a summary that links to the detail pages.
   _Amended 21 Nov 2026 (ticket 28): a fifth new route, Raw data `/data`, so six pages in all (§5). The title keeps the decision's original name._
   _Amended 21 Nov 2026 (ticket 32): a sixth, Needs attention `/attention`, so seven pages, and Users for admins (§5)._
+  _Amended 21 Nov 2026 (ticket 33): Inventory `/inventory` and Network `/network`, so nine pages, and Users for admins (§5)._
 - The design files in `docs/design/` are references, not code. They need the design canvas's runtime to render, so read them as markup, styles and example data. Their numbers double as golden values for tests.
 - The README's screenshots (if any) and the Loom are recorded after the redesign.
 - Ticket 24 ships the tokens, the shell, Overview and Ask. Ticket 25 adds Delivery, Carriers and Forecast and can be cut if time runs out; the rail then lists only the pages that exist.

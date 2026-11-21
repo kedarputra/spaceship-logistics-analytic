@@ -87,8 +87,8 @@ function enumValues<const T extends readonly [string, ...string[]]>(dimension: s
 
 const distinctValues = new Map<keyof Order, readonly string[]>();
 
-/** The distinct values of an order field, read from the data once. */
-function valuesInData(field: "destination_city" | "client_id" | "sku"): readonly string[] {
+/** The distinct values of an order field, read from the data once, sorted: what a large dimension's filter accepts. */
+export function valuesInData(field: "destination_city" | "client_id" | "sku"): readonly string[] {
   let values = distinctValues.get(field);
   if (values === undefined) {
     values = [...new Set(getDataset().orders.map((order) => order[field]))].sort();

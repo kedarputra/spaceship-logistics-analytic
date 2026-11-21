@@ -25,6 +25,11 @@ export function countLink(count: number, words: string, href: string): CardLink 
   return count === 0 ? undefined : { href, text: `View the ${formatCount(count)} ${words}` };
 }
 
+/** "order" for one, "orders" for any other count: "View the 1 order". */
+export function ordersNoun(count: number): string {
+  return count === 1 ? "order" : "orders";
+}
+
 /** Orders in Raw data: the filters' orders, as many as `count` says; none when it is 0. */
 export function ordersLink(count: number, words: string, filters: FilterValues, sort?: OrdersView["sort"]): CardLink | undefined {
   return countLink(count, words, filteredOrdersHref(filters, sort));

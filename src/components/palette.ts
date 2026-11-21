@@ -23,6 +23,15 @@ export const MARKS = {
 export const BAND_OPACITY = 0.3;
 
 /**
+ * The ABC classes of SKUs (ticket 33) in the three outcome marks, validated together in this order: A on
+ * time's green, B delayed's amber, C exception's rust. Each always shows with its letter.
+ */
+export const ABC_MARKS = { A: MARKS.onTime, B: MARKS.delayed, C: MARKS.exception } as const;
+
+/** An area under a line: the series hue as a wash. */
+export const AREA_OPACITY = 0.1;
+
+/**
  * The two statuses that are not delivery outcomes, for a breakdown by status. Validated after the three
  * outcome marks in stack order: every adjacent pair passes (worst colour-blind ΔE 10.5), and the chart
  * keeps its legend and table.
@@ -38,4 +47,8 @@ export const CHART_INK = {
   label: "#5e6b64",
   /** The card surface: the gap between stacked segments and the ring around points. */
   surface: "#ffffff",
+  /** A reference line, dashed: grey-green, as icons are. */
+  reference: "#808f87",
+  /** Text drawn on a chart that is not a tick: a class's letter. */
+  ink: "#17201c",
 } as const;
