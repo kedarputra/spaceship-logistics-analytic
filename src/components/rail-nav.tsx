@@ -14,12 +14,12 @@ const PAGES: readonly { href: string; label: string; icon: IconName }[] = [
   { href: "/data", label: "Raw data", icon: "table" },
 ];
 
-const LINK_CLASSES = "relative flex min-h-10 items-center gap-2.5 rounded-control px-3 whitespace-nowrap no-underline rail-collapsed:justify-center rail-collapsed:px-0";
+const LINK_CLASSES = "relative flex min-h-10 items-center gap-2.5 rounded-control px-3 whitespace-nowrap no-underline";
 
 /**
  * The menu, with the current page marked: an amber bar, an amber tint, and aria-current. On the
- * collapsed rail only the icons show; each name stays as its link's accessible name and becomes its
- * tooltip (ticket 27).
+ * collapsed rail only the icons show, in the same place; each name fades out but stays as its link's
+ * accessible name and becomes its tooltip (tickets 27, 30).
  */
 export function NavLinks({ pathname }: { pathname: string | null }) {
   return (
@@ -41,7 +41,7 @@ export function NavLinks({ pathname }: { pathname: string | null }) {
               >
                 {current ? <span aria-hidden="true" className="absolute top-[11px] -left-3 h-[18px] w-[3px] rounded-r-mark bg-amber" /> : null}
                 <Icon name={icon} className="shrink-0" />
-                <span className="rail-collapsed:sr-only">{label}</span>
+                <span className="rail-fade">{label}</span>
               </Link>
             </li>
           );

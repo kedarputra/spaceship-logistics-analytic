@@ -4,7 +4,6 @@ import { CardPair } from "@/components/card-pair";
 import { CarrierCard } from "@/components/carrier-card";
 import { ChartCard } from "@/components/chart-card";
 import { ForecastSummary } from "@/components/forecast-summary";
-import { Icon } from "@/components/icons";
 import { KpiCards } from "@/components/kpi-cards";
 import { OrderBars } from "@/components/month-charts";
 import { OutcomesChartCard } from "@/components/outcomes-chart-card";
@@ -13,7 +12,7 @@ import { OVERVIEW_QUESTIONS } from "@/components/suggested-questions";
 import { dashboardKpis, deliveryOutcomesOverTime, orderCountOverTime } from "@/domain/definitions";
 import { formatCount } from "@/domain/format";
 import { getDataset } from "@/domain/orders";
-import { dataPeriod, formatDate, formatPeriod, formatYears } from "@/domain/periods";
+import { dataPeriod, formatPeriod } from "@/domain/periods";
 import { answerForecast } from "@/tools/forecast-answer";
 import { forecastSpecSchema } from "@/tools/spec";
 import { queryResult } from "./query-result";
@@ -37,15 +36,7 @@ export default function OverviewPage() {
 
   return (
     <>
-      <PageHeader
-        label="Logistics analytics"
-        title="Overview"
-        description={`Delivery performance, carriers and demand for the ${formatCount(orders.length)} orders of ${formatYears(period)}.`}
-      >
-        <span className="inline-flex h-8 items-center gap-2 rounded-full border border-line bg-panel px-3 text-small text-ink-2">
-          <Icon name="calendar" size={15} className="text-grey-green" />
-          {`Data as of ${formatDate(anchor)}`}
-        </span>
+      <PageHeader label="Logistics analytics" title="Overview" asOf={anchor}>
         <LiveAiStatusPill />
       </PageHeader>
       <AskBox questions={OVERVIEW_QUESTIONS} />
@@ -53,7 +44,7 @@ export default function OverviewPage() {
       <CardPair label="Orders and delivery outcomes">
         <ChartCard
           title="Orders per month"
-          caption={`By order date · ${dates} · ${formatCount(kpis.totalOrders.count)} orders`}
+          info={[`By order date · ${dates} · ${formatCount(kpis.totalOrders.count)} orders`]}
           table={{ headers: ["Month", "Orders"], rows: ordersPerMonth.map(({ bucket, value }) => [bucket.label, formatCount(value)]) }}
         >
           <OrderBars months={ordersPerMonth} />

@@ -22,13 +22,15 @@ function textOf(html: string): string {
     .replace(/\s+/g, " ");
 }
 
+/** How this was forecast, as text: the collapsible under the card. */
 function panelOf(html: string): string {
-  const start = html.indexOf("<details");
-  return textOf(html.slice(start, html.indexOf("</details>", start)));
+  const start = html.indexOf("<section data-explanation");
+  return textOf(html.slice(start, html.indexOf("</section>", start)));
 }
 
+/** The card above its explanation panel, as text. */
 function visibleOf(html: string): string {
-  return textOf(html.slice(0, html.indexOf("<details")));
+  return textOf(html.slice(0, html.indexOf("<section data-explanation")));
 }
 
 describe("the forecast card (R9, ADR 0003 §7–8)", () => {
@@ -38,6 +40,12 @@ describe("the forecast card (R9, ADR 0003 §7–8)", () => {
     const text = visibleOf(html);
     expect(text).toContain("Over Jan–Mar 2026, demand is forecast at 285 units; with 120 units of safety stock, that is 405 units to plan for.");
     expect(text).toContain("Units to plan for, Jan–Mar 2026 405 · 285 forecast + 120 safety stock");
+  });
+
+  it("names what was forecast in a row of chips, and the method in one line (ticket 30)", () => {
+    const text = visibleOf(html);
+    expect(text).toContain("Demand forecast All products Jan–Mar 2026 History 1 Jan–31 Dec 2025 · by order date 3-month moving average, lowest error on Oct–Dec 2025 Units to plan for");
+    expect(text).not.toContain("On this series");
   });
 
   it("lists each month's forecast with its 95% range", () => {

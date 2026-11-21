@@ -1,27 +1,22 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { infoLines, visibleText } from "@/components/markup-text";
 import AskPage from "./page";
-
-function visibleText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/\s+/g, " ");
-}
 
 const render = async (q?: string | string[]) => renderToStaticMarkup(await AskPage({ searchParams: Promise.resolve(q === undefined ? {} : { q }) }));
 
 describe("the Ask page (ticket 24, docs/design/Ask.dc.html)", () => {
-  it("is headed as the AI workspace, and says what the AI does and does not do", async () => {
-    expect(visibleText(await render())).toContain(
-      "Ask the data Ask about the data The AI turns your question into a query spec. Code checks the spec against a whitelist and computes the answer; the AI only words it.",
-    );
+  it("is headed as the AI workspace with the data's date, and no sentence under it (ticket 30)", async () => {
+    const text = visibleText(await render());
+    expect(text).toContain("Ask the data Ask about the data Data as of 31 Dec 2025 Your question");
+    expect(text).not.toContain("The AI turns your question");
   });
 
-  it("fills the form with the question in q, to ask on load, and states the limits", async () => {
+  it("fills the form with the question in q, to ask on load, with no notes under it (ticket 30)", async () => {
     const html = await render("Which carrier has the highest delay rate?");
     expect(html).toMatch(/<input[^>]*value="Which carrier has the highest delay rate\?"/);
-    expect(visibleText(html)).toContain("Up to 300 characters · 20 questions a minute per visitor");
+    expect(html).toMatch(/<input[^>]*maxLength="300"/);
+    expect(visibleText(html)).not.toContain("questions a minute");
     expect(await render()).toMatch(/<input(?![^>]*value="[^"])/);
     expect(await render(["one", "two"])).toMatch(/<input[^>]*value="one"/);
   });
@@ -34,9 +29,11 @@ describe("the Ask page (ticket 24, docs/design/Ask.dc.html)", () => {
     expect(html).toContain('<button type="button" class="chip chip-wide">Which carrier is the least reliable?</button>');
   });
 
-  it("says what it won't answer, with the order count computed", async () => {
-    expect(visibleText(await render())).toContain(
-      "What it won't answer Questions outside these 400 orders, and combined forecast scopes such as crayons at one warehouse.",
+  it("says what it won't answer in the info popover of Try these, with the order count computed (ticket 30)", async () => {
+    const html = await render();
+    expect(infoLines(html, "Try these")?.[0]).toBe(
+      "What it won't answer: questions outside these 400 orders, and combined forecast scopes such as crayons at one warehouse.",
     );
+    expect(visibleText(html)).not.toContain("What it won't answer");
   });
 });

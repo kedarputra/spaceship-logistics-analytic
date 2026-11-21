@@ -80,7 +80,7 @@ export function Plot({ ticks, min = 0, max, months, description, formatTick = fo
 const percentOf = (value: number, max: number) => `${(value / max) * 100}%`;
 
 /** A bar's lift while its month is shown (ticket 26): a slight lightening. */
-const LIFT = "transition-[filter] group-data-active/month:brightness-[1.18]";
+const LIFT = "group-data-active/month:brightness-[1.18]";
 
 /** Orders per month as bars, a value label on the highest and the lowest only. Each month opens its orders by order date. */
 export function OrderBars({ months }: { months: readonly BucketValue<number>[] }) {

@@ -3,7 +3,7 @@ import { type DashboardKpis, KPI_DEFINITIONS, METRIC_STATUSES } from "@/domain/d
 import { formatCount, formatFraction, formatPercent } from "@/domain/format";
 import { CardBox, type CardLink, ordersLink } from "./card-link";
 import { ON_TIME_BY_MONTH_ID, TIME_BY_PLACE_ID } from "./delivery-anchors";
-import { DaysFigure } from "./figure-card";
+import { DaysFigure, FigureLabel } from "./figure-card";
 import { Icon, type IconName } from "./icons";
 import { Marked } from "./marked";
 import { OUTCOME_SERIES, type Tone } from "./series";
@@ -15,8 +15,8 @@ interface KpiCardProps {
   /** Amber for the delayed card; green, on a sage tint, for the rest. */
   tone?: Tone;
   value: ReactNode;
-  /** The breakdown or the rate's parts, below the figure. */
-  detail: ReactNode;
+  /** The breakdown or the rate's parts, below the figure, if it has any. */
+  detail?: ReactNode;
   /** What explains the figure (ticket 29): its orders in Raw data, or the page that breaks it down. None for a count of 0. */
   link: CardLink | undefined;
 }
@@ -25,22 +25,22 @@ function KpiCard({ label, definition, icon, tone = "green", value, detail, link 
   return (
     <li>
       <CardBox name={label} link={link} className="card flex flex-col gap-1.5 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-small font-semibold text-ink-2">{label}</h2>
-          <span className={`grid size-7 place-items-center rounded-small ${tone === "amber" ? "bg-warn-tint text-warn-icon" : "bg-chip text-grey-green"}`}>
+        <div className="flex items-start justify-between gap-2">
+          <FigureLabel label={label} info={[definition]} />
+          <span className={`grid size-7 shrink-0 place-items-center rounded-small ${tone === "amber" ? "bg-warn-tint text-warn-icon" : "bg-chip text-grey-green"}`}>
             <Icon name={icon} size={15} strokeWidth={1.9} />
           </span>
         </div>
         <p className="text-kpi">{value}</p>
-        <div className="text-small text-ink-2">{detail}</div>
-        <p className="mt-1.5 border-t border-grid pt-2.5 text-note text-muted">{definition}</p>
+        {detail === undefined ? null : <div className="text-small text-ink-2">{detail}</div>}
       </CardBox>
     </li>
   );
 }
 
 /**
- * The five KPI cards of R1 (ADR 0011 §6). Shows the computed KPIs; computes nothing itself. A count
+ * The five KPI cards of R1 (ADR 0011 §6). Shows the computed KPIs; computes nothing itself. Each
+ * definition is in the info popover after its label (ticket 30). A count
  * opens its orders in Raw data; a rate or an average, which has no orders of its own to show, opens
  * the Delivery page where it is broken down (ticket 29).
  */
@@ -106,7 +106,6 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
           icon="calendar"
           link={{ href: `/delivery#${TIME_BY_PLACE_ID}`, text: "View the times by region and warehouse" }}
           value={<DaysFigure days={averageDeliveryDays.value} />}
-          detail="Order date to delivery date"
         />
       </ul>
     </section>

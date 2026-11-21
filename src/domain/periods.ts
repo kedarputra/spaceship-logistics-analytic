@@ -184,6 +184,12 @@ export function monthsPeriod(fromMonth: string, toMonth: string): Period {
   return { from: `${fromMonth}-01`, to: unitEnd(`${toMonth}-01`, "month") };
 }
 
+/** Whether a date is the last day of its month: 2025-11-30 is, 2025-11-29 is not. */
+export function isMonthEnd(date: string): boolean {
+  const month = date.slice(0, 7);
+  return monthsPeriod(month, month).to === date;
+}
+
 /** Whole months from the month starting on one key to the month starting on another: Jan → Mar is 2. */
 export function monthsBetween(fromKey: string, toKey: string): number {
   const months = (key: string) => Number(key.slice(0, 4)) * 12 + Number(key.slice(5, 7));

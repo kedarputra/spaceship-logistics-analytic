@@ -9,7 +9,7 @@ Asked by the user on 21 Nov 2026: "no subtext", "every animation like the collap
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] **No subtext.**
   - Remove page ledes, card footnotes and chart subtitles, and anything else that explains rather than shows.
@@ -53,3 +53,5 @@ Asked by the user on 21 Nov 2026: "no subtext", "every animation like the collap
   - Headless Edge screenshots at 1280 and 320 px of Overview, Ask (idle, working, answered), Delivery and Forecast. Nothing scrolls sideways.
 
 ## Comments
+
+- 2026-11-21: Done: no subtext (definitions, date basis, period and n in info popovers after every card and chart title; the data's date in every page header), Ask's chips row and a closed How this was computed, one motion system in globals.css (collapsibles, rail, popovers, press, reduced motion), and the AI working state with a cross-fade, aria-busy and a live region. npm run check: 701 tests; live in headless Edge at 1280 and 320 px.

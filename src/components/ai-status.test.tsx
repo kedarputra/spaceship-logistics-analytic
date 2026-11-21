@@ -38,11 +38,11 @@ describe("the AI status pill and the rail's status", () => {
   });
 
   it("names the model by its configured display name, not the gateway's alias, and says what the AI does (ticket 25)", () => {
-    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" />))).toBe(
+    expect(text(renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" asking={false} />))).toBe(
       "AI online Gemma 4 12B on this server. The AI routes and explains; code computes every number.",
     );
     expect(
-      text(renderToStaticMarkup(<RailAiStatus status={{ state: "unavailable" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" />)),
+      text(renderToStaticMarkup(<RailAiStatus status={{ state: "unavailable" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" asking={false} />)),
     ).toBe("AI unavailable: the dashboard still works Gemma 4 12B on this server. The AI routes and explains; code computes every number.");
   });
 
@@ -53,7 +53,7 @@ describe("the AI status pill and the rail's status", () => {
     expect(railStatusTip({ state: "busy" }, "Gemma 4 12B", "mock_logistics_data.csv")).toBe(
       "AI busy, try again shortly · Gemma 4 12B on this server · mock_logistics_data.csv",
     );
-    const html = renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" />);
+    const html = renderToStaticMarkup(<RailAiStatus status={{ state: "online" }} modelName="Gemma 4 12B" dataFile="mock_logistics_data.csv" asking={false} />);
     expect(html).toContain('data-tip="AI online · Gemma 4 12B on this server · mock_logistics_data.csv"');
   });
 });

@@ -1,6 +1,6 @@
 import { METRIC_STATUSES } from "@/domain/definitions";
 import type { Order } from "@/domain/orders";
-import { monthsPeriod, type Period } from "@/domain/periods";
+import { isMonthEnd, type Period } from "@/domain/periods";
 import { type OrdersView, ordersInView } from "./orders-view";
 import type { QueryResult } from "./query";
 
@@ -28,8 +28,7 @@ function statusesOf(filter: readonly Status[] | undefined, metric: readonly Stat
 /** Whether a period starts on a month's first day and ends on a month's last, or runs past the data at either end. */
 function isWholeMonths(period: Period, coverage: Period): boolean {
   const starts = period.from <= coverage.from || period.from.endsWith("-01");
-  const lastMonth = period.to.slice(0, 7);
-  const ends = period.to >= coverage.to || monthsPeriod(lastMonth, lastMonth).to === period.to;
+  const ends = period.to >= coverage.to || isMonthEnd(period.to);
   return starts && ends;
 }
 

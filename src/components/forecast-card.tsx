@@ -4,17 +4,19 @@ import { FORECAST_CHART_REASON } from "@/tools/chart";
 import { NOT_A_REORDER, RANGE_Z, type SkuHistory } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { TraceStage } from "@/tools/trace-stage";
-import { AskedQuestion, ExplanationCard, PanelHeading, PanelLink, SentenceBadge, SpecBlock } from "./answer-parts";
-import { CachedNote } from "./cached-note";
+import { capitalized } from "@/tools/words";
+import { AskedQuestion, ComputedChips, ExplanationCard, PanelHeading, PanelLink, SentenceBadge, SpecBlock } from "./answer-parts";
+import { CachedFact, CachedNote } from "./cached-note";
 import { ForecastChart, type ForecastChartRow } from "./forecast-chart";
 import { choiceParams, DEFAULT_MONTHS, forecastHref, HORIZON_MONTHS, type KnownChoice } from "./forecast-scopes";
 import { Fact, Table } from "./text-table";
 import { ChartAndTraceFacts } from "./trace-strip";
 
 /**
- * A forecast as the user sees it (R9, ADR 0003 §4, §7–8): the sentence, the units to plan for, the
- * chart with its 95% range, each month's forecast, the caveats, and an explanation panel with every
- * candidate's holdout error. Every value arrives computed; this file only formats it.
+ * A forecast as the user sees it (R9, ADR 0003 §4, §7–8): the sentence, what was forecast as chips, the
+ * method in one line (ticket 30), the units to plan for, the chart with its 95% range, each month's
+ * forecast and the caveats; then an explanation panel with the method in full and every candidate's
+ * holdout error. Every value arrives computed; this file only formats it.
  */
 
 /** History, then the forecast; the forecast line starts at the last actual month so the two meet. */
@@ -48,7 +50,7 @@ function forecastPageChoice(forecast: ForecastAnswer): { choice: KnownChoice; na
   return { choice: { scope: type, value, months }, name: `${type} ${value}` };
 }
 
-function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: TraceStage[] }) {
+function ForecastPanel({ forecast, cached, trace }: { forecast: ForecastAnswer; cached?: boolean; trace?: TraceStage[] }) {
   const { exact, horizon, method, recommendation } = forecast;
   const page = forecastPageChoice(forecast);
   return (
@@ -66,6 +68,7 @@ function ForecastPanel({ forecast, trace }: { forecast: ForecastAnswer; trace?: 
           {`${formatDecimal(exact.demand, 2)} + ${formatDecimal(exact.safetyStock, 2)} = ${formatDecimal(exact.total, 2)}, rounded up to ${formatCount(recommendation.units)} units to plan for. ${NOT_A_REORDER}`}
         </Fact>
         <Fact term="95% range">{`Forecast ± ${RANGE_Z} × σ × √(months ahead), floored at 0.`}</Fact>
+        <CachedFact cached={cached} />
         <ChartAndTraceFacts chartReason={FORECAST_CHART_REASON} trace={trace} />
       </dl>
       {page === undefined ? null : <PanelLink href={forecastHref(choiceParams(page.choice))}>{`Open ${page.name} on the Forecast page`}</PanelLink>}
@@ -120,8 +123,9 @@ export function ForecastCard({ question, forecast, cached, trace }: { question?:
         <div className="flex flex-wrap items-center gap-2">
           <SentenceBadge source={forecast.sentenceSource} />
           <CachedNote cached={cached} />
-          <span className="text-caption text-muted">{forecast.interpretation}</span>
         </div>
+        <ComputedChips chips={["Demand forecast", capitalized(forecast.scopeLabel), forecast.monthsLabel, `History ${forecast.period} · by order date`]} />
+        <p className="text-small text-ink-2">{`${forecast.method.label}, lowest error on ${forecast.holdout}`}</p>
         {forecast.sku === undefined ? null : <SkuOrders sku={forecast.sku} />}
         {forecast.roughNote === undefined ? null : (
           <p className="text-small text-ink-2">
@@ -151,7 +155,7 @@ export function ForecastCard({ question, forecast, cached, trace }: { question?:
           </ul>
         )}
       </article>
-      <ForecastPanel forecast={forecast} trace={trace} />
+      <ForecastPanel forecast={forecast} cached={cached} trace={trace} />
     </>
   );
 }

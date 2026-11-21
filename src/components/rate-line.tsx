@@ -105,11 +105,11 @@ function axisOfRates(rows: readonly ResultRow[]) {
 }
 
 /** "Jun (15 of 18) and Nov (16 of 19) had fewer than 20 deliveries, so …", or nothing when no month did. */
-function smallMonthsNote(rows: readonly ResultRow[]): string {
+function smallMonthsNotes(rows: readonly ResultRow[]): string[] {
   const small = rows.filter((row) => row.smallSample);
-  if (small.length === 0) return "";
+  if (small.length === 0) return [];
   const named = small.map((row) => `${monthOnly(row.label)} (${formatOf(rowRatio(row))})`);
-  return `${andList(named)} had fewer than ${SMALL_SAMPLE_MIN_DELIVERED} deliveries, so one delivery more or less moves them by several points. `;
+  return [`${andList(named)} had fewer than ${SMALL_SAMPLE_MIN_DELIVERED} deliveries, so one delivery more or less moves them by several points.`];
 }
 
 /** The on-time delivery rate per month, from the query tool (Delivery, ticket 25). */
@@ -119,7 +119,11 @@ export function OnTimeLineCard({ result }: { result: QueryResult }) {
     <ChartCard
       id={ON_TIME_BY_MONTH_ID}
       title="On-time delivery rate per month"
-      caption={`On-time ÷ delivered · by ${dateFieldWords(result.dateField)}`}
+      info={[
+        `On-time ÷ delivered · by ${dateFieldWords(result.dateField)}`,
+        ...smallMonthsNotes(result.rows),
+        `The axis starts at ${formatPercentPlain(axisOfRates(result.rows).min)}.`,
+      ]}
       legend={
         <Legend>
           <li className="inline-flex items-center gap-1.5">
@@ -149,7 +153,6 @@ export function OnTimeLineCard({ result }: { result: QueryResult }) {
       }}
     >
       <RateLinePlot rows={result.rows} overall={overall} />
-      <p className="text-caption text-muted">{`${smallMonthsNote(result.rows)}The axis starts at ${formatPercentPlain(axisOfRates(result.rows).min)}.`}</p>
     </ChartCard>
   );
 }

@@ -1,13 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { infoLines, visibleText } from "@/components/markup-text";
+import { METRICS } from "@/domain/definitions";
 import CarriersPage from "./page";
-
-function visibleText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/\s+/g, " ");
-}
 
 function part(html: string, name: string, end = "</section>"): string {
   const start = html.search(new RegExp(`aria-label(?:ledby)?="${name}"`));
@@ -18,10 +13,8 @@ function part(html: string, name: string, end = "</section>"): string {
 const html = renderToStaticMarkup(<CarriersPage />);
 
 describe("the Carriers page (ticket 25, figures from docs/design/README.md)", () => {
-  it("is headed with how many carriers, orders and deliveries there are, and the small-sample rule", () => {
-    expect(visibleText(html)).toContain(
-      "Carriers Carriers 9 carriers, 400 orders, 370 delivered. Rates are over delivered orders; carriers with fewer than 20 are marked.",
-    );
+  it("is headed Carriers with the data's date, and no sentence under it (ticket 30)", () => {
+    expect(visibleText(html)).toContain("Carriers Carriers Data as of 31 Dec 2025 Most orders");
   });
 
   it("names the carrier with the most orders, and the highest on-time and delay rates among those with at least 20", () => {
@@ -31,22 +24,34 @@ describe("the Carriers page (ticket 25, figures from docs/design/README.md)", ()
     expect(highlights).toContain("Highest delay rate, n ≥ 20 USPS 23.4% · 11 of 47 delayed · also the slowest with at least 20, 4.6 days");
   });
 
-  it("ranks all 9 by delay rate, small samples marked, with a note on reading it", () => {
+  it("keeps each highlight's definition in the info popover after its label (ticket 30)", () => {
+    expect(infoLines(html, "Most orders")).toEqual([METRICS.order_count.definition]);
+    expect(infoLines(html, "Highest on-time rate, n ≥ 20")).toEqual([METRICS.on_time_rate.definition]);
+    expect(infoLines(html, "Highest delay rate, n ≥ 20")).toEqual([METRICS.delay_rate.definition]);
+  });
+
+  it("ranks all 9 by delay rate, small samples marked, with the note on reading it in the info popover (ticket 30)", () => {
     const chart = part(html, "delay-title", "</figure>");
-    expect(chart).toContain("Delay rate by carrier Delayed orders ÷ delivered orders · by delivery date · 1 Jan–31 Dec 2025");
+    expect(chart).toContain("Delay rate by carrier GLS n=8");
     expect(chart).toContain(
       "GLS n=8 small sample 25.0% USPS n=47 23.4% UPS n=78 21.8% Royal Mail n=25 20.0% OnTrac n=27 14.8% FedEx n=85 12.9% LaserShip n=24 8.3% DHL n=58 5.2% DPD n=18 small sample 0.0%",
     );
     expect(chart).toContain("0% 10% 20% 30%");
-    expect(chart).toContain(
-      "Reading this chart GLS tops the list on only 8 deliveries. Among carriers with at least 20, USPS is highest at 23.4% (11 of 47). Lighter bars mark fewer than 20 delivered orders: one late delivery more or less moves them by several points.",
-    );
+    expect(chart).not.toContain("Reading this chart");
+    expect(infoLines(html, "Delay rate by carrier")).toEqual([
+      "Delayed orders ÷ delivered orders · by delivery date · 1 Jan–31 Dec 2025",
+      "GLS tops the list on only 8 deliveries. Among carriers with at least 20, USPS is highest at 23.4% (11 of 47).",
+      "Lighter bars mark fewer than 20 delivered orders: one late delivery more or less moves them by several points.",
+    ]);
   });
 
   it("tables all 9 carriers by delay rate, with a totals row", () => {
     const table = part(html, "table-title");
-    expect(table).toContain("All carriers Sorted by delay rate · orders and share by order date, the rest by delivery date");
-    expect(table).toContain("Carrier Orders Share Delivered On-time rate Delay rate ↓ Exceptions Avg delivery time");
+    expect(table).toContain("All carriers Carrier Orders Share Delivered On-time rate Delay rate ↓ Exceptions Avg delivery time");
+    expect(infoLines(html, "All carriers")).toEqual([
+      "Sorted by delay rate · orders and share by order date, the rest by delivery date",
+      "Rates are over delivered orders; carriers with fewer than 20 are marked.",
+    ]);
     expect(table).toContain(
       [
         "GLS small sample 9 2.3% 8 62.5% 25.0% 1 5.1 days",

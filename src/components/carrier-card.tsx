@@ -27,7 +27,7 @@ export function CarrierCard({ result, href }: { result: QueryResult; href: strin
     <SummaryCard
       id="carriers-title"
       title="Delay rate by carrier"
-      caption={`Delayed ÷ delivered · by ${dateFieldWords(result.dateField)} · top ${Math.min(SHOWN, rows.length)} of ${rows.length}`}
+      info={[`Delayed ÷ delivered · by ${dateFieldWords(result.dateField)} · top ${Math.min(SHOWN, rows.length)} of ${rows.length}`]}
       link={{ href, label: `All ${rows.length} carriers` }}
     >
       <RankedBars

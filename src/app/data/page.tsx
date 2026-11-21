@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CardTitle } from "@/components/card-title";
 import { DataFilters } from "@/components/data-filters";
 import { Icon } from "@/components/icons";
+import { InfoButton } from "@/components/info-button";
 import { OrdersTable } from "@/components/orders-table";
 import { DATA_PAGE_PATH, ordersHref } from "@/components/orders-href";
 import {
@@ -17,7 +18,7 @@ import {
   type SearchParams,
 } from "@/components/orders-url";
 import { PageHeader } from "@/components/page-header";
-import { type DashboardKpis, dashboardKpis } from "@/domain/definitions";
+import { type DashboardKpis, dashboardKpis, METRICS } from "@/domain/definitions";
 import { formatCount, formatDays, formatFraction, formatPercent } from "@/domain/format";
 import { DATASET_FILE, getDataset } from "@/domain/orders";
 import { type OrdersPage, type OrdersView, ordersInView, pageOf } from "@/tools/orders-view";
@@ -69,19 +70,28 @@ function IgnoredNote({ ignored }: { ignored: IgnoredParameter[] }) {
  */
 function Summary({ kpis, total, statusFiltered }: { kpis: DashboardKpis; total: number; statusFiltered: boolean }) {
   const { totalOrders, deliveredOrders, onTimeRate, delayedOrders, averageDeliveryDays } = kpis;
+  // The rows in view need no definition beyond the Orders card's own (ticket 30); each metric has its own.
   const figures = [
     { term: "Orders", value: formatCount(totalOrders.count), detail: `of ${formatCount(total)}` },
-    { term: "Delivered", value: formatCount(deliveredOrders.count), detail: `${formatCount(totalOrders.notDelivered)} not delivered` },
-    { term: "On-time rate", value: formatPercent(onTimeRate.value), detail: formatFraction(onTimeRate) },
-    { term: "Delay rate", value: formatPercent(delayedOrders.delayRate.value), detail: formatFraction(delayedOrders.delayRate) },
-    { term: "Average delivery time", value: formatDays(averageDeliveryDays.value), detail: `over ${formatCount(deliveredOrders.count)} delivered` },
+    { term: "Delivered", definition: METRICS.delivered_orders.definition, value: formatCount(deliveredOrders.count), detail: `${formatCount(totalOrders.notDelivered)} not delivered` },
+    { term: "On-time rate", definition: METRICS.on_time_rate.definition, value: formatPercent(onTimeRate.value), detail: formatFraction(onTimeRate) },
+    { term: "Delay rate", definition: METRICS.delay_rate.definition, value: formatPercent(delayedOrders.delayRate.value), detail: formatFraction(delayedOrders.delayRate) },
+    {
+      term: "Average delivery time",
+      definition: METRICS.average_delivery_time.definition,
+      value: formatDays(averageDeliveryDays.value),
+      detail: `over ${formatCount(deliveredOrders.count)} delivered`,
+    },
   ];
   return (
     <section aria-label="Summary" className="flex flex-col gap-2">
       <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,128px),1fr))] gap-3">
-        {figures.map(({ term, value, detail }) => (
+        {figures.map(({ term, definition, value, detail }) => (
           <div key={term} className="card flex flex-col gap-0.5 px-4 py-3">
-            <dt className="text-small font-semibold text-ink-2">{term}</dt>
+            <dt className="flex items-center gap-1 text-small font-semibold text-ink-2">
+              {term}
+              {definition === undefined ? null : <InfoButton title={term} lines={[definition]} />}
+            </dt>
             <dd className="text-figure">{value}</dd>
             <dd className="text-note text-muted">{detail}</dd>
           </div>
@@ -128,9 +138,12 @@ function Paging({ page, view }: { page: OrdersPage; view: OrdersView }) {
   );
 }
 
-function rowsCaption(page: OrdersPage, view: OrdersView): string {
-  if (page.total === 0) return "No orders";
-  return `${rowsShown(page)} · ${view.sort === undefined ? "in file order" : "sorted by the marked column"}`;
+/** What the Orders card shows, in its info popover (ticket 30). */
+function ordersInfo(total: number, view: OrdersView): string[] {
+  return [
+    `The ${formatCount(total)} orders of ${DATASET_FILE} as the file has them. Read-only: filter, sort and download them.`,
+    view.sort === undefined ? "In file order." : "Sorted by the marked column.",
+  ];
 }
 
 /**
@@ -139,7 +152,7 @@ function rowsCaption(page: OrdersPage, view: OrdersView): string {
  * query tool's own matching and summed up by the KPI definitions (ADR 0011 §5–6).
  */
 export default async function DataPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const { orders } = getDataset();
+  const { orders, anchor } = getDataset();
   const { view, ignored } = readOrdersView(await searchParams, orders);
   const inView = ordersInView(orders, view);
   const page = pageOf(inView, view.page);
@@ -147,11 +160,7 @@ export default async function DataPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageHeader
-        label="Data"
-        title="Raw data"
-        description={`The ${formatCount(orders.length)} orders of ${DATASET_FILE} as the file has them. Read-only: filter, sort and download them.`}
-      />
+      <PageHeader label="Data" title="Raw data" asOf={anchor} />
       <section aria-label="Filters" className="card flex flex-col gap-3 p-3.5">
         <DataFilters path={DATA_PAGE_PATH} query={filterQuery(view)} lists={filterLists()} months={dataMonths(orders)} />
         {chips.length === 0 ? null : <ActiveFilters chips={chips} clearHref={clearAllHref(view)} />}
@@ -160,7 +169,7 @@ export default async function DataPage({ searchParams }: { searchParams: Promise
       <Summary kpis={dashboardKpis(inView)} total={orders.length} statusFiltered={view.filters.status !== undefined} />
       <section aria-labelledby="orders-title" className="card card-body">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle id="orders-title" title="Orders" caption={rowsCaption(page, view)} />
+          <CardTitle id="orders-title" title="Orders" info={ordersInfo(orders.length, view)} detail={page.total === 0 ? "No orders" : rowsShown(page)} />
           <a href={csvHref(view)} download className="button-small gap-1.5 no-underline">
             <Icon name="download" size={15} />
             Download CSV

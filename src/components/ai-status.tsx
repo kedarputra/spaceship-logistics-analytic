@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { AI_STATUS_TEXT, type AiState, type AiStatus, aiStatusFrom, modelOnServer, railStatusTip } from "./ai-status-state";
+import { useQuestionInFlight } from "./question-activity";
 
 /**
  * The AI status pill and the rail's status block (ADR 0011 §5). One poller per page serves every
@@ -79,21 +80,25 @@ const RAIL_DOTS: Record<AiState, string> = {
 
 /**
  * The rail's status block: the state, the model by its display name (ticket 25), and what the AI
- * does. On the collapsed rail only the dot shows, with the rest as its tooltip (ticket 27); the words
- * stay for screen readers.
+ * does. On the collapsed rail only the dot shows, in the same place, with the rest as its tooltip
+ * (ticket 27); the words fade but stay for screen readers. The dot pulses while a question is with
+ * the model (ticket 30).
  */
-export function RailAiStatus({ status, modelName, dataFile }: { status: AiStatus; modelName: string; dataFile: string }) {
+export function RailAiStatus({ status, modelName, dataFile, asking }: { status: AiStatus; modelName: string; dataFile: string; asking: boolean }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="flex items-center gap-2 text-small font-medium text-panel">
-        <span aria-hidden="true" data-tip={railStatusTip(status, modelName, dataFile)} className="grid place-items-center rail-collapsed:size-8">
-          <span className={`size-2 rounded-full ${RAIL_DOTS[status.state]}`} />
+        {/* The dot sits on the collapsed rail's centre line either way; its hit target reaches 12 px around it. */}
+        <span
+          aria-hidden="true"
+          data-tip={railStatusTip(status, modelName, dataFile)}
+          className="relative ml-0.5 grid shrink-0 place-items-center before:absolute before:-inset-3"
+        >
+          <span data-asking={asking ? "" : undefined} className={`size-2 rounded-full ${RAIL_DOTS[status.state]} ${asking ? "animate-beat" : ""}`} />
         </span>
-        <span className="rail-collapsed:sr-only">{AI_STATUS_TEXT[status.state]}</span>
+        <span className="rail-fade">{AI_STATUS_TEXT[status.state]}</span>
       </span>
-      <span className="text-note text-rail-muted rail-collapsed:sr-only">
-        {`${modelOnServer(modelName)}. The AI routes and explains; code computes every number.`}
-      </span>
+      <span className="rail-fade text-note text-rail-muted">{`${modelOnServer(modelName)}. The AI routes and explains; code computes every number.`}</span>
     </div>
   );
 }
@@ -103,5 +108,5 @@ export function LiveAiStatusPill() {
 }
 
 export function LiveRailAiStatus({ modelName, dataFile }: { modelName: string; dataFile: string }) {
-  return <RailAiStatus status={useAiStatus()} modelName={modelName} dataFile={dataFile} />;
+  return <RailAiStatus status={useAiStatus()} modelName={modelName} dataFile={dataFile} asking={useQuestionInFlight()} />;
 }

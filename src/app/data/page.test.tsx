@@ -1,18 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { infoLines, visibleText as readerText } from "@/components/markup-text";
+import { METRICS } from "@/domain/definitions";
 import DataPage from "./page";
 
 // The filter form navigates with Next's router, which only exists inside a running app; the markup is what is under test.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
 
+/** The text a reader sees, info popovers closed, trimmed. */
 function visibleText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
+  return readerText(html).trim();
 }
 
 /** The markup inside a named part (aria-label or aria-labelledby), up to `end`. */
@@ -56,10 +53,19 @@ function hrefOf(html: string, text: string): string | undefined {
 
 // Expected figures: docs/data.md, docs/design/README.md and the first and last lines of the file.
 describe("the Raw data page (ticket 28)", () => {
-  it("is headed with what it shows: the file's orders, read-only", async () => {
-    expect(visibleText(await render())).toContain(
-      "Data Raw data The 400 orders of mock_logistics_data.csv as the file has them. Read-only: filter, sort and download them.",
-    );
+  it("is headed Raw data with the data's date; what it shows is in the Orders card's info popover (ticket 30)", async () => {
+    const html = await render();
+    expect(visibleText(html)).toContain("Data Raw data Data as of 31 Dec 2025 Search");
+    expect(visibleText(html)).toContain("Orders 1–50 of 400 Download CSV");
+    expect(infoLines(html, "Orders")).toEqual(["The 400 orders of mock_logistics_data.csv as the file has them. Read-only: filter, sort and download them.", "In file order."]);
+    expect(infoLines(await render({ sort: "order_date" }), "Orders")?.[1]).toBe("Sorted by the marked column.");
+  });
+
+  it("keeps each summary figure's definition in its info popover (ticket 30)", async () => {
+    const html = await render();
+    expect(infoLines(html, "Delivered")).toEqual([METRICS.delivered_orders.definition]);
+    expect(infoLines(html, "On-time rate")).toEqual([METRICS.on_time_rate.definition]);
+    expect(infoLines(html, "Average delivery time")).toEqual([METRICS.average_delivery_time.definition]);
   });
 
   it("sums up the orders shown with the KPI definitions: all 400, then FedEx", async () => {

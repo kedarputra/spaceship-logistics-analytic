@@ -22,10 +22,21 @@ function textOf(html: string): string {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
 }
 
-/** The part of the page inside the collapsed explanation panel. */
+/** The explanation panel, How this was computed: its heading and its region. */
 function panelOf(html: string): string {
-  const start = html.indexOf("<details");
-  return html.slice(start, html.indexOf("</details>", start));
+  const start = html.indexOf("<section data-explanation");
+  return html.slice(start, html.indexOf("</section>", start));
+}
+
+/** The answer before its explanation panel. */
+function cardOf(html: string): string {
+  return html.slice(0, html.indexOf("<section data-explanation"));
+}
+
+/** The chips under the answer: what was computed. */
+function chipsOf(html: string): string[] {
+  const list = /<ul aria-label="What was computed"[^>]*>(.*?)<\/ul>/s.exec(html)?.[1] ?? "";
+  return [...list.matchAll(/<li[^>]*>(.*?)<\/li>/gs)].map((match) => textOf(match[1] ?? "").trim());
 }
 
 describe("the answer (ADR 0006 §6)", () => {
@@ -36,21 +47,31 @@ describe("the answer (ADR 0006 §6)", () => {
     expect(textOf(render(answerFor({ metric: "on_time_rate" })))).toContain("On-time delivery rate 82.2% · 304 / 370");
   });
 
-  it("always shows the table, with partial weeks named by the days they cover", () => {
-    const text = textOf(render(answerFor({ metric: "delayed_orders", groupBy: "week", period: { type: "last", count: 3, unit: "month" } })));
+  it("always shows the table on the answer, with partial weeks named by the days they cover (ADR 0006 §6)", () => {
+    const text = textOf(cardOf(render(answerFor({ metric: "delayed_orders", groupBy: "week", period: { type: "last", count: 3, unit: "month" } }))));
     expect(text).toContain("w/c 6 Oct 2");
     expect(text).toContain("w/c 29 Sep 0 1–5 Oct only");
   });
 
   it('draws at most 12 bars and says "35 more in the table" for 47 destinations, all 47 in the table', () => {
     const html = render(answerFor({ metric: "order_count", groupBy: "destination" }));
-    expect(textOf(html)).toContain("35 more in the table");
-    const visibleTable = html.slice(0, html.indexOf("<details"));
-    expect(visibleTable.match(/<tr/g)).toHaveLength(48);
+    expect(textOf(cardOf(html))).toContain("35 more in the table");
+    expect(cardOf(html).match(/<tr/g)).toHaveLength(48);
   });
 
   it("flags small samples with their n in the table", () => {
-    expect(textOf(render(answerFor({ metric: "delay_rate", groupBy: "carrier" })))).toContain("GLS 25.0% 2 / 8 8 Small sample");
+    expect(textOf(cardOf(render(answerFor({ metric: "delay_rate", groupBy: "carrier" }))))).toContain("GLS 25.0% 2 / 8 8 Small sample");
+  });
+
+  it("names what was computed in a row of chips under the answer: the metric, the dimension, the filters and the resolved period (ticket 30)", () => {
+    const html = render(answerFor({ metric: "delay_rate", groupBy: "carrier", filters: { region: ["EU", "UK"] }, period: { type: "previous", unit: "month" } }));
+    expect(chipsOf(cardOf(html))).toEqual(["Delay rate", "by carrier", "Region: EU, UK", "Nov 2025 · by delivery date"]);
+    expect(chipsOf(cardOf(render(answerFor({ metric: "order_count" }))))).toEqual(["Orders", "Jan–Dec 2025 · by order date"]);
+    // A period that is not whole months keeps its days: last week, by ADR 0002's Monday weeks.
+    expect(chipsOf(cardOf(render(answerFor({ metric: "order_count", period: { type: "previous", unit: "week" } }))))).toEqual([
+      "Orders",
+      "22–28 Dec 2025 · by order date",
+    ]);
   });
 
   it("offers the follow-up chips as buttons", () => {
@@ -64,8 +85,9 @@ describe("the explanation panel (ADR 0006 §7)", () => {
   const panel = panelOf(render(answer));
   const panelText = textOf(panel);
 
-  it("is open by default: the Ask page shows how every answer was computed (ticket 24)", () => {
-    expect(panel).toMatch(/^<details[^>]*\bopen\b/);
+  it("is closed by default, its heading a button that says so (ticket 30)", () => {
+    expect(panel).toMatch(/<button[^>]*aria-expanded="false"[^>]*>.*How this was computed/s);
+    expect(panel).toMatch(/<div[^>]*inert=""[^>]*class="collapsible/);
   });
 
   it("states the interpretation, the period as asked with its dates and date field, the filters and the definition", () => {
@@ -97,7 +119,7 @@ describe("small samples in a chart over time (ADR 0001 §6, ADR 0006 §6)", () =
     const muted = answerChartProps(answer)?.rows.filter((row) => row.muted).map((row) => row.label);
     expect(muted).toEqual(answer.rows.filter((row) => row.smallSample).map((row) => row.label));
     expect(muted?.length).toBeGreaterThan(0);
-    expect(textOf(render(answer))).toContain("Lighter: fewer than 20 delivered orders; n is in the table.");
+    expect(textOf(cardOf(render(answer)))).toContain("Lighter: fewer than 20 delivered orders; n is in the table.");
   });
 });
 
@@ -128,6 +150,10 @@ describe("safety and errors", () => {
     );
     expect(textOf(html)).toContain("The query spec is not valid. Unknown carrier &quot;fedx&quot;. Did you mean &quot;FedEx&quot;?");
     expect(html).toContain('role="alert"');
+  });
+
+  it("shows nothing before the first question: the suggested questions are the idle state (ticket 30)", () => {
+    expect(renderToStaticMarkup(<AnswerOutcome outcome={{ kind: "idle" }} onFollowUp={() => undefined} onAsk={() => undefined} />)).toBe("");
   });
 
   it("shows the no-data message", () => {

@@ -1,13 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { infoLines, visibleText } from "@/components/markup-text";
 import ForecastPage from "./page";
-
-function visibleText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/\s+/g, " ");
-}
 
 function part(html: string, name: string): string {
   const start = html.search(new RegExp(`aria-label(?:ledby)?="${name}"`));
@@ -55,10 +49,9 @@ describe("the Forecast page (ticket 25, figures from docs/design/README.md)", as
   const html = await render();
   const text = visibleText(html);
 
-  it("is headed with what is forecast, from which dates, one scope at a time", () => {
-    expect(text).toContain(
-      "Forecast Demand forecast Units ordered per month, forecast from 1 Jan–31 Dec 2025 by order date. One scope at a time: all products, a category, a warehouse or a region.",
-    );
+  it("is headed Demand forecast with the data's date, and no sentence under it (ticket 30)", () => {
+    expect(text).toContain("Forecast Demand forecast Data as of 31 Dec 2025 All products Category Warehouse Region");
+    expect(text).not.toContain("One scope at a time");
   });
 
   it("opens on all products over 3 months, the controls saying so", () => {
@@ -68,7 +61,8 @@ describe("the Forecast page (ticket 25, figures from docs/design/README.md)", as
 
   it("gives the plan, its breakdown, each month with its 95% range in whole units, and the January caveat", () => {
     const card = part(html, "total-title");
-    expect(card).toContain("All products · Jan–Mar 2026 History 1 Jan–31 Dec 2025 · error measured on Oct–Dec 2025 3-month moving average");
+    expect(card).toContain("All products · Jan–Mar 2026 3-month moving average Units to plan for 405");
+    expect(infoLines(html, "All products · Jan–Mar 2026")).toEqual(["Units ordered per month, by order date · history 1 Jan–31 Dec 2025 · error measured on Oct–Dec 2025"]);
     expect(card).toContain("Units to plan for 405 Forecast demand 285 Safety stock 120");
     expect(card).toContain("Month Forecast 95% range Jan 2026 95 13–177 Feb 2026 95 0–210 Mar 2026 95 0–236");
     expect(card).toContain("January 2025's spike is outside the 3-month window, so the forecast does not repeat it.");
@@ -81,6 +75,18 @@ describe("the Forecast page (ticket 25, figures from docs/design/README.md)", as
     );
     // The exact sum and one round-up, so the arithmetic reads true for any scope: a demand of 285.6 would not round the stock down.
     expect(chosen).toContain("Forecast demand, 3 months 285.00 Safety stock, 1.65 × σ 41.66 × √3 119.05 Units to plan for, rounded up 404.05 → 405");
+    expect(chosen).not.toContain("σ is the root mean square");
+  });
+
+  it("puts how the methods were scored and what σ is in the info popovers (ticket 30)", () => {
+    expect(infoLines(html, "4 methods, one chosen")).toEqual([
+      "Each was fitted on the months before Oct–Dec 2025 and scored on Oct–Dec 2025. The lowest error wins; a tie goes to the simpler method.",
+    ]);
+    expect(infoLines(html, "From forecast to plan")?.[0]).toBe("The plan covers the forecast plus room for its usual error.");
+    expect(infoLines(html, "From forecast to plan")?.[1]).toMatch(/^σ is the root mean square of the method's one-step-ahead errors from /);
+    expect(infoLines(html, "By scope, Jan–Mar 2026")).toEqual([
+      "Each scope picks its own method. Rough means WAPE over 50% before rounding: plan with care.",
+    ]);
   });
 
   it("forecasts all 22 scopes at 3 months, marking the rough ones and UK's one warehouse", () => {
@@ -94,7 +100,7 @@ describe("the Forecast page (ticket 25, figures from docs/design/README.md)", as
   });
 
   it("says why no SKU is forecast, with the most orders any SKU has, and asks about one on the Ask page", () => {
-    expect(text).toContain("SKUs are not forecast: no SKU has more than 3 orders. Ask about one, such as CRAYON-0008, to see its orders and its category's forecast.");
+    expect(text).toContain("SKUs are not forecast: no SKU has more than 3 orders. Forecast demand for SKU CRAYON-0008");
     expect(html).toContain('href="/ask?q=Forecast+demand+for+SKU+CRAYON-0008"');
   });
 });

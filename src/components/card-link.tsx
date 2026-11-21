@@ -41,24 +41,26 @@ function linkName(name: string, link: CardLink): string {
 }
 
 /**
- * A card's box. With a link, the whole card is that link and one tab stop: its border turns sage and
- * an arrow appears on hover and focus, and a line at its foot says what opens, so it is found on touch.
- * `name` is what the card shows, such as its label.
+ * A card's box. With a link, the whole card opens it and is one tab stop: the line at its foot that
+ * says what opens, so it is found on touch, is the link, stretched over the card. Its border turns
+ * sage and an arrow appears on hover and focus. An info button in the card sits above the stretch and
+ * stays its own button (ticket 30), so no link ever holds a button. `name` is what the card shows,
+ * such as its label.
  */
 export function CardBox({ name, link, className, children }: { name: string; link?: CardLink; className: string; children: ReactNode }) {
   if (link === undefined) return <div className={`h-full ${className}`}>{children}</div>;
   return (
-    <Link
-      href={link.href}
-      aria-label={linkName(name, link)}
-      className={`group h-full text-ink no-underline transition-[border-color] hover:border-sage hover:text-ink focus-visible:border-sage ${className}`}
-    >
+    <div className={`group relative h-full text-ink hover:border-sage has-[a:focus-visible]:border-sage ${className}`}>
       {children}
-      <span className="mt-auto flex items-center gap-1 pt-1 text-small font-semibold text-green-text">
+      <Link
+        href={link.href}
+        aria-label={linkName(name, link)}
+        className="mt-auto flex items-center gap-1 pt-1 text-small font-semibold text-green-text rounded-[inherit] no-underline outline-none after:absolute after:inset-0 after:rounded-[inherit] hover:text-green-text focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-mark-delayed"
+      >
         {link.text}
-        <Icon name="arrow" size={14} strokeWidth={2} className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-      </span>
-    </Link>
+        <Icon name="arrow" size={14} strokeWidth={2} className="opacity-0 transition-opacity group-hover:opacity-100 group-has-[a:focus-visible]:opacity-100" />
+      </Link>
+    </div>
   );
 }
 

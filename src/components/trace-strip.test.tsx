@@ -25,9 +25,10 @@ function textOf(html: string): string {
     .replace(/\s+/g, " ");
 }
 
+/** The explanation panel, How this was computed. */
 function panelOf(html: string): string {
-  const start = html.indexOf("<details");
-  return html.slice(start, html.indexOf("</details>", start));
+  const start = html.indexOf("<section data-explanation");
+  return html.slice(start, html.indexOf("</section>", start));
 }
 
 const weekly = answerQuery(querySpecSchema.parse({ tool: "query", metric: "delayed_orders", groupBy: "week", period: { type: "last", count: 3, unit: "month" } }));

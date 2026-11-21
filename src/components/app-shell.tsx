@@ -39,33 +39,36 @@ export function AppShell({
         <Rail
           initiallyCollapsed={railCollapsed}
           brand={
-            <div className="flex items-center gap-2.5 px-2 py-1 rail-collapsed:justify-center rail-collapsed:px-0">
+            <div className="flex items-center gap-2.5 px-2 py-1">
               <span className="grid size-[34px] shrink-0 place-items-center rounded-control bg-sage/16 text-sage">
                 <Icon name="box" size={20} />
               </span>
-              <span className="flex flex-col whitespace-nowrap rail-collapsed:sr-only">
+              <span className="flex flex-col whitespace-nowrap">
                 <span className="text-card-title text-panel">Logistics Analytics</span>
                 <span className="text-note text-rail-muted">{`Order data, ${formatYears(period)}`}</span>
               </span>
             </div>
           }
           dataCard={
-            <div className="flex flex-col gap-2.5 rounded-inset border border-panel/8 bg-panel/4 p-3.5 rail-collapsed:items-center rail-collapsed:border-transparent rail-collapsed:bg-transparent rail-collapsed:p-0">
-              {/* Collapsed, the card shrinks to the AI dot; these words stay for screen readers. */}
-              <div className="flex flex-col gap-2.5 rail-collapsed:sr-only">
-                <span className="text-label text-rail-muted uppercase">Data</span>
-                {/* The file's name opens its rows (ticket 28). Collapsed, the link would take focus unseen, so only the words stay. */}
-                <Link
-                  href="/data"
-                  className="self-start text-small font-medium text-panel underline decoration-panel/30 underline-offset-[3px] hover:text-panel hover:decoration-panel rail-collapsed:hidden"
-                >
-                  {DATASET_FILE}
-                </Link>
-                <span className="hidden rail-collapsed:inline">{DATASET_FILE}</span>
-                <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · read-only`}</span>
-                <div className="h-px bg-panel/8" />
+            <div className="relative p-3.5">
+              {/* Collapsed, the card fades to the AI dot, which keeps its place; the words stay for screen readers. */}
+              <span aria-hidden="true" className="rail-fade absolute inset-0 rounded-inset border border-panel/8 bg-panel/4" />
+              <div className="relative flex flex-col gap-2.5 beside:w-[180px]">
+                <div className="rail-fade flex flex-col gap-2.5">
+                  <span className="text-label text-rail-muted uppercase">Data</span>
+                  {/* The file's name opens its rows (ticket 28). Collapsed, the link would take focus unseen, so it hides once faded and only the words stay. */}
+                  <Link
+                    href="/data"
+                    className="self-start text-small font-medium text-panel underline decoration-panel/30 underline-offset-[3px] transition-[visibility] hover:text-panel hover:decoration-panel rail-collapsed:invisible"
+                  >
+                    {DATASET_FILE}
+                  </Link>
+                  <span className="sr-only hidden rail-collapsed:inline">{DATASET_FILE}</span>
+                  <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · read-only`}</span>
+                  <div className="h-px bg-panel/8" />
+                </div>
+                <LiveRailAiStatus modelName={modelName} dataFile={DATASET_FILE} />
               </div>
-              <LiveRailAiStatus modelName={modelName} dataFile={DATASET_FILE} />
             </div>
           }
         >

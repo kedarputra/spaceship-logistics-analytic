@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { isRateOrAverage, SMALL_SAMPLE_MIN_DELIVERED } from "@/domain/definitions";
 import { formatCount, formatMetricValue } from "@/domain/format";
-import { formatPeriod } from "@/domain/periods";
+import { formatMonths, formatPeriod, isMonthEnd, type Period } from "@/domain/periods";
 import type { Answer, FollowUp } from "@/tools/answer";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import type { ResultRow } from "@/tools/query";
@@ -9,14 +9,15 @@ import type { QuerySpec } from "@/tools/spec";
 import type { TraceStage } from "@/tools/trace-stage";
 import { capitalized, countOf, DIMENSION_WORDS, dateFieldWords, filterList, periodWords } from "@/tools/words";
 import { answerBars, answerChartProps, companionOf } from "./answer-chart";
-import { AskedQuestion, ExplanationCard, PanelHeading, PanelLink, SentenceBadge, SpecBlock } from "./answer-parts";
-import { CachedNote } from "./cached-note";
+import { AskedQuestion, ComputedChips, ExplanationCard, PanelHeading, PanelLink, SentenceBadge, SpecBlock } from "./answer-parts";
+import { CachedFact, CachedNote } from "./cached-note";
 import { Chart, type ChartProps } from "./chart";
 import { ForecastCard } from "./forecast-card";
 import { ordersHref } from "./orders-href";
 import { RankedBars } from "./ranked-bars";
 import { toneOf } from "./series";
 import { Fact, Table, type TextTable } from "./text-table";
+import { Thinking } from "./thinking";
 import { ChartAndTraceFacts } from "./trace-strip";
 
 /**
@@ -27,7 +28,11 @@ import { ChartAndTraceFacts } from "./trace-strip";
 
 export type AnswerOutcomeState =
   | { kind: "idle" }
-  | { kind: "loading" }
+  /**
+   * `startedAt`: when the question was sent, from Date.now(), for the seconds the working card counts.
+   * `model`: whether it went to the model, or only runs code (a follow-up chip, a history re-run).
+   */
+  | { kind: "loading"; startedAt: number; model: boolean }
   /** `cached`: the server's question cache served it (B1, ADR 0008 §1). */
   | { kind: "answer"; answer: Answer; cached?: boolean; trace?: TraceStage[] }
   | { kind: "forecast"; forecast: ForecastAnswer; cached?: boolean; trace?: TraceStage[] }
@@ -78,7 +83,7 @@ function resultTable(answer: Answer, decimals: 1 | 2): TextTable {
 }
 
 /**
- * The result as rows of text, the last column a note: on screen to 1 decimal, in the panel to 2
+ * The result as rows of text, the last column a note: on the answer to 1 decimal, in the panel to 2
  * (ADR 0001 §7). A small-sample top cut by a limit is followed by its companion, as in the sentence.
  */
 function resultTableWithNotes(answer: Answer, decimals: 1 | 2): TextTable {
@@ -137,8 +142,28 @@ function periodText(answer: Answer): string {
   return `${dates}, filtered by ${dateFieldWords(answer.dateField)}`;
 }
 
-/** ADR 0006 §7: everything needed to check the number, and the orders behind it in Raw data (ticket 29). */
-function ExplanationPanel({ answer, trace }: { answer: Answer; trace?: TraceStage[] }) {
+/** "Nov 2025" for whole months, else the days: "25–31 Dec 2025". */
+function periodChip(period: Period & { label: string }): string {
+  const wholeMonths = period.from.endsWith("-01") && isMonthEnd(period.to);
+  return wholeMonths ? formatMonths(period.from, `${period.to.slice(0, 7)}-01`) : period.label;
+}
+
+/** The chips under an answer: the metric, the dimension, the filters, and the period as resolved, with its date field. */
+function answerChips(answer: Answer): string[] {
+  const { groupBy, filters } = answer.spec;
+  return [
+    answer.metric.label,
+    ...(groupBy === undefined ? [] : [`by ${DIMENSION_WORDS[groupBy].one}`]),
+    ...filterList(filters).map(({ dimension, values }) => `${capitalized(DIMENSION_WORDS[dimension].one)}: ${values.join(", ")}`),
+    `${periodChip(answer.period)} · by ${dateFieldWords(answer.dateField)}`,
+  ];
+}
+
+/**
+ * ADR 0006 §7: everything needed to check the number, the result table, and the orders behind it in
+ * Raw data (ticket 29). Closed until opened (ticket 30).
+ */
+function ExplanationPanel({ answer, cached, trace }: { answer: Answer; cached?: boolean; trace?: TraceStage[] }) {
   const { metric, rewrite, ranking, matchingOrders, ordersBehind } = answer;
   const hidden = matchingOrders === undefined ? 0 : matchingOrders.total - matchingOrders.orders.length;
   return (
@@ -152,6 +177,7 @@ function ExplanationPanel({ answer, trace }: { answer: Answer; trace?: TraceStag
           {ranking === undefined ? null : ` A group with fewer than ${ranking.minDelivered} delivered orders is a small sample.`}
         </Fact>
         {rewrite === undefined ? null : <Fact term="Rewritten">{`${rewrite.from} → ${rewrite.to}`}</Fact>}
+        <CachedFact cached={cached} />
         <ChartAndTraceFacts chartReason={answer.chart.reason} trace={trace} />
       </dl>
       {ordersBehind === undefined ? null : (
@@ -215,8 +241,8 @@ function AnswerCard({
         <div className="flex flex-wrap items-center gap-2">
           <SentenceBadge source={answer.sentenceSource} />
           <CachedNote cached={cached} />
-          <span className="text-caption text-muted">{answer.interpretation}</span>
         </div>
+        <ComputedChips chips={answerChips(answer)} />
         {answer.assumptionNote === undefined ? null : <p className="text-small text-ink-2">{answer.assumptionNote}</p>}
         <div className="max-w-[720px]">
           <AnswerVisual answer={answer} chart={chart} />
@@ -237,7 +263,7 @@ function AnswerCard({
           </div>
         )}
       </article>
-      <ExplanationPanel answer={answer} trace={trace} />
+      <ExplanationPanel answer={answer} cached={cached} trace={trace} />
     </>
   );
 }
@@ -247,18 +273,16 @@ function MessageCard({ children }: { children: ReactNode }) {
   return <div className="card flex flex-col gap-3 p-5 text-small">{children}</div>;
 }
 
-/** Whatever the last question came to: nothing yet, working, an answer, no data, or the API's errors. */
+/**
+ * Whatever the last question came to: nothing yet (the suggested questions are the idle state, ticket
+ * 30), the model working, an answer, no data, or the API's errors.
+ */
 export function AnswerOutcome({ question, outcome, onFollowUp, onAsk }: { question?: string; outcome: AnswerOutcomeState } & AnswerActions) {
   switch (outcome.kind) {
     case "idle":
-      return <p className="text-small text-muted">Ask a question, or pick one, to see its answer and how it was computed.</p>;
+      return null;
     case "loading":
-      return (
-        <MessageCard>
-          <AskedQuestion question={question} />
-          <p className="text-muted">Working on it…</p>
-        </MessageCard>
-      );
+      return <Thinking question={question} startedAt={outcome.startedAt} model={outcome.model} />;
     case "answer":
       return <AnswerCard question={question} answer={outcome.answer} cached={outcome.cached} trace={outcome.trace} onFollowUp={onFollowUp} />;
     case "forecast":

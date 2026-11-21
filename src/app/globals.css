@@ -122,6 +122,67 @@
    * rail-collapsed variant below builds on it.
    */
   --breakpoint-beside: 49.5rem;
+
+  /*
+   * Motion (ticket 30): one calm system. The iOS sheet curve for what opens, and three durations:
+   * hover and press, open and close, the rail and large panels. Only transform, opacity and a
+   * collapsible's height move, and nothing moves on first paint. Reduced motion zeroes them below.
+   */
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 160ms;
+  --dur-2: 280ms;
+  --dur-3: 380ms;
+  --default-transition-duration: var(--dur-1);
+  --default-transition-timing-function: var(--ease-out);
+
+  /* A tooltip appearing, new content arriving, a skeleton leaving, the working dots and the AI dot. */
+  --animate-pop: pop var(--dur-1) var(--ease-out);
+  --animate-arrive: arrive var(--dur-2) var(--ease-out);
+  --animate-leave: leave var(--dur-2) var(--ease-out) forwards;
+  --animate-dot: dot 1.2s var(--ease-in-out) infinite;
+  --animate-beat: beat 1.2s var(--ease-in-out) infinite;
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      scale: 0.96;
+    }
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      translate: 0 4px;
+    }
+  }
+  @keyframes leave {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes dot {
+    0%,
+    80%,
+    100% {
+      opacity: 0.25;
+      scale: 0.75;
+    }
+    40% {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+  @keyframes beat {
+    50% {
+      opacity: 0.35;
+      scale: 0.7;
+    }
+  }
+  @keyframes shimmer {
+    to {
+      translate: 100% 0;
+    }
+  }
 }
 
 /*
@@ -133,6 +194,19 @@
     &:is([data-rail-collapsed], [data-rail-collapsed] *) {
       @slot;
     }
+  }
+}
+
+/*
+ * Text on the rail beside the page (ticket 30): it fades out before the rail closes and back in once
+ * it has opened. It keeps its width, so it never wraps differently mid-way; the rail clips it.
+ */
+@utility rail-fade {
+  transition: opacity var(--dur-1) var(--ease-out) var(--dur-3);
+
+  @variant rail-collapsed {
+    opacity: 0;
+    transition-delay: 0s;
   }
 }
 
@@ -238,6 +312,17 @@
   }
 }
 
+/* Buttons and chips give way to 0.97 while pressed (ticket 30). */
+@layer components {
+  :is(button, .chip, .button-primary, .button-small) {
+    transition: scale var(--dur-1) var(--ease-out);
+
+    &:active:not(:disabled) {
+      scale: 0.97;
+    }
+  }
+}
+
 @utility field {
   height: 46px;
   min-width: 0;
@@ -247,6 +332,111 @@
   background-color: var(--color-panel);
   color: var(--color-ink);
   font-size: var(--text-input);
+}
+
+/*
+ * A collapsible's region (ticket 30): its height runs from 0 to its content as a grid row while the
+ * content fades in and rises 4 px; closing runs the same motion back. Its one child holds the content;
+ * the clip margin keeps a focus ring inside it whole.
+ */
+@utility collapsible {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-2) var(--ease-out);
+
+  /* No wider than the region, open or closed: a wide table scrolls inside its own frame. */
+  & > * {
+    min-width: 0;
+    min-height: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    opacity: 0;
+    translate: 0 4px;
+    transition:
+      opacity var(--dur-2) var(--ease-out),
+      translate var(--dur-2) var(--ease-out);
+  }
+
+  &[data-open] {
+    grid-template-rows: 1fr;
+  }
+
+  &[data-open] > * {
+    opacity: 1;
+    translate: none;
+  }
+}
+
+/*
+ * A details element whose content is a collapsible (the Raw data filter menus). The browser shows the
+ * content while it closes, where it can, and the region grows from 0 when it opens.
+ */
+@utility details-collapsible {
+  &::details-content {
+    transition: content-visibility var(--dur-2) allow-discrete;
+  }
+
+  &[open] > .collapsible {
+    grid-template-rows: 1fr;
+
+    @starting-style {
+      grid-template-rows: 0fr;
+    }
+  }
+
+  &[open] > .collapsible > * {
+    opacity: 1;
+    translate: none;
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 4px;
+    }
+  }
+}
+
+/*
+ * A popover (ticket 30): it fades in with a scale from 0.96, growing from its trigger (set
+ * transform-origin), and back out. Closed, it leaves the layout once it has faded, so it never widens
+ * the page and nothing reads or focuses it.
+ */
+@utility popover {
+  display: none;
+  opacity: 0;
+  scale: 0.96;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    scale var(--dur-2) var(--ease-out),
+    display var(--dur-2) allow-discrete;
+
+  &[data-open] {
+    display: block;
+    opacity: 1;
+    scale: 1;
+
+    @starting-style {
+      opacity: 0;
+      scale: 0.96;
+    }
+  }
+}
+
+/* A placeholder block while an answer is computed (ticket 30): a light band sweeps across it. */
+@utility shimmer {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-small);
+  background-color: var(--color-track);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    translate: -100% 0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-panel) 75%, transparent), transparent);
+    animation: shimmer 1.4s var(--ease-in-out) infinite;
+  }
 }
 
 @layer base {
@@ -282,7 +472,18 @@
   }
 }
 
+/* Reduced motion (ticket 30): every duration is 0 and the shimmer goes; whatever is left stops at once. */
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+  }
+
+  .shimmer::after {
+    display: none;
+  }
+
   *,
   *::before,
   *::after {

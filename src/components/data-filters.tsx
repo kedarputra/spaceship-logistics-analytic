@@ -40,10 +40,13 @@ function formQuery(form: HTMLFormElement): string {
   return params.toString();
 }
 
-/** One filter's menu: a button that opens its fields below the filter row. */
+/**
+ * One filter's menu: a button that opens its fields below the filter row. The fields grow from nothing
+ * and fade in, and close the same way back (ticket 30).
+ */
 function Menu({ label, count, children }: { label: string; count: number; children: ReactNode }) {
   return (
-    <details name={MENU_GROUP} className="group">
+    <details name={MENU_GROUP} className="group details-collapsible">
       <summary className="button-small cursor-pointer list-none gap-1.5 select-none [&::-webkit-details-marker]:hidden">
         {label}
         {count > 0 ? (
@@ -52,12 +55,16 @@ function Menu({ label, count, children }: { label: string; count: number; childr
             {count}
           </span>
         ) : null}
-        <Icon name="chevron" size={14} strokeWidth={2} className="rotate-90 text-grey-green group-open:-rotate-90" />
+        <Icon name="chevron" size={14} strokeWidth={2} className="rotate-90 text-grey-green transition-transform duration-(--dur-2) group-open:-rotate-90" />
       </summary>
-      <fieldset className="absolute inset-x-0 top-full z-20 mt-2 flex flex-wrap gap-x-4 gap-y-2 rounded-inset border border-line bg-panel p-3.5 shadow-raised">
-        <legend className="sr-only">{label}</legend>
-        {children}
-      </fieldset>
+      <div className="collapsible absolute inset-x-0 top-full z-20 mt-2">
+        <div>
+          <fieldset className="flex min-w-0 flex-wrap gap-x-4 gap-y-2 rounded-inset border border-line bg-panel p-3.5 shadow-raised">
+            <legend className="sr-only">{label}</legend>
+            {children}
+          </fieldset>
+        </div>
+      </div>
     </details>
   );
 }

@@ -7,14 +7,15 @@ import { Icon } from "./icons";
 export function SummaryCard({
   id,
   title,
-  caption,
+  info,
   badge,
   link,
   children,
 }: {
   id: string;
   title: string;
-  caption: string;
+  /** What the card sums up, in the info popover after the title (ticket 30). */
+  info: readonly string[];
   /** Beside the title, such as the forecast's method. */
   badge?: ReactNode;
   link: { href: string; label: string };
@@ -23,7 +24,7 @@ export function SummaryCard({
   return (
     <section aria-labelledby={id} className="card card-body">
       <div className="flex flex-wrap items-start justify-between gap-2.5">
-        <CardTitle id={id} title={title} caption={caption} />
+        <CardTitle id={id} title={title} info={info} />
         {badge}
       </div>
       {children}

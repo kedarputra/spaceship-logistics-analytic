@@ -1,3 +1,4 @@
+import { CardTitle } from "./card-title";
 import type { HistoryEntry } from "./history";
 
 /** "20 Nov, 14:32" in the viewer's own time zone. */
@@ -5,7 +6,10 @@ function formatAskedAt(askedAt: string): string {
   return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(askedAt));
 }
 
-/** The question history (B1, ADR 0008 §1) beside the answer: newest first, each a button that re-runs its saved spec. */
+/**
+ * The question history (B1, ADR 0008 §1) beside the answer: newest first, each a button that re-runs
+ * its saved spec. Where it is kept and how a re-run works is in its info popover (ticket 30).
+ */
 export function HistoryList({
   entries,
   onRerun,
@@ -19,9 +23,7 @@ export function HistoryList({
   return (
     <section aria-labelledby="recent-title" className="card flex flex-col gap-1 px-[18px] py-4">
       <div className="mb-1 flex items-center justify-between gap-3">
-        <h2 id="recent-title" className="text-card-title">
-          Recent questions
-        </h2>
+        <CardTitle id="recent-title" title="Recent questions" info={["Kept in this browser only. A re-run uses the saved spec, without the AI."]} />
         <button type="button" onClick={onClear} className="min-h-[34px] text-note text-muted underline hover:text-ink">
           Clear history
         </button>
@@ -38,7 +40,6 @@ export function HistoryList({
           </li>
         ))}
       </ul>
-      <p className="text-note text-muted">Kept in this browser only. A re-run uses the saved spec, without the AI.</p>
     </section>
   );
 }

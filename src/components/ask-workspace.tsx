@@ -3,14 +3,16 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { formatCount } from "@/domain/format";
 import type { Answer, FollowUp } from "@/tools/answer";
-import { MAX_QUESTION_LENGTH } from "@/tools/examples";
 import { SKU_NOT_FORECAST } from "@/tools/forecast";
 import type { ForecastAnswer } from "@/tools/forecast-answer";
 import { TRACE_STAGES, type TraceStage } from "@/tools/trace-stage";
-import { AnswerOutcome, type AnswerOutcomeState } from "./answer-card";
-import { QuestionField } from "./ask-box";
+import type { AnswerOutcomeState } from "./answer-card";
+import { AnswerRegion } from "./answer-region";
+import { AskButton, QuestionField } from "./ask-box";
+import { CardTitle } from "./card-title";
 import { type HistoryEntry, useQuestionHistory } from "./history";
 import { HistoryList } from "./history-list";
+import { whileAsking } from "./question-activity";
 import { SUGGESTED_QUESTIONS } from "./suggested-questions";
 
 const UNREADABLE: AnswerOutcomeState = { kind: "error", message: "The server sent a reply this page cannot read.", details: [] };
@@ -87,13 +89,21 @@ async function post(path: "/api/run" | "/api/ask", payload: unknown): Promise<{ 
 const SAVED_SPEC_REJECTED = "This saved question no longer matches the app, so it was removed from the history. Ask it again.";
 
 
-/** "Try these" (ticket 24): the suggested questions by group, each a button that asks it. */
-function TryThese({ onAsk }: { onAsk: (question: string) => void }) {
+/**
+ * "Try these" (ticket 24): the suggested questions by group, each a button that asks it. Its info
+ * popover says what the app won't answer, so a visitor need not find out by asking (ticket 30).
+ */
+function TryThese({ orderCount, onAsk }: { orderCount: number; onAsk: (question: string) => void }) {
   return (
     <section aria-labelledby="try-title" className="card flex flex-col gap-3 px-[18px] py-4">
-      <h2 id="try-title" className="text-card-title">
-        Try these
-      </h2>
+      <CardTitle
+        id="try-title"
+        title="Try these"
+        info={[
+          `What it won't answer: questions outside these ${formatCount(orderCount)} orders, and combined forecast scopes such as crayons at one warehouse.`,
+          SKU_NOT_FORECAST,
+        ]}
+      />
       {SUGGESTED_QUESTIONS.map(({ group, questions }) => (
         <div key={group} className="flex flex-col gap-1.5">
           <h3 className="text-label text-muted uppercase">{group}</h3>
@@ -112,34 +122,19 @@ function TryThese({ onAsk }: { onAsk: (question: string) => void }) {
   );
 }
 
-/** What the app does not answer, so a visitor does not have to find out by asking. */
-function Limits({ orderCount }: { orderCount: number }) {
-  return (
-    <section aria-labelledby="limits-title" className="flex flex-col gap-2 rounded-card border border-grid bg-inset px-[18px] py-4 text-small text-ink-2">
-      <h2 id="limits-title" className="font-bold text-ink">
-        What it won&apos;t answer
-      </h2>
-      <p>{`Questions outside these ${formatCount(orderCount)} orders, and combined forecast scopes such as crayons at one warehouse.`}</p>
-      <p>{SKU_NOT_FORECAST}</p>
-    </section>
-  );
-}
-
 export interface AskWorkspaceProps {
   /** The question in the page's `q`, asked once when the page opens. */
   initialQuestion?: string;
-  /** The rate limit on questions, stated under the form (ADR 0010 §5). */
-  questionsPerMinute: number;
   orderCount: number;
 }
 
 /**
  * The Ask page's workspace (ticket 24): the form, the answer and how it was computed, and beside them
- * the suggested questions, the question history and what the app won't answer. Questions in words go
- * through /api/ask; follow-up chips and history re-runs send their spec to /api/run, without the
- * model. The history lives in this browser's localStorage only.
+ * the suggested questions and the question history. Questions in words go through /api/ask, counted
+ * as in flight for the rail's AI dot (ticket 30); follow-up chips and history re-runs send their spec
+ * to /api/run, without the model. The history lives in this browser's localStorage only.
  */
-export function AskWorkspace({ initialQuestion, questionsPerMinute, orderCount }: AskWorkspaceProps) {
+export function AskWorkspace({ initialQuestion, orderCount }: AskWorkspaceProps) {
   const [draft, setDraft] = useState(initialQuestion ?? "");
   const [question, setQuestion] = useState<string | undefined>(undefined);
   const [outcome, setOutcome] = useState<AnswerOutcomeState>({ kind: "idle" });
@@ -147,10 +142,11 @@ export function AskWorkspace({ initialQuestion, questionsPerMinute, orderCount }
   const latest = useRef(0);
   const askedOnLoad = useRef(false);
 
-  async function show(label: string, reply: () => Promise<AnswerOutcomeState>) {
+  /** Shows the working card, then the reply; `model` says whether the reply waits on the model. */
+  async function show(label: string, model: boolean, reply: () => Promise<AnswerOutcomeState>) {
     const request = ++latest.current;
     setQuestion(label);
-    setOutcome({ kind: "loading" });
+    setOutcome({ kind: "loading", startedAt: Date.now(), model });
     const next = await reply();
     // A slower reply to an earlier question must not replace the answer to a later one.
     if (request === latest.current) setOutcome(next);
@@ -158,15 +154,15 @@ export function AskWorkspace({ initialQuestion, questionsPerMinute, orderCount }
 
   const ask = (text: string) => {
     setDraft(text);
-    void show(text, async () => {
-      const { outcome: answer } = await post("/api/ask", { question: text });
+    void show(text, true, async () => {
+      const { outcome: answer } = await whileAsking(post("/api/ask", { question: text }));
       history.record(text, answer);
       return answer;
     });
   };
-  const followUp = ({ label, spec }: FollowUp) => void show(label, async () => (await post("/api/run", { spec })).outcome);
+  const followUp = ({ label, spec }: FollowUp) => void show(label, false, async () => (await post("/api/run", { spec })).outcome);
   const rerun = (entry: HistoryEntry) =>
-    void show(entry.question, async () => {
+    void show(entry.question, false, async () => {
       const { outcome: answer, status } = await post("/api/run", { spec: entry.spec });
       // The whitelist refused the saved spec: the app changed since it was saved, so it would fail every time.
       if (status !== 400 || answer.kind !== "error") return answer;
@@ -192,19 +188,13 @@ export function AskWorkspace({ initialQuestion, questionsPerMinute, orderCount }
       <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-4">
         <form onSubmit={submit} className="card flex flex-wrap gap-2 p-4 shadow-raised">
           <QuestionField id="ask-question" value={draft} onChange={(event) => setDraft(event.target.value)} className="h-12 flex-[1_1_280px]" />
-          <button type="submit" disabled={draft.trim() === ""} className="button-primary h-12 px-6">
-            Ask
-          </button>
-          <span className="basis-full text-note text-muted">{`Up to ${MAX_QUESTION_LENGTH} characters · ${questionsPerMinute} questions a minute per visitor`}</span>
+          <AskButton busy={outcome.kind === "loading"} disabled={draft.trim() === ""} />
         </form>
-        <div aria-live="polite" className="flex flex-col gap-4">
-          <AnswerOutcome question={question} outcome={outcome} onFollowUp={followUp} onAsk={ask} />
-        </div>
+        <AnswerRegion question={question} outcome={outcome} onFollowUp={followUp} onAsk={ask} />
       </div>
       <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
-        <TryThese onAsk={ask} />
+        <TryThese orderCount={orderCount} onAsk={ask} />
         <HistoryList entries={history.entries} onRerun={rerun} onClear={history.clearAll} />
-        <Limits orderCount={orderCount} />
       </div>
     </div>
   );

@@ -44,12 +44,14 @@ export function rowTipContent<Row extends { label: string }>(rows: readonly Row[
 /**
  * A small card on the panel surface: the heading, then one row per series with the value in bold ink
  * before the series name, keyed by a short stroke of the series colour. `foot` says what a click opens.
+ * It appears with a fade and a scale from 0.96, growing from --tip-origin where its placer sets one,
+ * else from its top left, near the pointer (ticket 30).
  */
 export function ChartTip({ tip, foot }: { tip: ChartTipContent; foot?: string }) {
   // At most 220 px, and on a narrow screen no wider than the room right of a Recharts y-axis inside
   // its card (Recharts keeps a tooltip right of the axis), so the series name wraps instead.
   return (
-    <div className="w-max max-w-[min(220px,calc(100vw-120px))] rounded-card border border-line bg-panel px-3 py-2.5 text-small shadow-raised">
+    <div className="w-max max-w-[min(220px,calc(100vw-120px))] origin-[var(--tip-origin,0_0)] animate-pop rounded-card border border-line bg-panel px-3 py-2.5 text-small shadow-raised">
       <p className="font-semibold text-ink">{tip.heading}</p>
       <ul className="mt-1 flex flex-col gap-0.5">
         {tip.rows.map((row) => (

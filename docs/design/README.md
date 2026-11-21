@@ -48,6 +48,18 @@ Every figure in the files was read from the live app on 20 Nov 2026. In the app,
 | radius | 12 px cards, 8 px controls, 999 px chips | |
 | focus | 2 px `#E39A2E` outline, 2 px offset | |
 
+**Motion** (ticket 30). Tokens in `src/app/globals.css`; ADR 0011 §3 says where each one is used.
+
+| Token | Value | Use |
+|---|---|---|
+| `--ease-out` | `cubic-bezier(0.32, 0.72, 0, 1)` | the iOS sheet curve: everything that opens, and every transition's default |
+| `--ease-in-out` | `cubic-bezier(0.65, 0, 0.35, 1)` | loops: the working dots, the AI dot, the shimmer |
+| `--dur-1` | 160 ms | hover, press, tooltips; every transition's default |
+| `--dur-2` | 280 ms | opening and closing: collapsibles, popovers, an answer arriving |
+| `--dur-3` | 380 ms | the rail and large panels |
+
+Only transform, opacity and a collapsible's height move, and nothing moves on first paint. Reduced motion sets every duration to 0 and drops the shimmer.
+
 **Type.** Figtree with tabular figures for numbers.
 
 | Role | Size and weight |
@@ -76,15 +88,15 @@ Every figure in the files was read from the live app on 20 Nov 2026. In the app,
 **Content.** At most 1200 px wide, with padding of 28 px 36 px.
 
 **Page header.**
-- An uppercase label, the title, and one sentence of description.
-- Overview also shows two chips: "Data as of 31 Dec 2025" and the AI status pill.
+- An uppercase label and the title. _Ticket 30: no sentence of description; definitions and notes moved into info popovers after card and chart titles (ADR 0011 §2)._
+- The "Data as of 31 Dec 2025" chip, on every page since ticket 30. Overview also shows the AI status pill.
 
 ## Pages and where their figures come from
 
 ### Overview (`/`)
 
 - **Ask box:** an input, the amber Ask button, and four example chips. Submitting opens `/ask?q=…`.
-- **Five KPI cards,** each with an icon square, the figure, a sub-line, and the glossary definition below a rule. The figures come from the existing KPI computations:
+- **Five KPI cards,** each with an icon square, the figure, a sub-line, and the glossary definition below a rule. _Ticket 30: the definition is in the info popover after the label._ The figures come from the existing KPI computations:
 
   | Card | Figure | Sub-line |
   |---|---|---|
@@ -106,17 +118,17 @@ Every figure in the files was read from the live app on 20 Nov 2026. In the app,
 ### Ask (`/ask`)
 
 **Main column:**
-- **Form:** "Up to 300 characters · 20 questions a minute per visitor". The `q` URL parameter is asked on load.
+- **Form:** "Up to 300 characters · 20 questions a minute per visitor". _Ticket 30: the note is gone; the box still takes 300 characters._ The `q` URL parameter is asked on load.
 - **Answer card:**
   - the question, the sentence, and a badge saying who wrote it ("Written by the model, every number checked" or the template);
-  - the interpretation line, and the chart;
+  - the interpretation line, and the chart; _ticket 30: a row of chips for the metric, dimension, filters and period replaces the line, which is in "How this was computed"_;
   - the follow-up chips.
-- **"How this was computed":** open by default on this page. It holds ticket 17's stage strip, the definition, the period, the small-sample rule, the spec as validated, and the result to 2 decimals.
+- **"How this was computed":** open by default on this page. _Ticket 30: closed by default, with a row of chips under the answer for the metric, dimension, filters and period._ It holds ticket 17's stage strip, the definition, the period, the small-sample rule, the spec as validated, and the result to 2 decimals.
 
 **Side column:**
 - **Try these:** grouped as Counts and shares, Over time, Rankings, and Forecasts. Every question was checked against the live model.
 - **Recent questions:** the ticket 16 history list, moved here.
-- **What it won't answer:** questions outside the data; combined forecast scopes; SKU forecasts.
+- **What it won't answer:** questions outside the data; combined forecast scopes; SKU forecasts. _Ticket 30: in the info popover of "Try these"._
 
 ### Delivery (`/delivery`)
 

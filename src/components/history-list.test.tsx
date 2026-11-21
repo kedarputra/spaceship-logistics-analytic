@@ -5,6 +5,7 @@ import { answerForecast } from "@/tools/forecast-answer";
 import { forecastSpecSchema, querySpecSchema } from "@/tools/spec";
 import { AnswerOutcome } from "./answer-card";
 import { HistoryList } from "./history-list";
+import { infoLines } from "./markup-text";
 
 const ENTRIES = [
   { question: "How much inventory should I plan?", spec: { tool: "forecast" as const, scope: { type: "total" } }, askedAt: "2026-11-20T07:40:00.000Z" },
@@ -40,10 +41,10 @@ describe("the history list (B1, ADR 0008 §1)", () => {
     expect(html).toContain('dateTime="2026-11-20T07:40:00.000Z"');
   });
 
-  it('has a "Clear history" button, and says the history stays in this browser and re-runs without the AI', () => {
-    const text = textOf(render(ENTRIES));
-    expect(text).toContain("Clear history");
-    expect(text).toContain("Kept in this browser only. A re-run uses the saved spec, without the AI.");
+  it('has a "Clear history" button, and says in its info popover that the history stays in this browser and re-runs without the AI', () => {
+    const html = render(ENTRIES);
+    expect(textOf(html)).toContain("Clear history");
+    expect(infoLines(html, "Recent questions")).toEqual(["Kept in this browser only. A re-run uses the saved spec, without the AI."]);
   });
 
   it("shows nothing when there is no history", () => {
@@ -64,11 +65,16 @@ describe('the "Cached" marker on an answer the server cache served', () => {
       />,
     );
 
-  it("marks a cached answer and a cached forecast, and nothing else", () => {
-    expect(textOf(html(true, "answer"))).toContain("Cached Served from the server's cache of earlier questions.");
+  it("marks a cached answer and a cached forecast, and nothing else; how this was computed says what the cache is (ticket 30)", () => {
+    const card = (markup: string) => textOf(markup.slice(0, markup.indexOf("<section data-explanation")));
+    const panel = (markup: string) => textOf(markup.slice(markup.indexOf("<section data-explanation")));
+    expect(card(html(true, "answer"))).toContain("Cached");
+    expect(card(html(true, "answer"))).not.toContain("Served from");
+    expect(panel(html(true, "answer"))).toContain("Cache Served from the server's cache of earlier questions.");
     // A cache hit can still phrase its sentence again with the model, so the marker claims no more than the cache.
     expect(textOf(html(true, "answer"))).not.toContain("no new model call");
-    expect(textOf(html(true, "forecast"))).toContain("Cached Served from the server's cache of earlier questions");
+    expect(card(html(true, "forecast"))).toContain("Cached");
+    expect(panel(html(true, "forecast"))).toContain("Cache Served from the server's cache of earlier questions.");
     expect(textOf(html(false, "answer"))).not.toContain("Cached");
     expect(textOf(html(false, "forecast"))).not.toContain("Cached");
   });

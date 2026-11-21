@@ -37,7 +37,7 @@ export function OutcomesChartCard({
   return (
     <ChartCard
       title="Delivery outcomes per month"
-      caption={`By delivery date · ${dates} · ${formatCount(delivered.count)} delivered`}
+      info={[`By delivery date · ${dates} · ${formatCount(delivered.count)} delivered`]}
       link={link}
       legend={
         <Legend>

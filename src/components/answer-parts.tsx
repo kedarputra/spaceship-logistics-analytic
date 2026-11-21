@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { SentenceSource } from "@/tools/answer";
+import { CollapsibleRegion, DisclosureChevron, useDisclosure } from "./collapsible";
 import { Icon } from "./icons";
 
 /** The parts an answer and a forecast share on the Ask page (ADR 0011): the question, who wrote the sentence, and the explanation panel. */
@@ -28,16 +31,38 @@ export function SentenceBadge({ source }: { source: SentenceSource }) {
   );
 }
 
-/** An explanation panel (ADR 0006 §7): a card, open on the Ask page, with everything needed to check the answer. */
+/**
+ * An explanation panel (ADR 0006 §7): everything needed to check the answer, in a card whose heading
+ * opens it. Closed by default (ticket 30): the answer comes first, how it was computed one click away.
+ */
 export function ExplanationCard({ title, children }: { title: string; children: ReactNode }) {
+  const { button, region } = useDisclosure();
   return (
-    <details open className="group card p-5 text-small">
-      <summary className="flex min-h-[34px] cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
-        <Icon name="chevron" size={16} strokeWidth={2} className="transition-transform group-open:rotate-90" />
+    <section data-explanation className="card p-5 text-small">
+      <button type="button" {...button} className="group flex min-h-[34px] w-full cursor-pointer items-center gap-2 text-left">
+        <DisclosureChevron turn="panel" />
         <span className="text-card-title">{title}</span>
-      </summary>
-      <div className="mt-4 flex flex-col gap-4">{children}</div>
-    </details>
+      </button>
+      <CollapsibleRegion {...region}>
+        <div className="flex flex-col gap-4 pt-4">{children}</div>
+      </CollapsibleRegion>
+    </section>
+  );
+}
+
+/**
+ * What was computed, as a row of chips under the answer (R5, ticket 30): always in view, while how it
+ * was computed waits in its collapsible.
+ */
+export function ComputedChips({ chips }: { chips: readonly string[] }) {
+  return (
+    <ul aria-label="What was computed" className="flex flex-wrap gap-1.5">
+      {chips.map((chip) => (
+        <li key={chip} className="inline-flex min-h-6 items-center rounded-full border border-chip-line bg-chip px-2.5 text-note text-ink-2">
+          {chip}
+        </li>
+      ))}
+    </ul>
   );
 }
 

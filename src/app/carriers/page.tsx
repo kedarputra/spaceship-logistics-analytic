@@ -13,7 +13,7 @@ import { rowRatio } from "@/components/row-ratio";
 import { CARRIERS_PAGE_QUESTIONS } from "@/components/suggested-questions";
 import { Tag } from "@/components/tag";
 import { Table } from "@/components/text-table";
-import { dashboardKpis, METRIC_STATUSES } from "@/domain/definitions";
+import { METRIC_STATUSES, METRICS } from "@/domain/definitions";
 import { formatCount, formatDays, formatMetricValue, formatOf, formatPercent, formatPercentPlain } from "@/domain/format";
 import { getDataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod } from "@/domain/periods";
@@ -54,9 +54,8 @@ function mostOrdersLink(tied: readonly ResultRow[]): CardLink | undefined {
  * behind them in Raw data (ticket 29).
  */
 export default function CarriersPage() {
-  const { orders } = getDataset();
+  const { orders, anchor } = getDataset();
   const dates = formatPeriod(dataPeriod(orders));
-  const kpis = dashboardKpis(orders);
   const delay = queryResult({ metric: "delay_rate", groupBy: "carrier", sort: "desc" });
   const counts = queryResult({ metric: "order_count", groupBy: "carrier", sort: "desc" });
   const shares = queryResult({ metric: "order_share", groupBy: "carrier" });
@@ -84,16 +83,13 @@ export default function CarriersPage() {
 
   return (
     <>
-      <PageHeader
-        label="Carriers"
-        title="Carriers"
-        description={`${counts.rows.length} carriers, ${formatCount(kpis.totalOrders.count)} orders, ${formatCount(kpis.deliveredOrders.count)} delivered. Rates are over delivered orders; carriers with fewer than ${minDelivered} are marked.`}
-      />
+      <PageHeader label="Carriers" title="Carriers" asOf={anchor} />
       <section aria-label="Highlights">
         <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-3">
           {most === undefined ? null : (
             <FigureCard
               label="Most orders"
+              info={[METRICS.order_count.definition]}
               link={mostOrdersLink(mostTied)}
               value={andList(mostTied.map(({ label }) => label))}
               detail={`${valueOf(counts, most.key)} orders${mostTied.length > 1 ? " each" : ""}, ${valueOf(shares, most.key)} of all${next === undefined ? "" : ` · ${next.label} next with ${valueOf(counts, next.key)}`}`}
@@ -102,6 +98,7 @@ export default function CarriersPage() {
           {onTimeLeader === undefined ? null : (
             <FigureCard
               label={`Highest on-time rate, n ≥ ${minDelivered}`}
+              info={[METRICS.on_time_rate.definition]}
               link={ordersLink(onTimeLeader.n, `delivered ${onTimeLeader.label} orders`, { status: METRIC_STATUSES.on_time_rate, carrier: [onTimeLeader.key] })}
               value={onTimeLeader.label}
               detail={`${formatPercent(onTimeLeader.value)} · ${formatOf(rowRatio(onTimeLeader))} delivered on time`}
@@ -110,6 +107,7 @@ export default function CarriersPage() {
           {delayLeader.leader === undefined ? null : (
             <FigureCard
               label={`Highest delay rate, n ≥ ${minDelivered}`}
+              info={[METRICS.delay_rate.definition]}
               link={carrierDelayedOrders(delayLeader.leader, `delayed ${delayLeader.leader.label} orders`)}
               value={delayLeader.leader.label}
               detail={`${formatPercent(delayLeader.leader.value)} · ${formatOf(rowRatio(delayLeader.leader))} delayed${
@@ -122,35 +120,33 @@ export default function CarriersPage() {
       <ChartCard
         id="delay-title"
         title="Delay rate by carrier"
-        caption={`Delayed orders ÷ delivered orders · by ${dateFieldWords(delay.dateField)} · ${dates}`}
+        info={[
+          `Delayed orders ÷ delivered orders · by ${dateFieldWords(delay.dateField)} · ${dates}`,
+          readingNote(delayLeader.top, delayLeader.leader, delayLeader.topIsSmall, minDelivered),
+          `Lighter bars mark fewer than ${minDelivered} delivered orders: one late delivery more or less moves them by several points.`,
+        ]}
       >
-        <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
-          <div className="min-w-0 flex-[999_1_420px]">
-            <RankedBars
-              tone="amber"
-              formatTick={formatPercentPlain}
-              bars={delay.rows.map((row) => ({
-                label: row.label,
-                n: row.n,
-                value: row.value,
-                valueText: formatPercent(row.value),
-                smallSample: row.smallSample,
-                link: carrierDelayedOrders(row),
-              }))}
-            />
-          </div>
-          <aside className="flex min-w-0 flex-[1_1_220px] flex-col gap-2 rounded-inset border border-grid bg-inset p-3.5 text-small text-ink-2">
-            <span className="text-label text-muted uppercase">Reading this chart</span>
-            <ReadingNote top={delayLeader.top} leader={delayLeader.leader} topIsSmall={delayLeader.topIsSmall} minDelivered={minDelivered} />
-            <p>{`Lighter bars mark fewer than ${minDelivered} delivered orders: one late delivery more or less moves them by several points.`}</p>
-          </aside>
-        </div>
+        <RankedBars
+          tone="amber"
+          formatTick={formatPercentPlain}
+          bars={delay.rows.map((row) => ({
+            label: row.label,
+            n: row.n,
+            value: row.value,
+            valueText: formatPercent(row.value),
+            smallSample: row.smallSample,
+            link: carrierDelayedOrders(row),
+          }))}
+        />
       </ChartCard>
       <section aria-labelledby="table-title" className="card card-body">
         <CardTitle
           id="table-title"
           title="All carriers"
-          caption={`Sorted by delay rate · orders and share by ${dateFieldWords(counts.dateField)}, the rest by ${dateFieldWords(delay.dateField)}`}
+          info={[
+            `Sorted by delay rate · orders and share by ${dateFieldWords(counts.dateField)}, the rest by ${dateFieldWords(delay.dateField)}`,
+            `Rates are over delivered orders; carriers with fewer than ${minDelivered} are marked.`,
+          ]}
         />
         <Table
           headers={["Carrier", ...columns.map(({ header }) => header)]}
@@ -185,19 +181,9 @@ export default function CarriersPage() {
 }
 
 /** Who leads the delay ranking, and why a small sample at the top is not the answer (ADR 0001 §6). */
-function ReadingNote({ top, leader, topIsSmall, minDelivered }: { top: ResultRow; leader: ResultRow | undefined; topIsSmall: boolean; minDelivered: number }) {
-  if (leader === undefined) return <p>{`No carrier has at least ${minDelivered} delivered orders, so none is named.`}</p>;
-  const named = (
-    <>
-      <strong>{leader.label}</strong>
-      {` is highest at ${formatPercent(leader.value)} (${formatOf(rowRatio(leader))}).`}
-    </>
-  );
-  if (!topIsSmall) return <p>{named}</p>;
-  return (
-    <p>
-      {`${top.label} tops the list on only ${formatCount(top.n)} deliveries. Among carriers with at least ${minDelivered}, `}
-      {named}
-    </p>
-  );
+function readingNote(top: ResultRow, leader: ResultRow | undefined, topIsSmall: boolean, minDelivered: number): string {
+  if (leader === undefined) return `No carrier has at least ${minDelivered} delivered orders, so none is named.`;
+  const named = `${leader.label} is highest at ${formatPercent(leader.value)} (${formatOf(rowRatio(leader))}).`;
+  if (!topIsSmall) return named;
+  return `${top.label} tops the list on only ${formatCount(top.n)} deliveries. Among carriers with at least ${minDelivered}, ${named}`;
 }

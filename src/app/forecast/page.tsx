@@ -56,7 +56,7 @@ function ChosenForecast({ forecast }: { forecast: ForecastAnswer }) {
         <CardTitle
           id="total-title"
           title={`${capitalized(forecast.scopeLabel)} · ${forecast.monthsLabel}`}
-          caption={`History ${forecast.period} · error measured on ${forecast.holdout}`}
+          info={[`Units ordered per month, by order date · history ${forecast.period} · error measured on ${forecast.holdout}`]}
         />
         <span className="flex flex-wrap gap-2">
           <span className="pill border border-chip-line bg-chip text-green-text">{method.label}</span>
@@ -100,7 +100,7 @@ function HowChosen({ forecast }: { forecast: ForecastAnswer }) {
       <div className="card card-body">
         <CardTitle
           title={`${candidates.length} methods, one chosen`}
-          caption={`Each was fitted on the months before ${holdout} and scored on ${holdout}. The lowest error wins; a tie goes to the simpler method.`}
+          info={[`Each was fitted on the months before ${holdout} and scored on ${holdout}. The lowest error wins; a tie goes to the simpler method.`]}
         />
         <Table
           headers={["Method", "MAE, units", "WAPE"]}
@@ -113,15 +113,18 @@ function HowChosen({ forecast }: { forecast: ForecastAnswer }) {
         />
       </div>
       <div className="card card-body">
-        <CardTitle title="From forecast to plan" caption="The plan covers the forecast plus room for its usual error." />
+        <CardTitle
+          title="From forecast to plan"
+          info={[
+            "The plan covers the forecast plus room for its usual error.",
+            `σ is the root mean square of the method's one-step-ahead errors from ${sigmaFrom}. The plan is rounded up, so it never falls short of the arithmetic. ${NOT_A_REORDER}`,
+          ]}
+        />
         <dl className="flex flex-col gap-2 text-small">
           <FigureRow term={`Forecast demand, ${countOf(horizon.months, "month")}`}>{formatDecimal(exact.demand, 2)}</FigureRow>
           <FigureRow term={`Safety stock, ${safetyZ} × σ ${formatDecimal(sigma, 2)} × √${horizon.months}`}>{formatDecimal(exact.safetyStock, 2)}</FigureRow>
           <FigureRow term="Units to plan for, rounded up" total>{`${formatDecimal(exact.total, 2)} → ${formatCount(recommendation.units)}`}</FigureRow>
         </dl>
-        <p className="text-caption text-muted">
-          {`σ is the root mean square of the method's one-step-ahead errors from ${sigmaFrom}. The plan is rounded up, so it never falls short of the arithmetic. ${NOT_A_REORDER}`}
-        </p>
       </div>
     </CardPair>
   );
@@ -153,7 +156,7 @@ function ScopeGrid() {
       <CardTitle
         id="scopes-title"
         title={`By scope, ${first.forecast.monthsLabel}`}
-        caption={`Each scope picks its own method. Rough means WAPE over ${formatPercentPlain(ROUGH_WAPE)} before rounding: plan with care.`}
+        info={[`Each scope picks its own method. Rough means WAPE over ${formatPercentPlain(ROUGH_WAPE)} before rounding: plan with care.`]}
       />
       {groups.map(({ title, forecasts }) => (
         <div key={title} className="flex flex-col gap-2">
@@ -186,14 +189,10 @@ function ScopeGrid() {
 export default async function ForecastPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const choice = forecastChoice(await searchParams);
   const forecast = forecastFor(choice.spec);
-  const { orders } = getDataset();
+  const { orders, anchor } = getDataset();
   return (
     <>
-      <PageHeader
-        label="Forecast"
-        title="Demand forecast"
-        description={`Units ordered per month, forecast from ${forecast.period} by order date. One scope at a time: all products, a category, a warehouse or a region.`}
-      >
+      <PageHeader label="Forecast" title="Demand forecast" asOf={anchor}>
         <ForecastControls selection={choice} values={SCOPE_VALUES} />
       </PageHeader>
       {choice.offered ? null : (
@@ -207,7 +206,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
       <aside className="flex flex-wrap items-center gap-3 rounded-card border border-grid bg-inset px-[18px] py-3.5 text-small text-ink-2">
         <Icon name="info" className="shrink-0 text-grey-green" />
         <span className="min-w-0 flex-[1_1_320px]">
-          {`SKUs are not forecast: no SKU has more than ${formatCount(mostOrdersOfOneSku(orders))} orders. Ask about one, such as CRAYON-0008, to see its orders and its category's forecast.`}
+          {`SKUs are not forecast: no SKU has more than ${formatCount(mostOrdersOfOneSku(orders))} orders.`}
         </span>
         <Link href={askHref(SKU_QUESTION)} className="chip">
           {SKU_QUESTION}

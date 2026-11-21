@@ -90,6 +90,8 @@ export function MonthHover({ description, tips, marks, crosshair = false, slack,
     const at = hover.at ?? { x: monthCentre(hover.month, size.width, tips.length), y: 0 };
     const { x, y } = tipPlacement(at, { width: box.offsetWidth, height: box.offsetHeight }, size, slack);
     box.style.transform = `translate(${x}px, ${y}px)`;
+    // It grows from the pointer or the month it was opened at (ticket 30).
+    box.style.setProperty("--tip-origin", `${at.x - x}px ${at.y - y}px`);
   }, [hover, tips.length, slack]);
 
   return (

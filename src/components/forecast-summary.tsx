@@ -77,7 +77,7 @@ export function ForecastSummary({ forecast, href }: { forecast: ForecastAnswer; 
     <SummaryCard
       id="forecast-title"
       title="Demand forecast"
-      caption={`${capitalized(forecast.scopeLabel)} · units ordered per month`}
+      info={[`${capitalized(forecast.scopeLabel)} · units ordered per month`, `Forecasts also run for one category, warehouse or region. ${SKU_NOT_FORECAST}`]}
       badge={
         <span className="pill border border-chip-line bg-chip text-green-text">
           {method.label}
@@ -95,7 +95,6 @@ export function ForecastSummary({ forecast, href }: { forecast: ForecastAnswer; 
         <ForecastSparkline forecast={forecast} />
       </div>
       <DataTableDisclosure table={sparklineTable(forecast)} />
-      <p className="text-small text-ink-2">{`Forecasts also run for one category, warehouse or region. ${SKU_NOT_FORECAST}`}</p>
     </SummaryCard>
   );
 }
