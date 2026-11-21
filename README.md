@@ -41,6 +41,33 @@ The app was tested only with Gemma 4 12B behind our gateway. Another OpenAI-comp
 | `npm run eval` | Sends the questions in `eval/questions.json` through the model (see [AI approach](#ai-approach)). Needs the LLM. |
 | `npm run users -- add <username> <role>` | Adds an account to the `AUTH_USERS_FILE` file (or `--file <path>`), asking for its password twice without echo; `--generate` makes one and prints it once instead. `list` shows the accounts and roles, never a hash; `remove <username>` deletes one. |
 
+## Run with Docker
+
+The image runs the app without Node on the machine. It holds the production dependencies, the build, `data/` and the report's fonts, and runs `next start` on port 3000 as the non-root `node` user, with a `HEALTHCHECK` on `/api/health`. Everything else comes from the environment when the container starts: no secret, key or users file is built into the image.
+
+```bash
+docker build -t logistics-analytics .
+docker run --rm -p 127.0.0.1:3000:3000 \
+  -e AUTH_SECRET="$(openssl rand -base64 32)" \
+  -e AUTH_USERS_FILE=/run/secrets/users.json \
+  -v "$HOME/logistics-users.json:/run/secrets/users.json:ro" \
+  logistics-analytics                      # http://localhost:3000
+```
+
+| Variable | In the container |
+|---|---|
+| `AUTH_SECRET` or `AUTH_SECRET_FILE` | The session key, or the path of a mounted file that holds it. A new key at each start, as above, signs everyone out at each restart. |
+| `AUTH_USERS_FILE` | The path of the users file, mounted read-only. |
+| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY_FILE` | For Ask only, as under [Setup](#setup); the key file is mounted like the users file. `LLM_RESPONSE_MODE` and `LLM_MODEL_DISPLAY_NAME` work as there too. |
+
+- **The users file** is made as under Setup, outside the repo: `npm run users -- add me admin --generate --file "$HOME/logistics-users.json"`, the one step that needs Node. The container reads it as `node` (uid 1000), so on Linux that user must be able to read it, for example with `chmod 644`; it holds only password hashes.
+- **Ask needs an OpenAI-compatible gateway.** Without `LLM_API_KEY_FILE` the ask box says AI is not configured, and every other page works. Inside the container `127.0.0.1` is the container itself, so point `LLM_BASE_URL` at the gateway's address, such as `http://host.docker.internal:4000/v1` (on Linux, add `--add-host=host.docker.internal:host-gateway`).
+- **Open it at `http://localhost:3000`.** The command publishes the port on this machine only. The session cookie is `Secure`, which browsers accept over plain HTTP only from localhost; to serve other machines, put it behind HTTPS.
+- **The per-IP limits** read Cloudflare's `CF-Connecting-IP`. Without Cloudflare in front, requests without it share one set of limits, and a client could send its own.
+- **Building needs the network,** for `npm ci` and for `next/font`, which downloads Figtree from Google Fonts into the build. Running needs none, except the gateway for Ask.
+
+CI's `docker` job builds the image on every push, starts it with a throwaway secret and users file and no LLM, and checks the health, the redirect to `/login`, the sign-in form, a sign-in, and a report PDF. The live server does not run it (see [Deployment](#deployment)).
+
 ## Deployment
 
 Self-hosted on our own server behind a Cloudflare Tunnel. Questions are answered by our own LLM on our own GPU, with no third-party AI provider, and the gateway stores no request bodies. Monitored with phone alerts.
@@ -186,7 +213,7 @@ While the model works, which can take 10 to 18 seconds on a busy GPU, the answer
 - **Tests (B3):** golden numbers from `docs/data.md`, the row schema's traps, period buckets, the status rewrites, city matching, the number guard, the forecast methods, and the architecture rule.
 - **Advanced explainability (B5):** the pipeline trace and the "why this chart" sentence.
 - **Ambiguous queries (B6):** documented defaults, stated in the answer, with the other readings as chips.
-- **Docker (B4)** is not included (see [Future improvements](#future-improvements)).
+- **Docker (B4):** a multi-stage image, built and started in CI on every push (see [Run with Docker](#run-with-docker)).
 
 ## AI approach
 
@@ -312,7 +339,6 @@ Rates are shown with their numerator and denominator, and days with one decimal.
 - **A database,** for data that grows or changes. The query tool would build parameterized queries from the same validated spec, so the model still never writes SQL.
 - **Rolling-origin evaluation** to choose forecast methods on many holdouts instead of one, and seasonal methods once there are two years of data.
 - **Follow-up questions** in free text: pass the previous spec with the new question, and validate the changed spec as before.
-- **A Docker image** (B4), for running the app without installing Node.
 - **A larger eval set,** including the phrase step: score the sentences, not only the specs.
 - **Shared state** (a cache and rate limits in Redis, for example) if the app ever runs on more than one instance.
 

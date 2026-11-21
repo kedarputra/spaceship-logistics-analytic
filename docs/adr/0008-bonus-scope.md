@@ -18,5 +18,6 @@ The bonus items are optional (B1–B6) and the brief expects 6 to 10 hours. Seve
    - **Why this chart:** one sentence, written by code ("time + count → bars").
 5. **B6 ambiguous queries.** As decided in ADR 0006.
 6. **B4 Docker.** Only once every R1–R15 item and the deployed checks pass. Otherwise the README says Docker is not included and lists it under future improvements.
+   *Amended 22 Nov 2026 (ticket 36):* they passed, so B4 was built. A multi-stage `Dockerfile` on an exact Node 22 bookworm-slim release runs `next start` on port 3000 as the non-root `node` user, with the production dependencies, the build, `data/` and the report's fonts, and a `HEALTHCHECK` on `/api/health`. Configuration comes only from the environment at run time; no secret or users file is in the image. This PC cannot run Docker, so CI's `docker` job builds the image on every push and checks that it starts, signs in and serves a report. The server deploy (ADR 0010) does not use it, and `next.config` keeps its default output.
 7. **Cut order if time runs short:** B4 Docker → the pipeline trace → the "why this chart" sentence → B1 history → the eval script's automation (a manual list of eval questions stays).
    **Never cut:** R1–R15, the golden-number and schema tests, the explanation panel, the number guard, the status rewrite table, the rate limits, and the uptime checks.

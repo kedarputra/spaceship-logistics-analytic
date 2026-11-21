@@ -18,3 +18,79 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci && npm run check
+
+  # The Docker image (ticket 36): built, then started with a throwaway secret and users file and no LLM,
+  # the way the README's "Run with Docker" runs it. Independent of the check job, so neither blocks the other.
+  docker:
+    name: docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build the image
+        run: docker build -t logistics-analytics .
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Make a throwaway users file with one analyst
+        run: |
+          npm ci
+          password="$(openssl rand -hex 16)"
+          echo "::add-mask::$password"
+          echo "CI_PASSWORD=$password" >> "$GITHUB_ENV"
+          printf '%s\n%s\n' "$password" "$password" | npm run users -- add ci-analyst analyst --file "$RUNNER_TEMP/users.json"
+          # The CLI makes the file 0600 as the runner's user; the container reads it as node (uid 1000).
+          chmod 644 "$RUNNER_TEMP/users.json"
+      - name: Start the container with a throwaway secret and no LLM
+        run: |
+          secret="$(openssl rand -base64 32)"
+          echo "::add-mask::$secret"
+          docker run -d --name app -p 127.0.0.1:3000:3000 \
+            -e AUTH_SECRET="$secret" \
+            -e AUTH_USERS_FILE=/run/secrets/users.json \
+            -v "$RUNNER_TEMP/users.json:/run/secrets/users.json:ro" \
+            logistics-analytics
+      - name: Wait for the image's health check to pass
+        run: |
+          for attempt in $(seq 1 40); do
+            state="$(docker inspect --format '{{.State.Status}} {{.State.Health.Status}}' app)"
+            echo "$state"
+            if [ "$state" = "running healthy" ]; then exit 0; fi
+            if [ "$state" != "running starting" ]; then exit 1; fi
+            sleep 3
+          done
+          exit 1
+      - name: Check the health, the sign-in redirect, the sign-in form and a report PDF
+        run: |
+          base=http://127.0.0.1:3000
+
+          health="$(curl -fsS "$base/api/health")"
+          echo "/api/health: $health"
+          echo "$health" | grep -qF '"rows":400'
+
+          redirect="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' "$base/")"
+          echo "/: $redirect"
+          case "$redirect" in
+            3[0-9][0-9]\ http*://*/login) ;;
+            *) echo "Expected a redirect to /login"; exit 1 ;;
+          esac
+
+          curl -fsS "$base/login" | grep -qF 'type="password"'
+          echo "/login: the sign-in form, so the secret and the users file were read"
+
+          login="$(curl -sS -D - -o /dev/null -H 'content-type: application/json' -H 'sec-fetch-site: same-origin' \
+            --data "{\"username\":\"ci-analyst\",\"password\":\"$CI_PASSWORD\"}" "$base/api/login")"
+          echo "/api/login: $(echo "$login" | head -n 1)"
+          cookie="$(echo "$login" | grep -i '^set-cookie: session=' | sed -E 's/^[^:]+: *//; s/;.*//' | tr -d '\r')"
+          [ -n "$cookie" ] || { echo "Sign-in set no session cookie"; exit 1; }
+
+          pdf="$(curl -sS -o "$RUNNER_TEMP/report.pdf" -w '%{http_code} %{content_type}' -H "cookie: $cookie" "$base/api/reports/2025-11.pdf")"
+          echo "/api/reports/2025-11.pdf: $pdf, $(wc -c < "$RUNNER_TEMP/report.pdf") bytes"
+          [ "$pdf" = "200 application/pdf" ] || { echo "Expected a PDF"; exit 1; }
+          [ "$(head -c 5 "$RUNNER_TEMP/report.pdf")" = "%PDF-" ] || { echo "The file is not a PDF"; exit 1; }
+      - name: Show the container's health checks and log
+        if: failure()
+        run: |
+          docker inspect --format '{{json .State.Health}}' app || true
+          docker logs app || true

@@ -1,0 +1,15 @@
+# Kept out of the image's build context (ticket 36): the history, what the build makes again, every
+# environment file wherever it is, a users file left in the repo, the brief and the operator's notes,
+# and the agents' files.
+.git
+node_modules
+.next
+*.tsbuildinfo
+next-env.d.ts
+**/.env*
+**/users.json
+docs/brief
+docs/private
+.scratch
+.sandcastle
+.claude

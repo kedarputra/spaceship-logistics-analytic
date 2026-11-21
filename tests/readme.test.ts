@@ -27,9 +27,11 @@ function environmentVariables(): string[] {
   return [...example.matchAll(/^#?\s*([A-Z][A-Z0-9_]+)=/gm)].map((match) => match[1] ?? "");
 }
 
-// R12's items, the supported questions ADR 0006 asks for, the deployment, and the AI usage of R14.
+// R12's items, the supported questions ADR 0006 asks for, the deployment, the AI usage of R14, and the
+// Docker image of B4 (ticket 36).
 const SECTIONS = [
   "Setup",
+  "Run with Docker",
   "Deployment",
   "Architecture",
   "AI approach",
@@ -61,9 +63,9 @@ describe("README.md", () => {
     expect(usage).toContain("no third-party AI provider");
   });
 
-  it("lists the future improvements the ADRs name: a database, rolling-origin evaluation, follow-ups and Docker", () => {
+  it("lists the future improvements the ADRs name: a database, rolling-origin evaluation and follow-ups", () => {
     const future = (section("Future improvements") ?? "").toLowerCase();
-    expect(["database", "rolling-origin", "follow-up", "docker"].filter((item) => !future.includes(item))).toEqual([]);
+    expect(["database", "rolling-origin", "follow-up"].filter((item) => !future.includes(item))).toEqual([]);
   });
 
   it("shows the roles matrix of src/auth/roles.ts row for row, and no password (ADR 0012)", () => {
