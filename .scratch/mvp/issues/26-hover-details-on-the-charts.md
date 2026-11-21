@@ -39,6 +39,7 @@ _29 Cards, bars and rows open the orders behind them (and, through it, 28 Raw da
   - The tooltip's foot says so, e.g. "Click to view the 75 orders".
 - [ ] **Remove the native `title`s** this replaces, so two tooltips never show at once. Keep the plot's `aria-label` and the Data table.
 - [ ] **The recharts tooltips match.** Style the Ask answer chart's and the Forecast chart's tooltips the same way, with a custom content component or contentStyle and itemStyle. The Forecast range reads e.g. "13–177 units".
+- [ ] **Carried over from ticket 29: no link to an empty view.** On Carriers, DPD's delay-rate bar links to "DPD: view the 0 delayed orders" (`/data?status=delayed&carrier=DPD`), which opens an empty table. A bar, row or card whose count is 0 gets no link; it reads as before, with no arrow or "View" line. A test covers the DPD bar. The same rule covers a month with 0 orders in the charts above.
 - [ ] **Out of scope.** The ranked bars (region, warehouse, carriers) already print the value, n and on-time rate beside each bar. They get no hover.
 - [ ] **Tests.**
   - They use the golden numbers in `docs/design/README.md`: Jan 75 orders, Sep 18, Jun 15 of 18 and Nov 16 of 19 as small samples. A hovered month's outcome counts equal its Data table row.
