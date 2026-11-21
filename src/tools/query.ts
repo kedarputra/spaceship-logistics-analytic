@@ -273,7 +273,8 @@ function dimensionValue(order: Order, dimension: FilterDimension): string {
 
 const FILTER_DIMENSIONS: readonly FilterDimension[] = [...CATEGORY_DIMENSIONS, "sku"];
 
-function matchesFilters(order: Order, filters: QueryFilters): boolean {
+/** Whether an order passes a spec's filters: the one matching rule, which the Raw data page uses too (ticket 28). */
+export function matchesFilters(order: Order, filters: QueryFilters): boolean {
   return FILTER_DIMENSIONS.every((dimension) => {
     const allowed: readonly string[] | undefined = filters[dimension];
     return allowed === undefined || allowed.includes(dimensionValue(order, dimension));

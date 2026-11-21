@@ -11,6 +11,7 @@ const PAGES: readonly { href: string; label: string; icon: IconName }[] = [
   { href: "/delivery", label: "Delivery", icon: "truck" },
   { href: "/carriers", label: "Carriers", icon: "bars" },
   { href: "/forecast", label: "Forecast", icon: "trend" },
+  { href: "/data", label: "Raw data", icon: "table" },
 ];
 
 const LINK_CLASSES = "relative flex min-h-10 items-center gap-2.5 rounded-control px-3 whitespace-nowrap no-underline rail-collapsed:justify-center rail-collapsed:px-0";

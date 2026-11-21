@@ -55,6 +55,19 @@ const PATHS = {
       <path d="M15 7h6v6" />
     </>
   ),
+  table: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9.5h18M3 15h18M9 9.5V20" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l4.5 4.5" />
+    </>
+  ),
+  download: <path d="M12 4v11M7 10.5l5 4.5 5-4.5M5 20h14" />,
   info: (
     <>
       <circle cx="12" cy="12" r="9" />

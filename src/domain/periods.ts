@@ -179,6 +179,11 @@ export function monthKey(year: number, month: number): string {
   return addMonths(`${String(year).padStart(4, "0")}-01-01`, month - 1);
 }
 
+/** The first day of one month to the last day of another, each given as YYYY-MM: ("2025-03", "2025-05") → 1 Mar–31 May 2025. */
+export function monthsPeriod(fromMonth: string, toMonth: string): Period {
+  return { from: `${fromMonth}-01`, to: unitEnd(`${toMonth}-01`, "month") };
+}
+
 /** Whole months from the month starting on one key to the month starting on another: Jan → Mar is 2. */
 export function monthsBetween(fromKey: string, toKey: string): number {
   const months = (key: string) => Number(key.slice(0, 4)) * 12 + Number(key.slice(5, 7));

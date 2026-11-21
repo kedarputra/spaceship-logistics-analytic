@@ -41,6 +41,11 @@ export function formatMetricValue(value: number | null, unit: MetricDefinition["
   }
 }
 
+/** An amount in US dollars as a table shows it: 26.22 → "$26.22", 1234.5 → "$1,234.50". */
+export function formatUsd(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 /**
  * A forecast or an error in units, to 1 decimal on screen and 2 in an explanation: 95 → "95.0",
  * 1234.56 → "1,234.6". To 0 decimals for a plan read in whole units: 176.6 → "177".

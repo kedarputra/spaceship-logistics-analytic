@@ -13,15 +13,17 @@ function links(html: string): [string, boolean][] {
 }
 
 describe("the rail's menu (ADR 0011 §5, ticket 24)", () => {
-  it("lists the five pages, marking the current one for assistive technology (ticket 25)", () => {
+  it("lists the six pages, Raw data after Forecast, marking the current one for assistive technology (tickets 25, 28)", () => {
     expect(links(renderToStaticMarkup(<NavLinks pathname="/" />))).toEqual([
       ["Overview", true],
       ["Ask the data", false],
       ["Delivery", false],
       ["Carriers", false],
       ["Forecast", false],
+      ["Raw data", false],
     ]);
     expect(links(renderToStaticMarkup(<NavLinks pathname="/carriers" />)).filter(([, current]) => current)).toEqual([["Carriers", true]]);
+    expect(links(renderToStaticMarkup(<NavLinks pathname="/data" />)).filter(([, current]) => current)).toEqual([["Raw data", true]]);
   });
 });
 
@@ -49,6 +51,7 @@ describe("the rail, collapsed and expanded (ticket 27)", () => {
       ["Delivery", true],
       ["Carriers", false],
       ["Forecast", false],
+      ["Raw data", false],
     ]);
     // The names are hidden visually when collapsed, never from assistive technology.
     const linkMarkup = [...html.matchAll(/<a\b[^>]*>(.*?)<\/a>/gs)].map((match) => match[1] ?? "");
@@ -89,7 +92,11 @@ describe("the shell around every page", () => {
 
   it("names the product and the data it reads, computed from the dataset", () => {
     expect(text(html)).toContain("Logistics Analytics Order data, 2025");
-    expect(text(html)).toContain("Data mock_logistics_data.csv 400 orders · 1 Jan–31 Dec 2025 · read-only");
+    expect(text(html)).toMatch(/Data mock_logistics_data\.csv (mock_logistics_data\.csv )?400 orders · 1 Jan–31 Dec 2025 · read-only/);
     expect(text(html)).toContain("Gemma 4 12B on this server.");
+  });
+
+  it("links the data file's name to the orders in Raw data (ticket 28)", () => {
+    expect(html).toMatch(/<a [^>]*href="\/data"[^>]*>mock_logistics_data\.csv<\/a>/);
   });
 });

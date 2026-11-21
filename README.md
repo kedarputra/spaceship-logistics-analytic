@@ -14,7 +14,7 @@ npm ci
 npm run dev        # http://localhost:3000
 ```
 
-The dashboard pages (Overview, Delivery, Carriers and Forecast) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
+The dashboard pages (Overview, Delivery, Carriers, Forecast and Raw data) need nothing else: they read `data/mock_logistics_data.csv` and compute in code. Only the ask box needs an LLM. Without one it says AI is not configured, and the rest of the app works.
 
 To turn the ask box on, copy `.env.example` to `.env.local` and set these variables:
 
@@ -63,7 +63,7 @@ One Next.js 16 app (App Router): its route handlers are the backend, and there i
 | Folder | Holds | May import |
 |---|---|---|
 | `src/domain/` | The orders and their row schema, the KPI and metric definitions, period resolution, number formats | nothing else in `src/` |
-| `src/tools/` | The query spec (the whitelist), the query tool, the forecast tool, chart choice, the template sentences | `domain/` |
+| `src/tools/` | The query spec (the whitelist), the query tool, the forecast tool, chart choice, the template sentences, and the orders a Raw data view shows | `domain/` |
 | `src/ai/` | The model client, prompts, interpretation, phrasing, the number guard, the question cache | `tools/` |
 | `src/app/`, `src/components/` | Pages, route handlers, the rate-limit proxy, UI | everything above |
 
@@ -78,14 +78,16 @@ Dependencies point one way: `app/` and `components/` → `ai/` → `tools/` → 
 | `/delivery` | Delivery outcomes and the on-time delivery rate per month, and the average delivery time by region and by warehouse |
 | `/carriers` | All 9 carriers: the delay-rate chart, highlights, and a table with every metric |
 | `/forecast` | A forecast for the total or one category, warehouse or region, 1, 3 or 6 months ahead; the method comparison, the plan's arithmetic, and all 22 scopes side by side |
+| `/data` Raw data | The 400 orders as the file has them, read-only: filters by status, carrier, region, warehouse, category, promo, a month range by order or delivery date, and a search; a sort by any column, pages of 50, a summary of the rows shown, and a CSV download. Every view is a URL, such as `/data?status=delayed&carrier=FedEx` |
 
-The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. The pages follow ADR 0011: a dark rail with the five routes, three brand colours, and chart colours checked for colour-blind separation.
+The dashboard pages call `domain/` and the tools directly, without the LLM, so they work when the AI is down. Raw data reads its filters with the query spec's schema and picks rows with the query tool's own matching, so it counts the same orders an answer with the same filters counts. The pages follow ADR 0011: a dark rail with the six routes, three brand colours, and chart colours checked for colour-blind separation.
 
 | Endpoint | Does |
 |---|---|
 | `POST /api/ask {question}` | The full flow below. Questions up to 300 characters. |
 | `POST /api/run {spec}` | Runs a spec without the model, validated by the same schema. Follow-up chips and re-runs from the history use it. |
 | `GET /api/health` | Row count and anchor date; with `?ai=1`, the LLM's state and the model name. |
+| `GET /api/orders.csv?…` | The orders of a Raw data view, with the page's own parameters, as CSV: the file's header and raw values, all pages, in the view's sort. |
 
 ### From question to chart
 
@@ -128,7 +130,7 @@ Every answer has an explanation panel (R5): the interpretation in words, written
 | Bonus scope: history, cache, tests, ambiguity handling and a pipeline trace; Docker only if time is left | 0008 |
 | Our own LLM behind our gateway; one structured output; sentences checked by code | 0009 |
 | Self-hosted as a Windows service behind a Cloudflare Tunnel, deployed by a watchdog | 0010 (replaces 0007) |
-| Five pages, a dark rail and three brand colours | 0011 |
+| Six pages, a dark rail and three brand colours; Raw data filters with the query tool's own code | 0011 |
 
 ### Bonus items
 

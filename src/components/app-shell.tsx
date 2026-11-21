@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatCount } from "@/domain/format";
 import { DATASET_FILE, type Dataset } from "@/domain/orders";
@@ -53,7 +54,14 @@ export function AppShell({
               {/* Collapsed, the card shrinks to the AI dot; these words stay for screen readers. */}
               <div className="flex flex-col gap-2.5 rail-collapsed:sr-only">
                 <span className="text-label text-rail-muted uppercase">Data</span>
-                <span className="text-small font-medium text-panel">{DATASET_FILE}</span>
+                {/* The file's name opens its rows (ticket 28). Collapsed, the link would take focus unseen, so only the words stay. */}
+                <Link
+                  href="/data"
+                  className="self-start text-small font-medium text-panel underline decoration-panel/30 underline-offset-[3px] hover:text-panel hover:decoration-panel rail-collapsed:hidden"
+                >
+                  {DATASET_FILE}
+                </Link>
+                <span className="hidden rail-collapsed:inline">{DATASET_FILE}</span>
                 <span className="text-note text-rail-muted">{`${formatCount(dataset.orders.length)} orders · ${formatPeriod(period)} · read-only`}</span>
                 <div className="h-px bg-panel/8" />
               </div>

@@ -65,6 +65,28 @@ export function parseOrders(csv: string): Order[] {
   });
 }
 
+/** The file's columns, in its order. */
+const ORDER_COLUMNS = orderRowSchema.keyof().options;
+
+/** A value as the file writes it: an empty cell for no date, 1 or 0 for promo, numbers without padding. */
+function rawValue(order: Order, column: keyof Order): string {
+  const value = order[column];
+  if (value === null) return "";
+  if (typeof value === "boolean") return value ? "1" : "0";
+  return String(value);
+}
+
+/** A CSV field, quoted only when it holds a comma, a quote or a line break, as the file quotes its cities. */
+function csvField(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+}
+
+/** Orders as CSV in the file's own form: its header, then each order's raw values. The way back from parseOrders. */
+export function ordersCsv(orders: readonly Order[]): string {
+  const lines = [ORDER_COLUMNS.join(","), ...orders.map((order) => ORDER_COLUMNS.map((column) => csvField(rawValue(order, column))).join(","))];
+  return `${lines.join("\n")}\n`;
+}
+
 /** Reads and validates a dataset file. Read-only: nothing here writes to data/. */
 export function loadDataset(filePath: string): Dataset {
   const orders = parseOrders(readFileSync(filePath, "utf8"));

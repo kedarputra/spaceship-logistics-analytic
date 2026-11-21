@@ -7,7 +7,7 @@ The brief asks for an app that lets users "explore logistics data", with "access
 **Blocked by:** 27
 _27 The rail: full height, and collapsible to icons_
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] **Rail and records.**
   - The rail gains "Raw data" with a table icon, after Forecast. It works in both rail states (ticket 27).
@@ -56,3 +56,5 @@ _27 The rail: full height, and collapsible to icons_
   - In headless Edge at 1280 px and 320 px, with filters applied: the page never scrolls sideways, and the header row and Order ID column stay in view.
 
 ## Comments
+
+- 2026-11-21: Raw data at /data: the 400 orders read-only with the query spec's filters (matched by the query tool's matchesFilters), month range, search, sort, pages of 50, a KPI summary and GET /api/orders.csv. Rail entry and data-file link. ADR 0011 §5 amended, README updated. 604 tests; checked in headless Edge at 1280 and 320 px, with and without script.

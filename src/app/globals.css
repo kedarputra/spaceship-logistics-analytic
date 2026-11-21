@@ -55,6 +55,9 @@
   --color-mark-exception: #b4533a;
   --color-mark-small: #f6d3a1;
   --color-forecast-line: #c27a16;
+  /* The two statuses that are not delivery outcomes, the same values as STATUS_MARKS in palette.ts */
+  --color-mark-in-transit: #2f6fae;
+  --color-mark-canceled: #d27bae;
 
   --radius-card: 12px;
   --radius-control: 8px;

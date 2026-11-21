@@ -30,6 +30,8 @@ The design was drawn on a canvas and exported to `docs/design/` (see its README)
    - **Active item:** an amber bar and an amber tint.
    - **Rail footer:** the data source, and the AI status from `/api/health?ai=1`.
    - **Narrow screens:** the rail stacks above the content.
+
+   *Amended 21 Nov 2026 (ticket 28):* six routes. The sixth, Raw data `/data`, is the file's 400 orders as a read-only table with filters, a sort, pages of 50, a summary of the rows shown and a CSV download (`/api/orders.csv`); the rail's data file name links to it. Its filters are the query spec's (`filtersSchema`, ADR 0006) and pick rows with the query tool's own `matchesFilters`, so a view and an answer with the same filters count the same orders. The summary comes from `dashboardKpis`, as §6 requires. Every view is a URL, such as `/data?status=delayed&carrier=FedEx`.
 6. **No new arithmetic.** Every figure on every page comes from `domain/definitions` and the tools, as before. Pages add views, never new computation paths. A figure that needs a new metric adds it to `definitions.ts`, with a test.
 7. **Name.** The app stays "Logistics Analytics", with no logo or branding of the company the assessment is for.
 
