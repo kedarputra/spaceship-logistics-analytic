@@ -25,8 +25,8 @@ _35 Import data (admin): check a CSV, then view the whole app on it, for this se
   - "Run with Docker" with the two commands, the environment variables, and the note that Ask needs an OpenAI-compatible gateway.
   - Remove "Docker is not included" and the Future improvements line.
   - ADR 0008 §6 gets a dated note.
-- [ ] **Checks.** `npm run check` passes; the CI `docker` job is green on the push.
-  - Open until the first CI run after the push: `npm run check` passes here, but the `docker` job has not run yet.
+- [x] **Checks.** `npm run check` passes; the CI `docker` job is green on the push.
+  - 2026-11-22: green. d8a2a78 was pushed together with 5b00090, so CI #31 ran on 5b00090 with the `docker` job included, and passed; CI #32 (3cdf5fb) passed too.
 
 ## Comments
 
@@ -61,3 +61,4 @@ _35 Import data (admin): check a CSV, then view the whole app on it, for this se
     - **The health check's command** exits 0 on the live port, and 1 on a dead one or a non-2xx answer.
     - **The server wrote nothing** in its folder.
     It ran on this PC's Node 24, while the image runs 22. The workflow parses as YAML, and each step passes `bash -n`.
+- 2026-11-22: the CI `docker` job is green: CI #31 (head 5b00090, which carries d8a2a78) and CI #32 (3cdf5fb) both passed, checked by Kedar in GitHub Actions. Checks box ticked.
