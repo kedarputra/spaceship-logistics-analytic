@@ -21,7 +21,7 @@
 - [ ] Rate limits answer 429 above 20 requests per minute on `/api/ask` and 120 per minute on `/api/*`.
 - [ ] The gateway key file is outside the repo and readable only by the server account and LocalService; no key is in the repo or its history.
 - [ ] UptimeRobot keyword check (`"rows":400` on `/api/health`, every 5 minutes) is active, and its phone app and email alerts have fired once in a test.
-- [ ] The scheduled GitHub Actions uptime workflow has run green at least once against `https://wms.nalabs.ai`.
+- [x] The scheduled GitHub Actions uptime workflow has run green at least once against `https://wms.nalabs.ai`. (Uptime #1, scheduled, 21 Nov 2026 21:44 WIB.)
 - [ ] Review window started (`docs/runbook.md`): Windows Update paused, the chat model frozen at `gemma12`, no heavy GPU work, long jobs held back.
 - [ ] The README and the email carry the hosting sentence from ADR 0010, word for word.
 - [ ] Every example question in R3 and R9 works on the deployed app.
