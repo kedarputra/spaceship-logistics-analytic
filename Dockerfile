@@ -24,11 +24,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 # What the server reads from disk: its config (serverExternalPackages, the proxy's body limit), the build,
-# the dataset (ADR 0005), and the fonts the report PDF embeds. The repo has no public/ folder. All of it
+# the dataset (ADR 0005), and the fonts and mark the report PDF embeds. The repo has no public/ folder. All of it
 # stays root's, so the server cannot change it; as on the server (ADR 0010), it may write only .next/cache.
 COPY next.config.ts ./
 COPY data ./data
 COPY assets/fonts ./assets/fonts
+COPY assets/wms-mark.png ./assets/wms-mark.png
 COPY --from=build /app/.next ./.next
 RUN mkdir -p .next/cache && chown node:node .next/cache
 USER node

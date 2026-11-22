@@ -19,12 +19,23 @@ import type { MonthlyReport } from "@/tools/report";
 export const APP_NAME = "Logistics Analytics";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts", "figtree");
+/** The product's mark (scripts/brand-assets.mts), drawn at the header's right. */
+const MARK = path.join(process.cwd(), "assets", "wms-mark.png");
+const MARK_SIZE = 40;
 let figtree: { regular: Buffer; bold: Buffer } | undefined;
 
 /** The two weights the report uses, read from disk once. */
 function fonts(): { regular: Buffer; bold: Buffer } {
   figtree ??= { regular: readFileSync(path.join(FONT_DIR, "Figtree-Regular.ttf")), bold: readFileSync(path.join(FONT_DIR, "Figtree-Bold.ttf")) };
   return figtree;
+}
+
+let mark: Buffer | undefined;
+
+/** The mark's PNG, read from disk once. */
+function markPng(): Buffer {
+  mark ??= readFileSync(MARK);
+  return mark;
 }
 
 export function reportPdfName(month: string): string {
@@ -219,6 +230,7 @@ function drawSection(doc: Doc, report: MonthlyReport, section: ReportSection, x:
 }
 
 function drawHeader(doc: Doc, report: MonthlyReport, context: PdfContext, x: number, y: number, width: number): number {
+  doc.image(markPng(), x + width - MARK_SIZE, y, { width: MARK_SIZE, height: MARK_SIZE });
   setText(doc, "bold", SIZE.label, PRINT_INK.muted);
   doc.text(APP_NAME.toUpperCase(), x, y, { lineBreak: false, characterSpacing: 0.6 });
   setText(doc, "bold", SIZE.title, PRINT_INK.ink);

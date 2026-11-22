@@ -36,6 +36,11 @@ function importSpecifiers(source: string): string[] {
   return IMPORT_PATTERNS.flatMap((pattern) => [...source.matchAll(pattern)].map((match) => match[1] ?? ""));
 }
 
+// An image in the repository's assets/ folder (the product's mark) is a file, not a layer: the
+// presentation layer may import it, as Next serves imported images from the build.
+const ASSET_IMAGE = /^\.\.\/assets\/[^/]+\.(?:png|svg)$/;
+const PRESENTATION: readonly Layer[] = ["components", "app"];
+
 // Next's request proxy must sit beside app/, so src/proxy.ts (and its test) belongs to the app layer.
 const APP_ROOT_FILES = /^proxy(\.test)?(\.ts)?$/;
 
@@ -63,6 +68,7 @@ function findViolations(files: readonly SourceFile[]): string[] {
     for (const specifier of importSpecifiers(file.source)) {
       const target = targetInSrc(file.path, specifier);
       if (target === undefined) continue;
+      if (ASSET_IMAGE.test(target) && PRESENTATION.includes(from)) continue;
       const to = layerOf(target);
       if (to === undefined) {
         violations.push(`${file.path} imports "${specifier}", which is outside the layer folders`);
@@ -153,5 +159,11 @@ describe("dependency rule (ADR 0004)", () => {
       { path: "src/domain/orders.ts", source: 'import data from "../../data/extra.json";' },
     ];
     expect(findViolations(files)).toHaveLength(2);
+  });
+
+  it("lets the presentation layer import an image from assets/, and nothing below it", () => {
+    expect(findViolations([{ path: "src/components/brand-mark.tsx", source: 'import mark from "../../assets/wms-mark.png";' }])).toEqual([]);
+    expect(findViolations([{ path: "src/domain/orders.ts", source: 'import mark from "../../assets/wms-mark.png";' }])).toHaveLength(1);
+    expect(findViolations([{ path: "src/components/x.tsx", source: 'import code from "../../assets/x.ts";' }])).toHaveLength(1);
   });
 });

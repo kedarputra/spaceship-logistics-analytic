@@ -51,6 +51,8 @@ declare module "pdfkit" {
     text(text: string, x?: number, y?: number, options?: TextOptions): this;
     widthOfString(text: string, options?: TextOptions): number;
     currentLineHeight(includeGap?: boolean): number;
+    /** A PNG or JPEG, from a file path or its bytes, scaled to `width` × `height` points. */
+    image(src: string | Uint8Array, x: number, y: number, options?: { width?: number; height?: number }): this;
     rect(x: number, y: number, width: number, height: number): this;
     roundedRect(x: number, y: number, width: number, height: number, radius: number): this;
     moveTo(x: number, y: number): this;

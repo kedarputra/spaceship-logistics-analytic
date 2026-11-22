@@ -22,8 +22,8 @@ describe("Dockerfile", () => {
     expect(runtime).toMatch(/^HEALTHCHECK .*\\\n.*\/api\/health/m);
   });
 
-  it("copies into the runtime stage what the server reads from disk: its config, the build, the dataset and the report's fonts", () => {
-    const copies = ["COPY next.config.ts ./", "/app/.next ./.next", "COPY data ./data", "COPY assets/fonts ./assets/fonts"];
+  it("copies into the runtime stage what the server reads from disk: its config, the build, the dataset, and the report's fonts and mark", () => {
+    const copies = ["COPY next.config.ts ./", "/app/.next ./.next", "COPY data ./data", "COPY assets/fonts ./assets/fonts", "COPY assets/wms-mark.png ./assets/wms-mark.png"];
     if (existsSync("public")) copies.push("COPY public ./public");
     expect(copies.filter((copy) => !runtime.includes(copy))).toEqual([]);
   });

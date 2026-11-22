@@ -6,7 +6,7 @@ import { formatCount } from "@/domain/format";
 import type { ActiveDataset } from "@/domain/orders";
 import { dataPeriod, formatPeriod, formatYears } from "@/domain/periods";
 import { LiveRailAiStatus } from "./ai-status";
-import { Icon } from "./icons";
+import { BrandMark } from "./brand-mark";
 import { ImportBanner } from "./import-banner";
 import { Rail } from "./rail";
 import { RailAccount } from "./rail-account";
@@ -49,9 +49,7 @@ export function AppShell({
           initiallyCollapsed={railCollapsed}
           brand={
             <div className="flex items-center gap-2.5 px-2 py-1">
-              <span className="grid size-[34px] shrink-0 place-items-center rounded-control bg-sage/16 text-sage">
-                <Icon name="box" size={20} />
-              </span>
+              <BrandMark />
               <span className="flex flex-col whitespace-nowrap">
                 <span className="text-card-title text-panel">Logistics Analytics</span>
                 <span className="text-note text-rail-muted">{`Order data, ${formatYears(period)}`}</span>
