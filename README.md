@@ -3,7 +3,7 @@
 An AI-powered analytics dashboard for a logistics client, built as Spaceship's AI Engineer technical assessment. It shows KPIs and charts over one CSV of 400 orders, answers questions asked in plain language, and forecasts demand. The model reads the question and words the answer; code computes every number.
 
 - **Live app:** [wms.nalabs.ai](https://wms.nalabs.ai). Sign in with the test accounts in the submission email, one per role (see [Access and roles](#access-and-roles)).
-- **Loom walkthrough:** _added at submission_
+- **Loom walkthrough:** [the walkthrough](https://www.loom.com/share/e92c417dbdb4479b8677d30b18faeca7) (5 minutes), and [a short follow-up on the exports](https://www.loom.com/share/a5dea162709d4471ad6f1fb456e262ca) (1.5 minutes).
 
 ## Setup
 

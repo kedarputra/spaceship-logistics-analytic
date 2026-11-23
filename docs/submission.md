@@ -26,9 +26,9 @@
 - [ ] The README and the email carry the hosting sentence from ADR 0010, word for word.
 - [ ] Every example question in R3 and R9 works on the deployed app.
 - [ ] The README covers every R12 item and has the AI usage section (R14).
-- [ ] No secrets in the repository or its git history.
+- [x] No secrets in the repository or its git history. (23 Nov 2026: every commit searched for the three test passwords, the sign-in secret, the gateway key, the stored password hashes and common key patterns; none found, and no env or key file was ever tracked beyond the two `.env.example` files.)
 - [ ] Reviewers can open the repository: public, or access granted to the addresses in Spaceship's email.
-- [ ] The Loom is set to "anyone with the link can view".
+- [x] The Loom is set to "anyone with the link can view". (Two videos, both public: the walkthrough, 5:02, and a follow-up on the exports, 1:32; linked in the README.)
 - [ ] Reply-all to Spaceship's email: repository link, deployed URL, the three test accounts, Loom link (see [The email](#the-email)).
 
 ## The email
