@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Session } from "@/auth/session";
 import { DATASET_FILE, IMPORT_LIMITS } from "@/domain/orders";
 import { createImportStore, type ImportStore } from "../../import-store";
@@ -22,10 +22,16 @@ let store: ImportStore;
 let limiter: ImportLimiter;
 let logged: string[];
 beforeEach(() => {
+  // The store reads the clock itself, so the clock is NOW here too: on the real one, every session
+  // above has ended once 22 Nov 2026 11:00 UTC has passed, and the store would keep no import.
+  // Only Date: the uploads' streams still need real timers.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
   store = createImportStore();
   limiter = createImportLimiter();
   logged = [];
 });
+afterEach(() => vi.useRealTimers());
 
 type Body = string | Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>;
 
